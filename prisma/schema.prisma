@@ -1,0 +1,218 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum ServiceOrderStatus {
+  RECEIVED
+  IN_ANALYSIS
+  AWAITING_APPROVAL
+  BUDGET_CHANGED_AWAITING_APPROVAL
+  BUDGET_APPROVED
+  BUDGET_REJECTED
+  IN_MAINTENANCE
+  FINISHED
+  AWAITING_PICKUP
+  DELIVERED
+  CANCELLED
+}
+
+enum StockMovementType {
+  ENTRY
+  EXIT
+  ADJUSTMENT
+}
+
+enum UserRole {
+  ADMIN
+  RECEPTION
+  TECHNICIAN
+}
+
+model Customer {
+  id            String         @id @default(uuid())
+  name          String
+  phone         String
+  email         String?        @unique
+  zipCode       String?
+  address       String?
+  active        Boolean        @default(true)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  equipments    Equipment[]
+  serviceOrders ServiceOrder[]
+}
+
+model Equipment {
+  id           String   @id @default(uuid())
+  type         String
+  brand        String
+  model        String
+  serialNumber String?  @unique
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id])
+
+  serviceOrders ServiceOrder[]
+}
+
+model ServiceOrder {
+  id     String @id @default(uuid())
+  number Int    @unique @default(autoincrement())
+
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id])
+
+  reportedIssue String
+  diagnosis     String?
+  password      String?
+  status        ServiceOrderStatus @default(RECEIVED)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  equipmentId String
+  equipment   Equipment @relation(fields: [equipmentId], references: [id])
+
+  userId String?
+  user   User?   @relation(fields: [userId], references: [id])
+
+  accessories           Accessory[]
+  budgets               Budget[]
+  serviceOrderHistories ServiceOrderHistory[]
+  stockMovements        StockMovement[]
+
+  @@index([status])
+  @@index([createdAt])
+  @@index([customerId])
+  @@index([equipmentId])
+}
+
+model ServiceOrderHistory {
+  id             String             @id @default(uuid())
+  previousStatus ServiceOrderStatus
+  newStatus      ServiceOrderStatus
+  observation    String?
+  createdAt      DateTime           @default(now())
+  serviceOrderId String
+  serviceOrder   ServiceOrder       @relation(fields: [serviceOrderId], references: [id])
+  userId         String?
+  user           User?              @relation(fields: [userId], references: [id])
+}
+
+model User {
+  id String @id @default(uuid())
+
+  name     String
+  login    String   @unique
+  password String
+  role     UserRole
+
+  active Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  serviceOrders         ServiceOrder[]
+  serviceOrderHistories ServiceOrderHistory[]
+  stockMovements        StockMovement[]
+}
+
+model Accessory {
+  id String @id @default(uuid())
+
+  description String
+  quantity    Int
+  observation String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  serviceOrderId String
+  serviceOrder   ServiceOrder @relation(fields: [serviceOrderId], references: [id])
+}
+
+model Budget {
+  id String @id @default(uuid())
+
+  version    Int
+  totalValue Decimal @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  serviceOrderId String
+  serviceOrder   ServiceOrder @relation(fields: [serviceOrderId], references: [id])
+
+  budgetItems BudgetItem[]
+
+  @@index([serviceOrderId])
+}
+
+model Part {
+  id String @id @default(uuid())
+
+  name         String
+  brand        String
+  currentPrice Decimal
+  stock        Int     @default(0)
+  supplier     String?
+
+  active Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  budgetItems    BudgetItem[]
+  stockMovements StockMovement[]
+}
+
+model StockMovement {
+  id       String            @id @default(uuid())
+  type     StockMovementType
+  quantity Int
+  reason   String?
+
+  createdAt DateTime @default(now())
+
+  partId String
+  part   Part   @relation(fields: [partId], references: [id])
+
+  serviceOrderId String?
+  serviceOrder   ServiceOrder? @relation(fields: [serviceOrderId], references: [id])
+
+  userId String?
+  user   User?   @relation(fields: [userId], references: [id])
+
+  @@index([partId])
+  @@index([serviceOrderId])
+  @@index([createdAt])
+}
+
+model BudgetItem {
+  id String @id @default(uuid())
+
+  quantity  Int
+  unitPrice Decimal
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  budgetId String
+  budget   Budget @relation(fields: [budgetId], references: [id])
+
+  partId String
+  part   Part   @relation(fields: [partId], references: [id])
+}

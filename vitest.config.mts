@@ -1,0 +1,14 @@
+import { defineConfig } from "vitest/config";
+
+export default defineConfig({
+  test: {
+    include: ["tests/**/*.spec.ts"],
+    globals: true,
+    environment: "node",
+    setupFiles: ["./tests/setup.ts"],
+    globalSetup: ["./tests/globalSetup.ts"],
+    sequence: {
+      hooks: "list",
+    },
+  },
+});

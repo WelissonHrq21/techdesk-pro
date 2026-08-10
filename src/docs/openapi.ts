@@ -1,0 +1,290 @@
+export const openApiDocument = {
+  openapi: "3.0.3",
+  info: {
+    title: "TechDesk Pro API",
+    version: "1.0.0",
+    description: "API for technical assistance management",
+  },
+  servers: [
+    {
+      url: "http://localhost:3333",
+      description: "Development",
+    },
+  ],
+  tags: [
+    { name: "Sessions" },
+    { name: "Users" },
+    { name: "Customers" },
+    { name: "Equipments" },
+    { name: "Service Orders" },
+    { name: "Budgets" },
+    { name: "Parts" },
+    { name: "Stock" },
+    { name: "Dashboard" },
+    { name: "Health" },
+  ],
+  components: {
+    securitySchemes: {
+      bearerAuth: {
+        type: "http",
+        scheme: "bearer",
+        bearerFormat: "JWT",
+      },
+    },
+    schemas: {
+      ApiError: {
+        type: "object",
+        properties: {
+          message: { type: "string" },
+        },
+      },
+      ValidationError: {
+        type: "object",
+        properties: {
+          message: { type: "string", example: "Validation failed" },
+          errors: { type: "array", items: { type: "object" } },
+        },
+      },
+      PaginationMeta: {
+        type: "object",
+        properties: {
+          page: { type: "integer", example: 1 },
+          limit: { type: "integer", example: 20 },
+          total: { type: "integer", example: 143 },
+          totalPages: { type: "integer", example: 8 },
+        },
+      },
+      User: {
+        type: "object",
+        properties: {
+          id: { type: "string", format: "uuid" },
+          name: { type: "string" },
+          login: { type: "string" },
+          role: {
+            type: "string",
+            enum: ["ADMIN", "RECEPTION", "TECHNICIAN"],
+          },
+          active: { type: "boolean" },
+          createdAt: { type: "string", format: "date-time" },
+          updatedAt: { type: "string", format: "date-time" },
+        },
+      },
+      Customer: {
+        type: "object",
+        properties: {
+          id: { type: "string", format: "uuid" },
+          name: { type: "string" },
+          phone: { type: "string" },
+          email: { type: "string", nullable: true },
+          active: { type: "boolean" },
+        },
+      },
+      Equipment: {
+        type: "object",
+        properties: {
+          id: { type: "string", format: "uuid" },
+          type: { type: "string" },
+          brand: { type: "string" },
+          model: { type: "string" },
+          serialNumber: { type: "string", nullable: true },
+        },
+      },
+      ServiceOrder: {
+        type: "object",
+        properties: {
+          id: { type: "string", format: "uuid" },
+          number: { type: "integer" },
+          status: {
+            type: "string",
+            enum: [
+              "RECEIVED",
+              "IN_ANALYSIS",
+              "AWAITING_APPROVAL",
+              "BUDGET_CHANGED_AWAITING_APPROVAL",
+              "BUDGET_APPROVED",
+              "BUDGET_REJECTED",
+              "IN_MAINTENANCE",
+              "FINISHED",
+              "AWAITING_PICKUP",
+              "DELIVERED",
+              "CANCELLED",
+            ],
+          },
+          reportedIssue: { type: "string" },
+          createdAt: { type: "string", format: "date-time" },
+          updatedAt: { type: "string", format: "date-time" },
+        },
+      },
+      Budget: {
+        type: "object",
+        properties: {
+          id: { type: "string", format: "uuid" },
+          version: { type: "integer" },
+          totalValue: { type: "string" },
+          serviceOrderId: { type: "string", format: "uuid" },
+        },
+      },
+      BudgetItem: {
+        type: "object",
+        properties: {
+          id: { type: "string", format: "uuid" },
+          partId: { type: "string", format: "uuid" },
+          quantity: { type: "integer" },
+          unitPrice: { type: "string" },
+        },
+      },
+      Part: {
+        type: "object",
+        properties: {
+          id: { type: "string", format: "uuid" },
+          name: { type: "string" },
+          brand: { type: "string" },
+          currentPrice: { type: "string" },
+          stock: { type: "integer" },
+          supplier: { type: "string", nullable: true },
+        },
+      },
+      StockMovement: {
+        type: "object",
+        properties: {
+          id: { type: "string", format: "uuid" },
+          type: { type: "string", enum: ["ENTRY", "EXIT", "ADJUSTMENT"] },
+          quantity: { type: "integer" },
+          reason: { type: "string", nullable: true },
+          createdAt: { type: "string", format: "date-time" },
+        },
+      },
+    },
+  },
+  security: [{ bearerAuth: [] }],
+  paths: {
+    "/health": {
+      get: {
+        tags: ["Health"],
+        security: [],
+        summary: "Liveness check",
+        responses: { "200": { description: "Process is alive" } },
+      },
+    },
+    "/ready": {
+      get: {
+        tags: ["Health"],
+        security: [],
+        summary: "Readiness check",
+        responses: {
+          "200": { description: "Application is ready" },
+          "503": { description: "Application is not ready" },
+        },
+      },
+    },
+    "/sessions": {
+      post: {
+        tags: ["Sessions"],
+        security: [],
+        summary: "Authenticate user",
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                required: ["login", "password"],
+                properties: {
+                  login: { type: "string" },
+                  password: { type: "string" },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          "200": { description: "Authenticated" },
+          "401": { description: "Invalid login or password" },
+        },
+      },
+    },
+    "/me": {
+      get: {
+        tags: ["Sessions"],
+        summary: "Get authenticated profile",
+        responses: { "200": { description: "Profile" }, "401": { description: "Unauthorized" } },
+      },
+    },
+    "/users": {
+      get: { tags: ["Users"], summary: "List users. Roles: ADMIN", responses: { "200": { description: "Users" } } },
+      post: { tags: ["Users"], summary: "Create user. Roles: ADMIN", responses: { "201": { description: "User created" } } },
+    },
+    "/users/{id}": {
+      get: { tags: ["Users"], summary: "Get user. Roles: ADMIN", parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }], responses: { "200": { description: "User" } } },
+      put: { tags: ["Users"], summary: "Update user. Roles: ADMIN", parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }], responses: { "200": { description: "User updated" } } },
+      delete: { tags: ["Users"], summary: "Deactivate user. Roles: ADMIN", parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }], responses: { "200": { description: "User deactivated" } } },
+    },
+    "/customers": {
+      get: { tags: ["Customers"], summary: "List customers. Roles: ADMIN, RECEPTION, TECHNICIAN", responses: { "200": { description: "Paginated customers" } } },
+      post: { tags: ["Customers"], summary: "Create customer. Roles: ADMIN, RECEPTION", responses: { "201": { description: "Customer created" } } },
+    },
+    "/customers/{id}": {
+      get: { tags: ["Customers"], summary: "Get customer", parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }], responses: { "200": { description: "Customer" } } },
+      put: { tags: ["Customers"], summary: "Update customer. Roles: ADMIN, RECEPTION", parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }], responses: { "200": { description: "Customer updated" } } },
+      delete: { tags: ["Customers"], summary: "Deactivate customer. Roles: ADMIN", parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }], responses: { "200": { description: "Customer deactivated" } } },
+    },
+    "/equipments": {
+      get: { tags: ["Equipments"], summary: "List equipments. Roles: ADMIN, RECEPTION, TECHNICIAN", responses: { "200": { description: "Paginated equipments" } } },
+      post: { tags: ["Equipments"], summary: "Create equipment. Roles: ADMIN, RECEPTION", responses: { "201": { description: "Equipment created" } } },
+    },
+    "/equipments/{id}": {
+      get: { tags: ["Equipments"], summary: "Get equipment", parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }], responses: { "200": { description: "Equipment" } } },
+      put: { tags: ["Equipments"], summary: "Update equipment. Roles: ADMIN, RECEPTION", parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }], responses: { "200": { description: "Equipment updated" } } },
+      delete: { tags: ["Equipments"], summary: "Deactivate equipment. Roles: ADMIN", parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }], responses: { "200": { description: "Equipment deactivated" } } },
+    },
+    "/service-orders": {
+      get: { tags: ["Service Orders"], summary: "List service orders with filters. Roles: ADMIN, RECEPTION, TECHNICIAN", responses: { "200": { description: "Paginated service orders" } } },
+      post: { tags: ["Service Orders"], summary: "Create service order. Roles: ADMIN, RECEPTION, TECHNICIAN", responses: { "201": { description: "Service order created" } } },
+    },
+    "/service-orders/{id}": {
+      get: { tags: ["Service Orders"], summary: "Get service order detail", parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }], responses: { "200": { description: "Service order" } } },
+    },
+    "/service-orders/{id}/status": {
+      patch: { tags: ["Service Orders"], summary: "Change service order status. Roles depend on transition", parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }], responses: { "200": { description: "Status changed" } } },
+    },
+    "/service-orders/{id}/diagnosis": {
+      patch: { tags: ["Service Orders"], summary: "Update diagnosis. Roles: ADMIN, TECHNICIAN", parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }], responses: { "200": { description: "Diagnosis updated" } } },
+    },
+    "/service-orders/{id}/budgets": {
+      post: { tags: ["Budgets"], summary: "Create budget. Roles: ADMIN, TECHNICIAN", parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }], responses: { "201": { description: "Budget created" } } },
+    },
+    "/service-orders/{id}/budgets/revision": {
+      post: { tags: ["Budgets"], summary: "Create budget revision. Roles: ADMIN, TECHNICIAN", parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }], responses: { "201": { description: "Budget revision created" } } },
+    },
+    "/budgets/{id}/approve": {
+      post: { tags: ["Budgets"], summary: "Approve budget. Roles: ADMIN, RECEPTION", parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }], responses: { "200": { description: "Budget approved" } } },
+    },
+    "/budgets/{id}/reject": {
+      post: { tags: ["Budgets"], summary: "Reject budget. Roles: ADMIN, RECEPTION", parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }], responses: { "200": { description: "Budget rejected" } } },
+    },
+    "/service-orders/{id}/parts/{partId}/consume": {
+      post: { tags: ["Stock"], summary: "Consume part in service order. Roles: ADMIN, TECHNICIAN", parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }, { name: "partId", in: "path", required: true, schema: { type: "string", format: "uuid" } }], responses: { "201": { description: "Part consumed" } } },
+    },
+    "/parts": {
+      get: { tags: ["Parts"], summary: "List parts. Roles: ADMIN, RECEPTION, TECHNICIAN", responses: { "200": { description: "Paginated parts" } } },
+      post: { tags: ["Parts"], summary: "Create part. Roles: ADMIN", responses: { "201": { description: "Part created" } } },
+    },
+    "/parts/{id}": {
+      get: { tags: ["Parts"], summary: "Get part", parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }], responses: { "200": { description: "Part" } } },
+      put: { tags: ["Parts"], summary: "Update part. Roles: ADMIN", parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }], responses: { "200": { description: "Part updated" } } },
+      delete: { tags: ["Parts"], summary: "Deactivate part. Roles: ADMIN", parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }], responses: { "200": { description: "Part deactivated" } } },
+    },
+    "/parts/{id}/stock/entry": {
+      post: { tags: ["Stock"], summary: "Create stock entry. Roles: ADMIN", parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }], responses: { "201": { description: "Stock entry created" } } },
+    },
+    "/parts/{id}/stock/exit": {
+      post: { tags: ["Stock"], summary: "Create manual stock exit. Roles: ADMIN", parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }], responses: { "201": { description: "Stock exit created" } } },
+    },
+    "/parts/{id}/stock-movements": {
+      get: { tags: ["Stock"], summary: "List stock movements. Roles: ADMIN, RECEPTION, TECHNICIAN", parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }], responses: { "200": { description: "Stock movements" } } },
+    },
+    "/dashboard/summary": {
+      get: { tags: ["Dashboard"], summary: "Get dashboard summary. Roles: ADMIN, RECEPTION, TECHNICIAN", responses: { "200": { description: "Dashboard summary" } } },
+    },
+  },
+};
