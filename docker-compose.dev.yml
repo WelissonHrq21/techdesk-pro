@@ -1,0 +1,25 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: techdesk-postgres-dev
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: techdesk
+    ports:
+      - "5433:5432"
+    volumes:
+      - techdesk_pgdata_dev:/var/lib/postgresql/data
+
+  adminer:
+    image: adminer
+    container_name: techdesk-adminer-dev
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    depends_on:
+      - postgres
+
+volumes:
+  techdesk_pgdata_dev:

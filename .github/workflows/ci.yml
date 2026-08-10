@@ -26,9 +26,12 @@ jobs:
     env:
       DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/techdesk?schema=public
       DATABASE_URL_TEST: postgresql://postgres:postgres@127.0.0.1:5432/techdesk_test?schema=public
+      NODE_ENV: test
+      PORT: 3333
       JWT_SECRET: ci-secret-with-at-least-thirty-two-characters
       JWT_EXPIRES_IN: 8h
       CORS_ORIGIN: http://localhost:5173
+      SWAGGER_ENABLED: "true"
       LOG_LEVEL: silent
 
     steps:
@@ -38,7 +41,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24
           cache: npm
 
       - name: Install dependencies
@@ -50,5 +53,14 @@ jobs:
       - name: Typecheck
         run: npm run typecheck
 
+      - name: Build application
+        run: npm run build
+
       - name: Run tests
         run: npm test
+
+      - name: Audit production dependencies
+        run: npm audit --omit=dev --audit-level=high || true
+
+      - name: Build Docker image
+        run: docker build -t techdesk-pro-api:test .

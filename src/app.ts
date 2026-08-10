@@ -5,7 +5,7 @@ import { env } from "./config/env";
 import { customerRouter } from "./routes/customer.routes";
 import { dashboardRouter } from "./routes/dashboard.routes";
 import { docsRouter } from "./routes/docs.routes";
-import { equipmentRouter } from "./routes/equipment.routes"
+import { equipmentRouter } from "./routes/equipment.routes";
 import { errorHandler } from "./middlewares/errorHandler";
 import { httpLogger } from "./middlewares/httpLogger";
 import { ensureAuthenticated } from "./middlewares/ensureAuthenticated";
@@ -28,7 +28,11 @@ app.use(express.json({
 }));
 app.use(httpLogger);
 app.use(healthRouter);
-app.use(docsRouter);
+
+if (env.SWAGGER_ENABLED) {
+  app.use(docsRouter);
+}
+
 app.use(sessionRouter);
 
 const privateRoutePrefixes = [

@@ -105,3 +105,27 @@ The MVP uses case-insensitive contains filters for global search. If data volume
 ## ADR-018 - Delivered today comes from history
 
 The dashboard counts deliveredToday using ServiceOrderHistory entries with newStatus DELIVERED. This preserves the meaning of delivery even if other timestamps change.
+
+---
+
+## ADR-019 - Production containers run migrations before starting the API
+
+For the MVP, the API container runs `prisma migrate deploy` in `docker-entrypoint.sh` before starting Node. This keeps the application from starting against an incompatible schema. In a scaled environment with multiple API replicas, migrations should become a separate deploy step or one-off job to avoid concurrent migration attempts.
+
+---
+
+## ADR-020 - Seed is a manual bootstrap step
+
+The production container does not run seed automatically on startup. The initial ADMIN user is created with an explicit `docker compose exec api npm run seed` command after the stack is healthy. This avoids inserting bootstrap data on every restart and keeps production startup limited to migrations plus API boot.
+
+---
+
+## ADR-021 - Database rollback is not automatic
+
+Rolling back an API image does not automatically roll back database changes. Future migrations should be backwards compatible when possible, and destructive migrations require a tested backup and restore plan before deploy.
+
+---
+
+## ADR-022 - Production PostgreSQL stays on the internal Docker network
+
+The production compose file does not publish PostgreSQL ports to the host. The API reaches the database through the Compose service name `postgres`. Development access through the host uses `docker-compose.dev.yml`.

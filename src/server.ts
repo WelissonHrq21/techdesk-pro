@@ -1,11 +1,12 @@
 /// <reference path="./@types/express/index.d.ts" />
 
-import {app} from "./app";
+import { app } from "./app";
+import { env } from "./config/env";
 import { logger } from "./config/logger";
 import { prisma } from "./config/prisma";
 
-const server = app.listen(3333, () => {
-    logger.info("Server is running on port 3333");
+const server = app.listen(env.PORT, () => {
+    logger.info({ port: env.PORT }, "Server is running");
 });
 
 async function shutdown(signal: string) {
