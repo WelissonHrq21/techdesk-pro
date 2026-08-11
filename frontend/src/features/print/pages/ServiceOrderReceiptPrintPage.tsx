@@ -3,18 +3,24 @@ import { ErrorState } from "../../../components/ui/ErrorState";
 import { LoadingState } from "../../../components/ui/LoadingState";
 import { formatDateTime } from "../../../utils/formatters";
 import { useServiceOrder } from "../../service-orders/hooks/useServiceOrders";
+import { useCompanySettings } from "../../settings/hooks/useCompanySettings";
 import { PrintLayout } from "../components/PrintLayout";
 import { PrintSection } from "../components/PrintSection";
 
 export function ServiceOrderReceiptPrintPage() {
   const { id } = useParams<{ id: string }>();
   const serviceOrderQuery = useServiceOrder(id);
+  const companySettingsQuery = useCompanySettings();
 
-  if (serviceOrderQuery.isLoading) {
+  if (serviceOrderQuery.isLoading || companySettingsQuery.isLoading) {
     return <LoadingState rows={5} />;
   }
 
-  if (serviceOrderQuery.isError || !serviceOrderQuery.data) {
+  if (
+    serviceOrderQuery.isError ||
+    companySettingsQuery.isError ||
+    !serviceOrderQuery.data
+  ) {
     return (
       <ErrorState
         title="Nao foi possivel carregar o protocolo."
@@ -27,7 +33,10 @@ export function ServiceOrderReceiptPrintPage() {
   const serviceOrder = serviceOrderQuery.data;
 
   return (
-    <PrintLayout title={`Protocolo OS #${serviceOrder.number}`}>
+    <PrintLayout
+      title={`Protocolo OS #${serviceOrder.number}`}
+      companySettings={companySettingsQuery.data}
+    >
       <PrintSection title="Identificacao">
         <div className="grid grid-cols-2 gap-4 text-sm">
           <p>

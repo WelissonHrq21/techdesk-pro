@@ -2,12 +2,14 @@ import { Router } from "express";
 import rateLimit from "express-rate-limit";
 import { CreateSessionController } from "../controllers/session/CreateSessionController";
 import { GetProfileController } from "../controllers/session/GetProfileController";
+import { ChangeOwnPasswordController } from "../controllers/session/ChangeOwnPasswordController";
 import { ensureAuthenticated } from "../middlewares/ensureAuthenticated";
 
 const sessionRouter = Router();
 
 const createSessionController = new CreateSessionController();
 const getProfileController = new GetProfileController();
+const changeOwnPasswordController = new ChangeOwnPasswordController();
 
 const sessionRateLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -29,6 +31,14 @@ sessionRouter.get(
   ensureAuthenticated,
   async (request, response) => {
     return getProfileController.handle(request, response);
+  }
+);
+
+sessionRouter.put(
+  "/me/password",
+  ensureAuthenticated,
+  async (request, response) => {
+    return changeOwnPasswordController.handle(request, response);
   }
 );
 

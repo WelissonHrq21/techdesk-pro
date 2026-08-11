@@ -75,6 +75,7 @@ export type ServiceOrderStockMovement = {
 export type ServiceOrderListItem = {
   id: string;
   number: number;
+  publicToken?: string;
   status: ServiceOrderStatus;
   reportedIssue: string;
   createdAt: string;
@@ -141,6 +142,7 @@ export type ConsumePartData = {
 export type ServiceOrderDetail = {
   id: string;
   number: number;
+  publicToken: string;
   reportedIssue: string;
   diagnosis: string | null;
   password: string | null;

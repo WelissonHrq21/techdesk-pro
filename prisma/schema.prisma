@@ -71,6 +71,7 @@ model Equipment {
 model ServiceOrder {
   id     String @id @default(uuid())
   number Int    @unique @default(autoincrement())
+  publicToken String @unique @default(uuid())
 
   customerId String
   customer   Customer @relation(fields: [customerId], references: [id])
@@ -98,6 +99,20 @@ model ServiceOrder {
   @@index([createdAt])
   @@index([customerId])
   @@index([equipmentId])
+}
+
+model CompanySettings {
+  id String @id @default(uuid())
+
+  name     String
+  document String?
+  phone    String?
+  email    String?
+  address  String?
+  zipCode  String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model ServiceOrderHistory {

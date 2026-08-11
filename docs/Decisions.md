@@ -135,3 +135,14 @@ The production compose file does not publish PostgreSQL ports to the host. The A
 ## ADR-023 - Frontend stores JWT in localStorage for the MVP
 
 The first frontend stores `techdesk.token` and `techdesk.user` in `localStorage` to keep authentication simple while the API uses bearer tokens. This is acceptable for the MVP, but it increases the impact of XSS. A future hardening sprint can move authentication to HttpOnly cookies if the backend contract changes.
+---
+
+## ADR-024 - Pilot security notes
+
+- Company information is persisted in `CompanySettings` and consumed by printable documents. Environment-only company data was removed from the frontend configuration.
+- Changing the authenticated user's password does not revoke already issued JWTs in this MVP. Future hardening should consider `tokenVersion`, a session table, or another revocation mechanism.
+- Authentication still uses JWT stored in `localStorage`. For future hardening, evaluate HttpOnly, Secure, SameSite cookies.
+- Public service-order tracking uses `ServiceOrder.publicToken` instead of sequential OS numbers to reduce enumeration risk.
+- Public service-order tracking returns a deliberately limited payload and must not include customer contact data, password, diagnosis, budgets, stock movements, histories, users, or user IDs.
+- Audit logging for broad administrative actions is intentionally deferred. Stock movements already audit stock changes; a future `AuditLog` can cover events such as `USER_ROLE_CHANGED`, `USER_DEACTIVATED`, and `COMPANY_SETTINGS_UPDATED`.
+- QR Code for public tracking is a future enhancement based on `publicToken`.

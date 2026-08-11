@@ -1,12 +1,19 @@
 import type { ReactNode } from "react";
-import { companyInfo } from "../utils/companyInfo";
+import type { CompanySettings } from "../../settings/types/companySettings";
 
 type PrintLayoutProps = {
   title: string;
+  companySettings?: CompanySettings;
   children: ReactNode;
 };
 
-export function PrintLayout({ title, children }: PrintLayoutProps) {
+export function PrintLayout({
+  title,
+  companySettings,
+  children,
+}: PrintLayoutProps) {
+  const companyName = companySettings?.name || "TechDesk Pro";
+
   return (
     <main className="min-h-screen bg-slate-100 px-4 py-6 print:bg-white print:p-0">
       <div className="no-print mx-auto mb-4 flex max-w-[820px] justify-end gap-2">
@@ -23,11 +30,12 @@ export function PrintLayout({ title, children }: PrintLayoutProps) {
         <header className="border-b border-slate-300 pb-5">
           <div className="flex items-start justify-between gap-8">
             <div>
-              <h1 className="text-2xl font-bold">{companyInfo.name}</h1>
+              <h1 className="text-2xl font-bold">{companyName}</h1>
               <div className="mt-2 space-y-1 text-sm text-slate-600">
-                {companyInfo.document && <p>{companyInfo.document}</p>}
-                {companyInfo.phone && <p>{companyInfo.phone}</p>}
-                {companyInfo.address && <p>{companyInfo.address}</p>}
+                {companySettings?.document && <p>{companySettings.document}</p>}
+                {companySettings?.phone && <p>{companySettings.phone}</p>}
+                {companySettings?.email && <p>{companySettings.email}</p>}
+                {companySettings?.address && <p>{companySettings.address}</p>}
               </div>
             </div>
             <div className="text-right">

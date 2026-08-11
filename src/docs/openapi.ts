@@ -20,6 +20,8 @@ export const openApiDocument = {
     { name: "Budgets" },
     { name: "Parts" },
     { name: "Stock" },
+    { name: "Settings" },
+    { name: "Public" },
     { name: "Dashboard" },
     { name: "Health" },
   ],
@@ -208,6 +210,34 @@ export const openApiDocument = {
         tags: ["Sessions"],
         summary: "Get authenticated profile",
         responses: { "200": { description: "Profile" }, "401": { description: "Unauthorized" } },
+      },
+    },
+    "/me/password": {
+      put: {
+        tags: ["Sessions"],
+        summary: "Change own password. Roles: authenticated users",
+        responses: { "200": { description: "Password changed" }, "400": { description: "Invalid current password or new password" } },
+      },
+    },
+    "/settings/company": {
+      get: {
+        tags: ["Settings"],
+        summary: "Get company settings. Roles: ADMIN, RECEPTION, TECHNICIAN",
+        responses: { "200": { description: "Company settings" } },
+      },
+      put: {
+        tags: ["Settings"],
+        summary: "Update company settings. Roles: ADMIN",
+        responses: { "200": { description: "Company settings updated" }, "403": { description: "Forbidden" } },
+      },
+    },
+    "/public/service-orders/{token}": {
+      get: {
+        tags: ["Public"],
+        security: [],
+        summary: "Public service order tracking by secure token",
+        parameters: [{ name: "token", in: "path", required: true, schema: { type: "string", format: "uuid" } }],
+        responses: { "200": { description: "Limited public service order" }, "404": { description: "Not found" } },
       },
     },
     "/users": {

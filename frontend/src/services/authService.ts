@@ -17,3 +17,12 @@ export async function getProfileRequest() {
 
   return response.data;
 }
+
+export async function changeOwnPasswordRequest(data: {
+  currentPassword: string;
+  newPassword: string;
+}) {
+  const response = await http.put<{ message: string }>("/me/password", data);
+
+  return response.data;
+}

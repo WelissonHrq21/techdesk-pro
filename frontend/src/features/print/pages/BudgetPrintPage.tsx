@@ -4,21 +4,28 @@ import { ErrorState } from "../../../components/ui/ErrorState";
 import { LoadingState } from "../../../components/ui/LoadingState";
 import { formatCurrency, formatDateTime } from "../../../utils/formatters";
 import { useServiceOrder } from "../../service-orders/hooks/useServiceOrders";
+import { useCompanySettings } from "../../settings/hooks/useCompanySettings";
 import { PrintLayout } from "../components/PrintLayout";
 import { PrintSection } from "../components/PrintSection";
 
 export function BudgetPrintPage() {
   const { id, budgetId } = useParams<{ id: string; budgetId: string }>();
   const serviceOrderQuery = useServiceOrder(id);
+  const companySettingsQuery = useCompanySettings();
   const budget = useMemo(() => {
     return serviceOrderQuery.data?.budgets.find((item) => item.id === budgetId);
   }, [budgetId, serviceOrderQuery.data?.budgets]);
 
-  if (serviceOrderQuery.isLoading) {
+  if (serviceOrderQuery.isLoading || companySettingsQuery.isLoading) {
     return <LoadingState rows={5} />;
   }
 
-  if (serviceOrderQuery.isError || !serviceOrderQuery.data || !budget) {
+  if (
+    serviceOrderQuery.isError ||
+    companySettingsQuery.isError ||
+    !serviceOrderQuery.data ||
+    !budget
+  ) {
     return (
       <ErrorState
         title="Nao foi possivel carregar o orcamento."
@@ -31,7 +38,10 @@ export function BudgetPrintPage() {
   const serviceOrder = serviceOrderQuery.data;
 
   return (
-    <PrintLayout title={`Orcamento V${budget.version}`}>
+    <PrintLayout
+      title={`Orcamento V${budget.version}`}
+      companySettings={companySettingsQuery.data}
+    >
       <PrintSection title="Identificacao">
         <div className="grid grid-cols-2 gap-4 text-sm">
           <p>

@@ -16,6 +16,11 @@ export function getFriendlyErrorMessage(error: unknown) {
       "Voce nao pode desativar seu proprio usuario.",
     "You cannot deactivate your own user":
       "Voce nao pode desativar seu proprio usuario.",
+    "Current password is incorrect": "Senha atual incorreta.",
+    "New password must be different from current password":
+      "A nova senha deve ser diferente da senha atual.",
+    "Public service order not found":
+      "Nao foi possivel localizar esta ordem de servico.",
     "Customer is inactive":
       "Nao e possivel cadastrar equipamento para um cliente desativado.",
     "Equipment does not belong to this customer":

@@ -1,4 +1,4 @@
-import { Eye, EyeOff, Printer } from "lucide-react";
+import { Copy, Eye, EyeOff, Printer } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useParams } from "react-router-dom";
 import { EmptyState } from "../../../components/ui/EmptyState";
@@ -252,6 +252,17 @@ export function ServiceOrderDetailPage() {
     setActiveStatusAction(action);
   }
 
+  async function handleCopyPublicLink() {
+    const url = `${window.location.origin}/track/${serviceOrder?.publicToken}`;
+
+    try {
+      await navigator.clipboard.writeText(url);
+      showToast("Link de consulta copiado.", "success");
+    } catch {
+      showToast(url, "info");
+    }
+  }
+
   async function handleStatusSubmit(data: { observation?: string }) {
     if (!activeStatusAction) {
       return;
@@ -422,6 +433,14 @@ export function ServiceOrderDetailPage() {
               <Printer size={17} />
               Imprimir protocolo
             </Link>
+            <button
+              type="button"
+              onClick={() => void handleCopyPublicLink()}
+              className="inline-flex h-10 items-center gap-2 rounded-md border border-slate-200 px-4 text-sm font-medium text-slate-700 hover:bg-slate-50"
+            >
+              <Copy size={17} />
+              Copiar link do cliente
+            </button>
           </div>
         </div>
 

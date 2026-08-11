@@ -5,6 +5,7 @@ import {
   Users,
   Wrench,
   ClipboardList,
+  Settings,
   X,
 } from "lucide-react";
 import { NavLink } from "react-router-dom";
@@ -58,6 +59,12 @@ const navItems: NavItem[] = [
     label: "Usuarios",
     to: "/users",
     icon: Wrench,
+    roles: ["ADMIN"],
+  },
+  {
+    label: "Configuracoes",
+    to: "/settings",
+    icon: Settings,
     roles: ["ADMIN"],
   },
 ];

@@ -48,6 +48,14 @@ class UserRepository {
     });
   }
 
+  async findPrivateById(id: string) {
+    return prisma.user.findUnique({
+      where: {
+        id,
+      },
+    });
+  }
+
   async countActiveAdmins() {
     return prisma.user.count({
       where: {
@@ -63,6 +71,18 @@ class UserRepository {
         id,
       },
       data,
+      select: publicUserSelect,
+    });
+  }
+
+  async updatePassword(id: string, password: string) {
+    return prisma.user.update({
+      where: {
+        id,
+      },
+      data: {
+        password,
+      },
       select: publicUserSelect,
     });
   }

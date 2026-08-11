@@ -5,11 +5,14 @@ import { CustomersPage } from "../features/customers/pages/CustomersPage";
 import { EquipmentsPage } from "../features/equipments/pages/EquipmentsPage";
 import { PartDetailPage } from "../features/parts/pages/PartDetailPage";
 import { PartsPage } from "../features/parts/pages/PartsPage";
+import { ProfilePage } from "../features/profile/pages/ProfilePage";
 import { BudgetPrintPage } from "../features/print/pages/BudgetPrintPage";
 import { ServiceOrderReceiptPrintPage } from "../features/print/pages/ServiceOrderReceiptPrintPage";
+import { TrackServiceOrderPage } from "../features/public-tracking/pages/TrackServiceOrderPage";
 import { NewServiceOrderPage } from "../features/service-orders/pages/NewServiceOrderPage";
 import { ServiceOrderDetailPage } from "../features/service-orders/pages/ServiceOrderDetailPage";
 import { ServiceOrdersPage } from "../features/service-orders/pages/ServiceOrdersPage";
+import { SettingsPage } from "../features/settings/pages/SettingsPage";
 import { UsersPage } from "../features/users/pages/UsersPage";
 import { Dashboard } from "../pages/Dashboard";
 import { Forbidden } from "../pages/Forbidden";
@@ -25,6 +28,7 @@ export function AppRoutes() {
       <Route element={<GuestRoute />}>
         <Route path="/login" element={<Login />} />
       </Route>
+      <Route path="/track/:token" element={<TrackServiceOrderPage />} />
 
       <Route element={<ProtectedRoute />}>
         <Route
@@ -39,6 +43,7 @@ export function AppRoutes() {
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/forbidden" element={<Forbidden />} />
+          <Route path="/profile" element={<ProfilePage />} />
           <Route path="/customers" element={<CustomersPage />} />
           <Route path="/customers/:id" element={<CustomerDetailPage />} />
           <Route path="/equipments" element={<EquipmentsPage />} />
@@ -52,6 +57,7 @@ export function AppRoutes() {
           <Route path="/parts/:id" element={<PartDetailPage />} />
           <Route element={<RoleRoute roles={["ADMIN"]} />}>
             <Route path="/users" element={<UsersPage />} />
+            <Route path="/settings" element={<SettingsPage />} />
           </Route>
           <Route path="*" element={<NotFound />} />
         </Route>

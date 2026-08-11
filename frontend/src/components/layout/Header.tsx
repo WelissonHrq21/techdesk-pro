@@ -1,4 +1,5 @@
-import { LogOut, Menu } from "lucide-react";
+import { LogOut, Menu, UserCircle } from "lucide-react";
+import { Link } from "react-router-dom";
 import { useAuth } from "../../hooks/useAuth";
 import { roleLabels } from "../../utils/labels";
 
@@ -39,6 +40,15 @@ export function Header({ onOpenSidebar }: HeaderProps) {
             {user ? roleLabels[user.role] : ""}
           </span>
         </div>
+
+        <Link
+          to="/profile"
+          className="inline-flex h-10 items-center gap-2 rounded-md border border-slate-200 px-3 text-sm font-medium text-slate-700 hover:bg-slate-50"
+          title="Minha conta"
+        >
+          <UserCircle size={17} />
+          <span className="hidden sm:inline">Minha conta</span>
+        </Link>
 
         <button
           type="button"

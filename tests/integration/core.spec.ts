@@ -381,6 +381,118 @@ describe("TechDesk Pro integration rules", () => {
       .expect(200);
   });
 
+  it("manages company settings with RBAC", async () => {
+    const admin = await authenticateTestUser(UserRole.ADMIN);
+    const technician = await authenticateTestUser(UserRole.TECHNICIAN);
+
+    const emptySettings = await request(app)
+      .get("/settings/company")
+      .set("Authorization", `Bearer ${technician.token}`)
+      .expect(200);
+
+    expect(emptySettings.body.name).toBe("");
+
+    await request(app)
+      .put("/settings/company")
+      .set("Authorization", `Bearer ${technician.token}`)
+      .send({ name: "Blocked" })
+      .expect(403);
+
+    const settings = await request(app)
+      .put("/settings/company")
+      .set("Authorization", `Bearer ${admin.token}`)
+      .send({
+        name: "Assistencia Piloto",
+        phone: "85999990000",
+        email: "contato@piloto.com",
+      })
+      .expect(200);
+
+    expect(settings.body.name).toBe("Assistencia Piloto");
+
+    const settingsCount = await prisma.companySettings.count();
+    expect(settingsCount).toBe(1);
+  });
+
+  it("allows users to change their own password with current password validation", async () => {
+    const user = await authenticateTestUser(UserRole.TECHNICIAN);
+
+    await request(app)
+      .put("/me/password")
+      .set("Authorization", `Bearer ${user.token}`)
+      .send({
+        currentPassword: "wrong",
+        newPassword: "nova123",
+      })
+      .expect(400);
+
+    await request(app)
+      .put("/me/password")
+      .set("Authorization", `Bearer ${user.token}`)
+      .send({
+        currentPassword: "senha123",
+        newPassword: "senha123",
+      })
+      .expect(400);
+
+    await request(app)
+      .put("/me/password")
+      .set("Authorization", `Bearer ${user.token}`)
+      .send({
+        currentPassword: "senha123",
+        newPassword: "nova123",
+      })
+      .expect(200);
+
+    await request(app)
+      .post("/sessions")
+      .send({ login: user.user.login, password: "senha123" })
+      .expect(401);
+
+    await request(app)
+      .post("/sessions")
+      .send({ login: user.user.login, password: "nova123" })
+      .expect(200);
+  });
+
+  it("returns limited public service order data and does not leak sensitive fields", async () => {
+    const { serviceOrder } = await createTestServiceOrder(
+      ServiceOrderStatus.IN_MAINTENANCE
+    );
+
+    await prisma.serviceOrder.update({
+      where: { id: serviceOrder.id },
+      data: {
+        password: "secret-device-password",
+        diagnosis: "Internal diagnosis",
+      },
+    });
+
+    const serviceOrderFromDb = await prisma.serviceOrder.findUniqueOrThrow({
+      where: { id: serviceOrder.id },
+    });
+
+    const response = await request(app)
+      .get(`/public/service-orders/${serviceOrderFromDb.publicToken}`)
+      .expect(200);
+
+    expect(response.body.number).toBe(serviceOrder.number);
+    expect(response.body.status).toBe("IN_MAINTENANCE");
+    expect(response.body.equipment.brand).toBe("Acer");
+    expect(response.body.customer).toBeUndefined();
+    expect(response.body.password).toBeUndefined();
+    expect(response.body.diagnosis).toBeUndefined();
+    expect(response.body.budgets).toBeUndefined();
+    expect(response.body.stockMovements).toBeUndefined();
+    expect(response.body.serviceOrderHistories).toBeUndefined();
+    expect(response.body.user).toBeUndefined();
+    expect(response.body.userId).toBeUndefined();
+
+    await request(app)
+      .get("/public/service-orders/00000000-0000-0000-0000-000000000000")
+      .expect(404);
+  });
+
   it("runs a complete authenticated service-order flow", async () => {
     const reception = await authenticateTestUser(UserRole.RECEPTION);
     const technician = await authenticateTestUser(UserRole.TECHNICIAN);
