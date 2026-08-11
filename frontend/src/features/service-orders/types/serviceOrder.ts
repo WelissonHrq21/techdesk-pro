@@ -24,6 +24,9 @@ export type BudgetSummary = {
   id: string;
   version: number;
   totalValue: string;
+  createdAt: string;
+  updatedAt: string;
+  serviceOrderId: string;
   budgetItems: Array<{
     id: string;
     quantity: number;
@@ -31,6 +34,9 @@ export type BudgetSummary = {
     part: {
       id: string;
       name: string;
+      brand?: string;
+      currentPrice?: string;
+      stock?: number;
     };
   }>;
 };
@@ -53,15 +59,83 @@ export type ServiceOrderStockMovement = {
   id: string;
   type: StockMovementType;
   quantity: number;
+  reason: string | null;
   createdAt: string;
   part: {
     id: string;
     name: string;
+    stock?: number;
   };
   user: {
     id: string;
     name: string;
   } | null;
+};
+
+export type ServiceOrderListItem = {
+  id: string;
+  number: number;
+  status: ServiceOrderStatus;
+  reportedIssue: string;
+  createdAt: string;
+  updatedAt: string;
+  customer: {
+    id: string;
+    name: string;
+    phone: string;
+  };
+  equipment: {
+    id: string;
+    type: string;
+    brand: string;
+    model: string;
+    serialNumber: string | null;
+  };
+};
+
+export type FindServiceOrdersParams = {
+  page: number;
+  limit: number;
+  status?: ServiceOrderStatus[];
+  search?: string;
+  dateFrom?: string;
+  dateTo?: string;
+  sortBy?: "createdAt" | "updatedAt" | "number";
+  sortOrder?: "asc" | "desc";
+};
+
+export type BudgetItemFormData = {
+  partId: string;
+  quantity: number;
+  unitPrice: number;
+};
+
+export type BudgetFormData = {
+  items: BudgetItemFormData[];
+};
+
+export type BudgetRevisionFormData = BudgetFormData & {
+  observation?: string;
+};
+
+export type ChangeServiceOrderStatusData = {
+  status: ServiceOrderStatus;
+  observation?: string;
+};
+
+export type UpdateDiagnosisData = {
+  diagnosis: string;
+};
+
+export type BudgetDecisionData = {
+  observation?: string;
+};
+
+export type ConsumePartData = {
+  serviceOrderId: string;
+  partId: string;
+  quantity: number;
+  observation?: string;
 };
 
 export type ServiceOrderDetail = {

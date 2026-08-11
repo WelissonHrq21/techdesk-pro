@@ -1,26 +1,186 @@
 import { Eye, EyeOff } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useParams } from "react-router-dom";
 import { EmptyState } from "../../../components/ui/EmptyState";
 import { ErrorState } from "../../../components/ui/ErrorState";
 import { LoadingState } from "../../../components/ui/LoadingState";
+import { Modal } from "../../../components/ui/Modal";
 import { PageHeader } from "../../../components/ui/PageHeader";
 import { StatusBadge } from "../../../components/ui/StatusBadge";
+import { useAuth } from "../../../hooks/useAuth";
 import { useToast } from "../../../hooks/useToast";
-import { formatCurrency, formatDateTime } from "../../../utils/formatters";
-import { serviceOrderStatusLabels } from "../../../utils/labels";
-import { useServiceOrder } from "../hooks/useServiceOrders";
+import type { ServiceOrderStatus } from "../../../types/dashboard";
+import { getFriendlyErrorMessage } from "../../../utils/errorMessages";
+import { formatDateTime } from "../../../utils/formatters";
+import { BudgetForm } from "../components/BudgetForm";
+import { BudgetList } from "../components/BudgetList";
+import { ConsumePartForm } from "../components/ConsumePartForm";
+import { DiagnosisForm } from "../components/DiagnosisForm";
+import { MaintenanceParts } from "../components/MaintenanceParts";
+import { ObservationForm } from "../components/ObservationForm";
+import { ServiceOrderActions } from "../components/ServiceOrderActions";
+import { ServiceOrderTimeline } from "../components/ServiceOrderTimeline";
+import {
+  useApproveBudget,
+  useChangeServiceOrderStatus,
+  useConsumePart,
+  useCreateBudget,
+  useCreateBudgetRevision,
+  useRejectBudget,
+  useServiceOrder,
+  useUpdateDiagnosis,
+} from "../hooks/useServiceOrders";
+import type {
+  BudgetFormData,
+  BudgetRevisionFormData,
+  BudgetSummary,
+} from "../types/serviceOrder";
+import {
+  getAvailableActions,
+  type ServiceOrderAction,
+} from "../utils/getAvailableActions";
+import {
+  getConsumedByPartId,
+  getCurrentBudget,
+} from "../utils/serviceOrderDerivedData";
 
 type LocationState = {
   message?: string;
 };
 
+type StatusActionConfig = {
+  targetStatus: ServiceOrderStatus;
+  title: string;
+  description: string;
+  submitLabel: string;
+  successMessage: string;
+  defaultObservation?: string;
+};
+
+const statusActionConfig: Partial<Record<ServiceOrderAction, StatusActionConfig>> =
+  {
+    START_ANALYSIS: {
+      targetStatus: "IN_ANALYSIS",
+      title: "Iniciar analise",
+      description: "Iniciar analise tecnica desta OS?",
+      submitLabel: "Iniciar analise",
+      successMessage: "Analise iniciada.",
+      defaultObservation: "Equipamento encaminhado para bancada.",
+    },
+    SEND_FOR_APPROVAL: {
+      targetStatus: "AWAITING_APPROVAL",
+      title: "Enviar para aprovacao",
+      description: "Enviar o orcamento atual para decisao do cliente?",
+      submitLabel: "Enviar para aprovacao",
+      successMessage: "Orcamento enviado para aprovacao.",
+      defaultObservation: "Orcamento enviado ao cliente.",
+    },
+    RETURN_TO_ANALYSIS: {
+      targetStatus: "IN_ANALYSIS",
+      title: "Voltar para analise",
+      description: "Retomar a analise apos rejeicao do cliente?",
+      submitLabel: "Voltar para analise",
+      successMessage: "OS voltou para analise.",
+    },
+    START_MAINTENANCE: {
+      targetStatus: "IN_MAINTENANCE",
+      title: "Iniciar manutencao",
+      description: "Iniciar ou retomar a manutencao desta OS?",
+      submitLabel: "Iniciar manutencao",
+      successMessage: "Manutencao iniciada.",
+    },
+    FINISH: {
+      targetStatus: "FINISHED",
+      title: "Finalizar servico",
+      description: "Finalizar o servico tecnico desta OS?",
+      submitLabel: "Finalizar servico",
+      successMessage: "Servico finalizado.",
+    },
+    MARK_AWAITING_PICKUP: {
+      targetStatus: "AWAITING_PICKUP",
+      title: "Aguardando retirada",
+      description: "Marcar esta OS como aguardando retirada?",
+      submitLabel: "Marcar aguardando retirada",
+      successMessage: "OS marcada como aguardando retirada.",
+    },
+    DELIVER: {
+      targetStatus: "DELIVERED",
+      title: "Registrar entrega",
+      description: "Registrar entrega e encerrar esta OS?",
+      submitLabel: "Confirmar entrega",
+      successMessage: "Equipamento entregue.",
+    },
+  };
+
+function buildInitialParts(currentBudget: BudgetSummary | null) {
+  if (!currentBudget) {
+    return {};
+  }
+
+  return currentBudget.budgetItems.reduce<
+    Record<
+      string,
+      {
+        id: string;
+        name: string;
+        brand: string;
+        currentPrice: string;
+        stock: number;
+      }
+    >
+  >((accumulator, item) => {
+    accumulator[item.part.id] = {
+      id: item.part.id,
+      name: item.part.name,
+      brand: item.part.brand ?? "Sem marca",
+      currentPrice: item.part.currentPrice ?? item.unitPrice,
+      stock: item.part.stock ?? 0,
+    };
+
+    return accumulator;
+  }, {});
+}
+
 export function ServiceOrderDetailPage() {
   const { id } = useParams<{ id: string }>();
   const location = useLocation();
+  const { user } = useAuth();
   const { showToast } = useToast();
   const serviceOrderQuery = useServiceOrder(id);
   const [showPassword, setShowPassword] = useState(false);
+  const [activeStatusAction, setActiveStatusAction] =
+    useState<ServiceOrderAction | null>(null);
+  const [isDiagnosisOpen, setIsDiagnosisOpen] = useState(false);
+  const [isBudgetOpen, setIsBudgetOpen] = useState(false);
+  const [isRevisionOpen, setIsRevisionOpen] = useState(false);
+  const [decisionType, setDecisionType] = useState<"approve" | "reject" | null>(
+    null
+  );
+  const [consumeItem, setConsumeItem] = useState<
+    BudgetSummary["budgetItems"][number] | null
+  >(null);
+  const [formError, setFormError] = useState<string | null>(null);
+
+  const serviceOrder = serviceOrderQuery.data;
+  const serviceOrderId = id ?? "";
+  const currentBudget = serviceOrder ? getCurrentBudget(serviceOrder) : null;
+  const consumedByPartId = useMemo(() => {
+    return serviceOrder ? getConsumedByPartId(serviceOrder) : {};
+  }, [serviceOrder]);
+  const availableActions = serviceOrder
+    ? getAvailableActions({
+        status: serviceOrder.status,
+        role: user?.role ?? "RECEPTION",
+        hasBudget: serviceOrder.budgets.length > 0,
+      })
+    : [];
+  const changeStatusMutation = useChangeServiceOrderStatus(serviceOrderId);
+  const updateDiagnosisMutation = useUpdateDiagnosis(serviceOrderId);
+  const createBudgetMutation = useCreateBudget(serviceOrderId);
+  const createRevisionMutation = useCreateBudgetRevision(serviceOrderId);
+  const approveBudgetMutation = useApproveBudget(serviceOrderId);
+  const rejectBudgetMutation = useRejectBudget(serviceOrderId);
+  const consumePartMutation = useConsumePart(serviceOrderId);
 
   useEffect(() => {
     const state = location.state as LocationState | null;
@@ -31,11 +191,172 @@ export function ServiceOrderDetailPage() {
     }
   }, [location.state, showToast]);
 
+  function resetModalState() {
+    setActiveStatusAction(null);
+    setIsDiagnosisOpen(false);
+    setIsBudgetOpen(false);
+    setIsRevisionOpen(false);
+    setDecisionType(null);
+    setConsumeItem(null);
+    setFormError(null);
+  }
+
+  function handleError(error: unknown) {
+    setFormError(getFriendlyErrorMessage(error));
+    void serviceOrderQuery.refetch();
+  }
+
+  function handleAction(action: ServiceOrderAction) {
+    setFormError(null);
+
+    if (action === "EDIT_DIAGNOSIS") {
+      setIsDiagnosisOpen(true);
+      return;
+    }
+
+    if (action === "CREATE_BUDGET") {
+      setIsBudgetOpen(true);
+      return;
+    }
+
+    if (action === "APPROVE_BUDGET" || action === "REJECT_BUDGET") {
+      if (!currentBudget) {
+        showToast("Nenhum orcamento atual encontrado.", "error");
+        return;
+      }
+
+      setDecisionType(action === "APPROVE_BUDGET" ? "approve" : "reject");
+      return;
+    }
+
+    if (action === "CONSUME_PART") {
+      const nextItem = currentBudget?.budgetItems.find((item) => {
+        const consumed = consumedByPartId[item.part.id] ?? 0;
+        return consumed < item.quantity;
+      });
+
+      if (!nextItem) {
+        showToast("Nenhuma quantidade aprovada pendente para consumo.", "info");
+        return;
+      }
+
+      setConsumeItem(nextItem);
+      return;
+    }
+
+    if (action === "REVISE_BUDGET") {
+      setIsRevisionOpen(true);
+      return;
+    }
+
+    setActiveStatusAction(action);
+  }
+
+  async function handleStatusSubmit(data: { observation?: string }) {
+    if (!activeStatusAction) {
+      return;
+    }
+
+    const config = statusActionConfig[activeStatusAction];
+
+    if (!config) {
+      return;
+    }
+
+    try {
+      await changeStatusMutation.mutateAsync({
+        status: config.targetStatus,
+        observation: data.observation,
+      });
+      resetModalState();
+      showToast(config.successMessage, "success");
+    } catch (error) {
+      handleError(error);
+    }
+  }
+
+  async function handleDiagnosisSubmit(data: { diagnosis: string }) {
+    try {
+      await updateDiagnosisMutation.mutateAsync(data);
+      resetModalState();
+      showToast("Diagnostico salvo.", "success");
+    } catch (error) {
+      handleError(error);
+    }
+  }
+
+  async function handleCreateBudget(data: BudgetFormData) {
+    try {
+      await createBudgetMutation.mutateAsync(data);
+      resetModalState();
+      showToast("Orcamento criado.", "success");
+    } catch (error) {
+      handleError(error);
+    }
+  }
+
+  async function handleCreateRevision(data: BudgetRevisionFormData) {
+    try {
+      await createRevisionMutation.mutateAsync(data);
+      resetModalState();
+      showToast("Revisao enviada para aprovacao.", "success");
+    } catch (error) {
+      handleError(error);
+    }
+  }
+
+  async function handleDecisionSubmit(data: { observation?: string }) {
+    if (!decisionType || !currentBudget) {
+      return;
+    }
+
+    try {
+      if (decisionType === "approve") {
+        await approveBudgetMutation.mutateAsync({
+          budgetId: currentBudget.id,
+          data,
+        });
+        showToast("Orcamento aprovado.", "success");
+      } else {
+        await rejectBudgetMutation.mutateAsync({
+          budgetId: currentBudget.id,
+          data,
+        });
+        showToast("Orcamento rejeitado.", "success");
+      }
+
+      resetModalState();
+    } catch (error) {
+      handleError(error);
+    }
+  }
+
+  async function handleConsumePart(data: {
+    quantity: number;
+    observation?: string;
+  }) {
+    if (!consumeItem) {
+      return;
+    }
+
+    try {
+      await consumePartMutation.mutateAsync({
+        partId: consumeItem.part.id,
+        quantity: data.quantity,
+        observation: data.observation,
+      });
+      resetModalState();
+      showToast("Peca consumida com sucesso.", "success");
+    } catch (error) {
+      handleError(error);
+    }
+  }
+
   if (serviceOrderQuery.isLoading) {
     return <LoadingState rows={5} />;
   }
 
-  if (serviceOrderQuery.isError || !serviceOrderQuery.data) {
+  if (serviceOrderQuery.isError || !serviceOrder) {
     return (
       <ErrorState
         title="Nao foi possivel carregar a OS."
@@ -45,10 +366,23 @@ export function ServiceOrderDetailPage() {
     );
   }
 
-  const serviceOrder = serviceOrderQuery.data;
   const consumedParts = serviceOrder.stockMovements.filter(
     (movement) => movement.type === "EXIT"
   );
+  const revisionDefaultItems =
+    currentBudget?.budgetItems.map((item) => ({
+      partId: item.part.id,
+      quantity: item.quantity,
+      unitPrice: Number(item.unitPrice),
+    })) ?? [];
+  const statusConfig = activeStatusAction
+    ? statusActionConfig[activeStatusAction]
+    : undefined;
+  const unconsumedItems =
+    currentBudget?.budgetItems.filter((item) => {
+      const consumed = consumedByPartId[item.part.id] ?? 0;
+      return consumed < item.quantity;
+    }) ?? [];
 
   return (
     <section>
@@ -60,41 +394,51 @@ export function ServiceOrderDetailPage() {
         }
       />
 
+      <div className="mb-6 rounded-md border border-slate-200 bg-white p-5 shadow-sm">
+        <div className="grid gap-4 lg:grid-cols-[1fr_auto] lg:items-start">
+          <div>
+            <p className="text-sm font-medium text-slate-500">
+              {serviceOrder.customer.name}
+            </p>
+            <h2 className="mt-1 text-xl font-semibold text-slate-950">
+              {serviceOrder.equipment.brand} {serviceOrder.equipment.model}
+            </h2>
+            <p className="mt-1 text-sm text-slate-500">
+              {serviceOrder.equipment.type} - Serial:{" "}
+              {serviceOrder.equipment.serialNumber ?? "Nao informado"}
+            </p>
+          </div>
+
+          <ServiceOrderActions
+            actions={availableActions}
+            onAction={handleAction}
+          />
+        </div>
+
+        {availableActions.length === 0 && serviceOrder.status === "DELIVERED" && (
+          <p className="mt-4 rounded-md bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
+            Atendimento encerrado.
+          </p>
+        )}
+        {(serviceOrder.status === "AWAITING_APPROVAL" ||
+          serviceOrder.status === "BUDGET_CHANGED_AWAITING_APPROVAL") && (
+          <p className="mt-4 rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-700">
+            Orcamento aguardando decisao do cliente.
+          </p>
+        )}
+        {serviceOrder.status === "BUDGET_REJECTED" && (
+          <p className="mt-4 rounded-md bg-rose-50 px-3 py-2 text-sm text-rose-700">
+            Orcamento rejeitado. A bancada pode retomar a analise e gerar uma nova
+            versao.
+          </p>
+        )}
+      </div>
+
       <div className="grid gap-6 xl:grid-cols-[1fr_380px]">
         <div className="space-y-6">
           <div className="rounded-md border border-slate-200 bg-white p-5 shadow-sm">
             <h3 className="text-base font-semibold text-slate-950">
-              Cliente e equipamento
-            </h3>
-            <div className="mt-4 grid gap-4 md:grid-cols-2">
-              <div className="rounded-md bg-slate-50 p-4">
-                <span className="text-sm text-slate-500">Cliente</span>
-                <Link
-                  to={`/customers/${serviceOrder.customer.id}`}
-                  className="mt-1 block font-semibold text-sky-700 hover:text-sky-800"
-                >
-                  {serviceOrder.customer.name}
-                </Link>
-                <p className="mt-1 text-sm text-slate-500">
-                  {serviceOrder.customer.phone}
-                </p>
-              </div>
-              <div className="rounded-md bg-slate-50 p-4">
-                <span className="text-sm text-slate-500">Equipamento</span>
-                <p className="mt-1 font-semibold text-slate-950">
-                  {serviceOrder.equipment.brand} {serviceOrder.equipment.model}
-                </p>
-                <p className="mt-1 text-sm text-slate-500">
-                  {serviceOrder.equipment.type} - Serial:{" "}
-                  {serviceOrder.equipment.serialNumber ?? "Nao informado"}
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div className="rounded-md border border-slate-200 bg-white p-5 shadow-sm">
-            <h3 className="text-base font-semibold text-slate-950">
-              Defeito / Diagnostico
+              Atendimento
             </h3>
             <div className="mt-4 grid gap-4 md:grid-cols-2">
               <div>
@@ -109,6 +453,39 @@ export function ServiceOrderDetailPage() {
                   {serviceOrder.diagnosis || "Ainda nao informado."}
                 </p>
               </div>
+            </div>
+          </div>
+
+          <div className="rounded-md border border-slate-200 bg-white p-5 shadow-sm">
+            <h3 className="text-base font-semibold text-slate-950">
+              Orcamentos
+            </h3>
+            <div className="mt-4">
+              <BudgetList
+                budgets={serviceOrder.budgets}
+                currentBudgetId={currentBudget?.id}
+              />
+            </div>
+          </div>
+
+          <div className="rounded-md border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <h3 className="text-base font-semibold text-slate-950">
+                Manutencao
+              </h3>
+              {currentBudget && (
+                <span className="text-sm text-slate-500">
+                  Base: Orcamento V{currentBudget.version}
+                </span>
+              )}
+            </div>
+            <div className="mt-4">
+              <MaintenanceParts
+                currentBudget={currentBudget}
+                consumedByPartId={consumedByPartId}
+                canConsume={availableActions.includes("CONSUME_PART")}
+                onConsume={setConsumeItem}
+              />
             </div>
           </div>
 
@@ -140,94 +517,54 @@ export function ServiceOrderDetailPage() {
               </div>
             )}
           </div>
-
-          <div className="rounded-md border border-slate-200 bg-white p-5 shadow-sm">
-            <h3 className="text-base font-semibold text-slate-950">
-              Orcamentos
-            </h3>
-            {serviceOrder.budgets.length === 0 ? (
-              <div className="mt-4">
-                <EmptyState title="Nenhum orcamento criado." />
-              </div>
-            ) : (
-              <div className="mt-4 grid gap-3 md:grid-cols-2">
-                {serviceOrder.budgets.map((budget) => (
-                  <div
-                    key={budget.id}
-                    className="rounded-md border border-slate-200 p-4"
-                  >
-                    <p className="text-sm text-slate-500">
-                      Orcamento V{budget.version}
-                    </p>
-                    <strong className="mt-1 block text-xl text-slate-950">
-                      {formatCurrency(budget.totalValue)}
-                    </strong>
-                    <p className="mt-1 text-sm text-slate-500">
-                      {budget.budgetItems.length} itens
-                    </p>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
         </div>
 
         <aside className="space-y-6">
           <div className="rounded-md border border-slate-200 bg-white p-5 shadow-sm">
             <h3 className="text-base font-semibold text-slate-950">
-              Senha do equipamento
+              Cliente e equipamento
             </h3>
-            <div className="mt-3 flex items-center justify-between gap-3 rounded-md bg-slate-50 px-3 py-2">
-              <span className="text-sm font-medium text-slate-950">
-                {serviceOrder.password
-                  ? showPassword
-                    ? serviceOrder.password
-                    : "********"
-                  : "Nao informada"}
-              </span>
-              {serviceOrder.password && (
-                <button
-                  type="button"
-                  onClick={() => setShowPassword((value) => !value)}
-                  className="rounded-md p-2 text-slate-600 hover:bg-white"
-                  title={showPassword ? "Ocultar senha" : "Mostrar senha"}
-                  aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}
+            <div className="mt-4 space-y-3">
+              <div className="rounded-md bg-slate-50 p-4">
+                <span className="text-sm text-slate-500">Cliente</span>
+                <Link
+                  to={`/customers/${serviceOrder.customer.id}`}
+                  className="mt-1 block font-semibold text-sky-700 hover:text-sky-800"
                 >
-                  {showPassword ? <EyeOff size={17} /> : <Eye size={17} />}
-                </button>
-              )}
-            </div>
-          </div>
-
-          <div className="rounded-md border border-slate-200 bg-white p-5 shadow-sm">
-            <h3 className="text-base font-semibold text-slate-950">
-              Historico
-            </h3>
-            {serviceOrder.serviceOrderHistories.length === 0 ? (
-              <p className="mt-4 text-sm text-slate-500">
-                Nenhum historico registrado.
-              </p>
-            ) : (
-              <div className="mt-4 space-y-4">
-                {serviceOrder.serviceOrderHistories.map((history) => (
-                  <div
-                    key={history.id}
-                    className="border-l-2 border-sky-200 pl-3"
-                  >
-                    <p className="text-xs text-slate-500">
-                      {formatDateTime(history.createdAt)}
-                    </p>
-                    <p className="mt-1 text-sm font-medium text-slate-950">
-                      {serviceOrderStatusLabels[history.previousStatus]} -{" "}
-                      {serviceOrderStatusLabels[history.newStatus]}
-                    </p>
-                    <p className="mt-1 text-xs text-slate-500">
-                      {history.user?.name ?? "Sistema"}
-                    </p>
-                  </div>
-                ))}
+                  {serviceOrder.customer.name}
+                </Link>
+                <p className="mt-1 text-sm text-slate-500">
+                  {serviceOrder.customer.phone}
+                </p>
               </div>
-            )}
+              <div className="rounded-md bg-slate-50 p-4">
+                <span className="text-sm text-slate-500">
+                  Senha do equipamento
+                </span>
+                <div className="mt-2 flex items-center justify-between gap-3">
+                  <span className="text-sm font-medium text-slate-950">
+                    {serviceOrder.password
+                      ? showPassword
+                        ? serviceOrder.password
+                        : "********"
+                      : "Nao informada"}
+                  </span>
+                  {serviceOrder.password && (
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword((value) => !value)}
+                      className="rounded-md p-2 text-slate-600 hover:bg-white"
+                      title={showPassword ? "Ocultar senha" : "Mostrar senha"}
+                      aria-label={
+                        showPassword ? "Ocultar senha" : "Mostrar senha"
+                      }
+                    >
+                      {showPassword ? <EyeOff size={17} /> : <Eye size={17} />}
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
           </div>
 
           <div className="rounded-md border border-slate-200 bg-white p-5 shadow-sm">
@@ -252,13 +589,170 @@ export function ServiceOrderDetailPage() {
                       {movement.user?.name ?? "Sistema"} -{" "}
                       {formatDateTime(movement.createdAt)}
                     </p>
+                    {movement.reason && (
+                      <p className="mt-1 text-xs text-slate-500">
+                        {movement.reason}
+                      </p>
+                    )}
                   </div>
                 ))}
               </div>
             )}
           </div>
+
+          <div className="rounded-md border border-slate-200 bg-white p-5 shadow-sm">
+            <h3 className="text-base font-semibold text-slate-950">
+              Historico
+            </h3>
+            <ServiceOrderTimeline
+              histories={serviceOrder.serviceOrderHistories}
+            />
+          </div>
         </aside>
       </div>
+
+      <Modal
+        title={statusConfig?.title ?? "Atualizar status"}
+        isOpen={Boolean(statusConfig)}
+        onClose={resetModalState}
+        maxWidth="max-w-lg"
+      >
+        {statusConfig && (
+          <>
+            <p className="mb-4 text-sm text-slate-600">
+              {statusConfig.description}
+            </p>
+            {activeStatusAction === "FINISH" && unconsumedItems.length > 0 && (
+              <div className="mb-4 rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-700">
+                <p className="font-medium">Pecas aprovadas nao consumidas:</p>
+                <ul className="mt-1 list-inside list-disc">
+                  {unconsumedItems.map((item) => {
+                    const consumed = consumedByPartId[item.part.id] ?? 0;
+                    return (
+                      <li key={item.id}>
+                        {item.part.name} x{item.quantity - consumed}
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            )}
+            <ObservationForm
+              defaultObservation={statusConfig.defaultObservation}
+              submitLabel={statusConfig.submitLabel}
+              isSubmitting={changeStatusMutation.isPending}
+              errorMessage={formError}
+              onCancel={resetModalState}
+              onSubmit={(data) => void handleStatusSubmit(data)}
+            />
+          </>
+        )}
+      </Modal>
+
+      <Modal
+        title={
+          serviceOrder.diagnosis ? "Editar diagnostico" : "Registrar diagnostico"
+        }
+        isOpen={isDiagnosisOpen}
+        onClose={resetModalState}
+        maxWidth="max-w-2xl"
+      >
+        <DiagnosisForm
+          defaultDiagnosis={serviceOrder.diagnosis}
+          isSubmitting={updateDiagnosisMutation.isPending}
+          errorMessage={formError}
+          onCancel={resetModalState}
+          onSubmit={(data) => void handleDiagnosisSubmit(data)}
+        />
+      </Modal>
+
+      <Modal
+        title="Criar orcamento"
+        isOpen={isBudgetOpen}
+        onClose={resetModalState}
+        maxWidth="max-w-5xl"
+      >
+        <BudgetForm
+          mode="create"
+          isSubmitting={createBudgetMutation.isPending}
+          errorMessage={formError}
+          onCancel={resetModalState}
+          onSubmit={(data) => void handleCreateBudget(data as BudgetFormData)}
+        />
+      </Modal>
+
+      <Modal
+        title="Revisar orcamento"
+        isOpen={isRevisionOpen}
+        onClose={resetModalState}
+        maxWidth="max-w-5xl"
+      >
+        <BudgetForm
+          mode="revision"
+          defaultItems={revisionDefaultItems}
+          initialParts={buildInitialParts(currentBudget)}
+          consumedByPartId={consumedByPartId}
+          isSubmitting={createRevisionMutation.isPending}
+          errorMessage={formError}
+          onCancel={resetModalState}
+          onSubmit={(data) =>
+            void handleCreateRevision(data as BudgetRevisionFormData)
+          }
+        />
+      </Modal>
+
+      <Modal
+        title={
+          decisionType === "approve"
+            ? "Registrar aprovacao"
+            : "Registrar rejeicao"
+        }
+        isOpen={Boolean(decisionType)}
+        onClose={resetModalState}
+        maxWidth="max-w-lg"
+      >
+        <p className="mb-4 text-sm text-slate-600">
+          {decisionType === "approve"
+            ? `Registrar aprovacao do orcamento V${currentBudget?.version}?`
+            : `Registrar rejeicao do orcamento V${currentBudget?.version}?`}
+        </p>
+        <ObservationForm
+          defaultObservation={
+            decisionType === "approve"
+              ? "Cliente aprovou o orcamento."
+              : "Cliente rejeitou o orcamento."
+          }
+          submitLabel={
+            decisionType === "approve"
+              ? "Registrar aprovacao"
+              : "Registrar rejeicao"
+          }
+          isSubmitting={
+            approveBudgetMutation.isPending || rejectBudgetMutation.isPending
+          }
+          errorMessage={formError}
+          onCancel={resetModalState}
+          onSubmit={(data) => void handleDecisionSubmit(data)}
+        />
+      </Modal>
+
+      <Modal
+        title="Consumir peca"
+        isOpen={Boolean(consumeItem)}
+        onClose={resetModalState}
+        maxWidth="max-w-lg"
+      >
+        {consumeItem && (
+          <ConsumePartForm
+            item={consumeItem}
+            consumed={consumedByPartId[consumeItem.part.id] ?? 0}
+            isSubmitting={consumePartMutation.isPending}
+            errorMessage={formError}
+            onCancel={resetModalState}
+            onSubmit={(data) => void handleConsumePart(data)}
+          />
+        )}
+      </Modal>
     </section>
   );
 }

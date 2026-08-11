@@ -5,6 +5,7 @@ import { CustomersPage } from "../features/customers/pages/CustomersPage";
 import { EquipmentsPage } from "../features/equipments/pages/EquipmentsPage";
 import { NewServiceOrderPage } from "../features/service-orders/pages/NewServiceOrderPage";
 import { ServiceOrderDetailPage } from "../features/service-orders/pages/ServiceOrderDetailPage";
+import { ServiceOrdersPage } from "../features/service-orders/pages/ServiceOrdersPage";
 import { Dashboard } from "../pages/Dashboard";
 import { Login } from "../pages/Login";
 import { ModulePlaceholder } from "../pages/ModulePlaceholder";
@@ -26,10 +27,7 @@ export function AppRoutes() {
           <Route path="/customers" element={<CustomersPage />} />
           <Route path="/customers/:id" element={<CustomerDetailPage />} />
           <Route path="/equipments" element={<EquipmentsPage />} />
-          <Route
-            path="/service-orders"
-            element={<ModulePlaceholder title="Ordens de Servico" />}
-          />
+          <Route path="/service-orders" element={<ServiceOrdersPage />} />
           <Route path="/service-orders/new" element={<NewServiceOrderPage />} />
           <Route
             path="/service-orders/:id"

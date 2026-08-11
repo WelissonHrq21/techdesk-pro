@@ -1,0 +1,60 @@
+import { z } from "zod";
+
+const budgetItemSchema = z.object({
+  partId: z.string().uuid("Selecione uma peca valida."),
+  quantity: z
+    .number()
+    .int("A quantidade deve ser um numero inteiro.")
+    .min(1, "A quantidade deve ser no minimo 1."),
+  unitPrice: z
+    .number()
+    .positive("O valor unitario deve ser positivo."),
+});
+
+export const observationSchema = z.object({
+  observation: z
+    .string()
+    .trim()
+    .max(500, "A observacao deve ter no maximo 500 caracteres.")
+    .optional(),
+});
+
+export const diagnosisSchema = z.object({
+  diagnosis: z
+    .string()
+    .trim()
+    .min(1, "Informe o diagnostico tecnico.")
+    .max(2000, "O diagnostico deve ter no maximo 2000 caracteres."),
+});
+
+export const budgetFormSchema = z.object({
+  items: z
+    .array(budgetItemSchema)
+    .min(1, "Inclua pelo menos uma peca no orcamento."),
+});
+
+export const budgetRevisionFormSchema = budgetFormSchema.extend({
+  observation: z
+    .string()
+    .trim()
+    .max(500, "A observacao deve ter no maximo 500 caracteres.")
+    .optional(),
+});
+
+export const consumePartSchema = z.object({
+  quantity: z
+    .number()
+    .int("A quantidade deve ser um numero inteiro.")
+    .min(1, "A quantidade deve ser no minimo 1."),
+  observation: z
+    .string()
+    .trim()
+    .max(500, "A observacao deve ter no maximo 500 caracteres.")
+    .optional(),
+});
+
+export type ObservationFormValues = z.infer<typeof observationSchema>;
+export type DiagnosisFormValues = z.infer<typeof diagnosisSchema>;
+export type BudgetFormValues = z.infer<typeof budgetFormSchema>;
+export type BudgetRevisionFormValues = z.infer<typeof budgetRevisionFormSchema>;
+export type ConsumePartFormValues = z.infer<typeof consumePartSchema>;
