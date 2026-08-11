@@ -129,3 +129,9 @@ Rolling back an API image does not automatically roll back database changes. Fut
 ## ADR-022 - Production PostgreSQL stays on the internal Docker network
 
 The production compose file does not publish PostgreSQL ports to the host. The API reaches the database through the Compose service name `postgres`. Development access through the host uses `docker-compose.dev.yml`.
+
+---
+
+## ADR-023 - Frontend stores JWT in localStorage for the MVP
+
+The first frontend stores `techdesk.token` and `techdesk.user` in `localStorage` to keep authentication simple while the API uses bearer tokens. This is acceptable for the MVP, but it increases the impact of XSS. A future hardening sprint can move authentication to HttpOnly cookies if the backend contract changes.

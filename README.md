@@ -47,6 +47,24 @@ npm start
 
 O build TypeScript gera a pasta `dist/`, e o start executa `node dist/src/server.js`, sem `tsx`.
 
+## Frontend Local
+
+O frontend fica em `frontend/`.
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Configure `frontend/.env` com:
+
+```env
+VITE_API_URL=http://localhost:3333
+```
+
+Com backend em `http://localhost:3333`, o Vite sobe em `http://localhost:5173`.
+
 ## Running With Docker
 
 O fluxo de producao nao exige Node nem PostgreSQL instalados no host:
