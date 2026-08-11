@@ -13,7 +13,14 @@ const envSchema = z.object({
     message: "JWT_SECRET must have at least 32 characters",
   }),
   JWT_EXPIRES_IN: z.string().trim().min(1).default("8h"),
-  CORS_ORIGIN: z.string().trim().min(1).default("http://localhost:5173"),
+  CORS_ORIGIN: z
+    .string()
+    .trim()
+    .min(1)
+    .default("http://localhost:5173")
+    .transform((value: string) => {
+      return value.split(",").map((origin) => origin.trim());
+    }),
   SWAGGER_ENABLED: z
     .string()
     .trim()
