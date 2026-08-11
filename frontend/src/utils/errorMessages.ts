@@ -7,6 +7,15 @@ export function getFriendlyErrorMessage(error: unknown) {
     "Email already exists": "Ja existe um cliente cadastrado com este e-mail.",
     "Serial number already exists":
       "Este numero de serie ja esta cadastrado.",
+    "Login already registered": "Este login ja esta em uso.",
+    "The last active admin cannot lose the ADMIN role":
+      "O ultimo administrador ativo nao pode perder o perfil de Administrador.",
+    "The last active admin cannot be deactivated":
+      "O ultimo administrador ativo nao pode ser desativado.",
+    "Users cannot deactivate themselves":
+      "Voce nao pode desativar seu proprio usuario.",
+    "You cannot deactivate your own user":
+      "Voce nao pode desativar seu proprio usuario.",
     "Customer is inactive":
       "Nao e possivel cadastrar equipamento para um cliente desativado.",
     "Equipment does not belong to this customer":

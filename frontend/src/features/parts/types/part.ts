@@ -9,3 +9,37 @@ export type Part = {
   createdAt: string;
   updatedAt: string;
 };
+
+export type PartFormData = {
+  name: string;
+  brand: string;
+  currentPrice: number;
+  supplier?: string;
+};
+
+export type StockMovement = {
+  id: string;
+  type: "ENTRY" | "EXIT" | "ADJUSTMENT";
+  quantity: number;
+  reason: string | null;
+  createdAt: string;
+  user: {
+    id: string;
+    name: string;
+    login: string;
+    role: string;
+  } | null;
+  serviceOrder: {
+    id: string;
+    number: number;
+  } | null;
+};
+
+export type StockEntryData = {
+  quantity: number;
+  reason?: string;
+};
+
+export type StockExitData = StockEntryData & {
+  serviceOrderId?: string;
+};

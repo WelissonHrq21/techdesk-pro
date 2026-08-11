@@ -1,5 +1,6 @@
 import { ChevronDown } from "lucide-react";
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { EmptyState } from "../../../components/ui/EmptyState";
 import { formatCurrency, formatDateTime } from "../../../utils/formatters";
 import type { BudgetSummary } from "../types/serviceOrder";
@@ -91,6 +92,13 @@ export function BudgetList({ budgets, currentBudgetId }: BudgetListProps) {
                       {formatCurrency(budget.totalValue)}
                     </strong>
                   </div>
+                  <Link
+                    to={`/service-orders/${budget.serviceOrderId}/budgets/${budget.id}/print`}
+                    target="_blank"
+                    className="mt-4 inline-flex h-9 items-center rounded-md border border-slate-200 px-3 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                  >
+                    Imprimir orcamento
+                  </Link>
                 </div>
               )}
             </div>

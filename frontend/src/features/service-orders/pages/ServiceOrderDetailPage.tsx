@@ -1,4 +1,4 @@
-import { Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff, Printer } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useParams } from "react-router-dom";
 import { EmptyState } from "../../../components/ui/EmptyState";
@@ -409,10 +409,20 @@ export function ServiceOrderDetailPage() {
             </p>
           </div>
 
-          <ServiceOrderActions
-            actions={availableActions}
-            onAction={handleAction}
-          />
+          <div className="flex flex-wrap justify-start gap-2 lg:justify-end">
+            <ServiceOrderActions
+              actions={availableActions}
+              onAction={handleAction}
+            />
+            <Link
+              to={`/service-orders/${serviceOrder.id}/print`}
+              target="_blank"
+              className="inline-flex h-10 items-center gap-2 rounded-md border border-slate-200 px-4 text-sm font-medium text-slate-700 hover:bg-slate-50"
+            >
+              <Printer size={17} />
+              Imprimir protocolo
+            </Link>
+          </div>
         </div>
 
         {availableActions.length === 0 && serviceOrder.status === "DELIVERED" && (
