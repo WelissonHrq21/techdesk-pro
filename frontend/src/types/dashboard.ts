@@ -14,17 +14,28 @@ export type ServiceOrderStatus =
 export type StockMovementType = "ENTRY" | "EXIT" | "ADJUSTMENT";
 
 export type DashboardSummary = {
-  serviceOrdersByStatus: Array<{
-    status: ServiceOrderStatus;
-    _count: {
-      status: number;
-    };
-  }>;
-  openServiceOrders: number;
-  createdToday: number;
-  deliveredToday: number;
-  partsOutOfStock: number;
-  partsLowStock: number;
+  serviceOrders: {
+    open: number;
+    createdToday: number;
+    deliveredToday: number;
+    received: number;
+    inAnalysis: number;
+    awaitingApproval: number;
+    budgetChangedAwaitingApproval: number;
+    budgetApproved: number;
+    inMaintenance: number;
+    finished: number;
+    awaitingPickup: number;
+  };
+  budgets: {
+    awaitingApproval: number;
+    changedAwaitingApproval: number;
+  };
+  stock: {
+    outOfStock: number;
+    lowStock: number;
+    lowStockThreshold: number;
+  };
   recentServiceOrders: Array<{
     id: string;
     number: number;

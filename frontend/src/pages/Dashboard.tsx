@@ -10,24 +10,11 @@ import {
 } from "lucide-react";
 import { StatusBadge } from "../components/ui/StatusBadge";
 import { useDashboard } from "../hooks/useDashboard";
-import type { ServiceOrderStatus } from "../types/dashboard";
 import { formatDateTime } from "../utils/formatters";
 import {
   serviceOrderStatusLabels,
   stockMovementTypeLabels,
 } from "../utils/labels";
-
-function countStatus(
-  statuses: Array<{
-    status: ServiceOrderStatus;
-    _count: {
-      status: number;
-    };
-  }>,
-  status: ServiceOrderStatus
-) {
-  return statuses.find((item) => item.status === status)?._count.status ?? 0;
-}
 
 function DashboardSkeleton() {
   return (
@@ -114,49 +101,49 @@ export function Dashboard() {
   const stats = [
     {
       label: "OS abertas",
-      value: data.openServiceOrders,
+      value: data.serviceOrders.open,
       icon: ClipboardList,
       tone: "slate" as const,
     },
     {
       label: serviceOrderStatusLabels.RECEIVED,
-      value: countStatus(data.serviceOrdersByStatus, "RECEIVED"),
+      value: data.serviceOrders.received,
       icon: ClipboardCheck,
       tone: "sky" as const,
     },
     {
       label: serviceOrderStatusLabels.IN_ANALYSIS,
-      value: countStatus(data.serviceOrdersByStatus, "IN_ANALYSIS"),
+      value: data.serviceOrders.inAnalysis,
       icon: Timer,
       tone: "sky" as const,
     },
     {
       label: serviceOrderStatusLabels.AWAITING_APPROVAL,
-      value: countStatus(data.serviceOrdersByStatus, "AWAITING_APPROVAL"),
+      value: data.serviceOrders.awaitingApproval,
       icon: AlertTriangle,
       tone: "amber" as const,
     },
     {
       label: serviceOrderStatusLabels.IN_MAINTENANCE,
-      value: countStatus(data.serviceOrdersByStatus, "IN_MAINTENANCE"),
+      value: data.serviceOrders.inMaintenance,
       icon: Wrench,
       tone: "indigo" as const,
     },
     {
       label: serviceOrderStatusLabels.AWAITING_PICKUP,
-      value: countStatus(data.serviceOrdersByStatus, "AWAITING_PICKUP"),
+      value: data.serviceOrders.awaitingPickup,
       icon: Truck,
       tone: "emerald" as const,
     },
     {
       label: "Entregues hoje",
-      value: data.deliveredToday,
+      value: data.serviceOrders.deliveredToday,
       icon: ClipboardCheck,
       tone: "emerald" as const,
     },
     {
       label: "Sem estoque",
-      value: data.partsOutOfStock,
+      value: data.stock.outOfStock,
       icon: PackageX,
       tone: "rose" as const,
     },
@@ -223,13 +210,13 @@ export function Dashboard() {
               <div className="rounded-md bg-rose-50 p-4">
                 <span className="text-sm text-rose-700">Sem estoque</span>
                 <strong className="mt-2 block text-2xl font-semibold text-rose-900">
-                  {data.partsOutOfStock}
+                  {data.stock.outOfStock}
                 </strong>
               </div>
               <div className="rounded-md bg-amber-50 p-4">
                 <span className="text-sm text-amber-700">Estoque baixo</span>
                 <strong className="mt-2 block text-2xl font-semibold text-amber-900">
-                  {data.partsLowStock}
+                  {data.stock.lowStock}
                 </strong>
               </div>
             </div>
