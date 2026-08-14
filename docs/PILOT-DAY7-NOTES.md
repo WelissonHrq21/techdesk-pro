@@ -155,3 +155,15 @@
 
 - Resultado: GO.
 - Motivo: quatro P2 tratados, nenhum P0/P1 encontrado, testes passando, RBAC intacto, dados consistentes, infraestrutura saudável, logs limpos e backup pós-Dia 7 validado.
+
+## Adendo - observações históricas com enums técnicos
+
+- Data/hora: 2026-08-14 01:13
+- Evidência reportada após o fechamento: timeline ainda exibia observações como `Dia 4 AWAITING_APPROVAL` e `Dia 4 IN_ANALYSIS`.
+- Classificação: P2 de apresentação/dado histórico, sem impacto em regra de negócio.
+- Causa raiz: observações manuais dos testes do Dia 4 foram gravadas contendo enums técnicos. O frontend atual estava renderizando corretamente título, badges e labels; o texto bruto vinha do campo `ServiceOrderHistory.observation`.
+- Correção: 23 registros históricos `Dia 4 <STATUS>` foram atualizados de forma específica para frases amigáveis em português, usando escapes Unicode do PostgreSQL para preservar UTF-8.
+- Validação: consulta SQL final retornou `remaining_bad_observations = 0` para enums técnicos, `?` e caractere de substituição nos campos corrigidos.
+- Backup pós-hotfix: `backups/post-dia7-history-hotfix-2026-08-14_01-13-06.dump`
+- Tamanho backup pós-hotfix: 40184 bytes
+- SHA256 pós-hotfix: `32B57695C82E6620230E000CC4C4C5C46F48F04BF40D144C7B28225116FFCA0D`
