@@ -15,7 +15,7 @@ describe("protected and role routes", () => {
       route: "/users",
       user: {
         id: "1",
-        name: "Tecnico",
+        name: "Técnico",
         login: "tecnico",
         role: "TECHNICIAN",
       },

@@ -22,7 +22,7 @@ export function SettingsPage() {
 
     try {
       await updateSettingsMutation.mutateAsync(data);
-      showToast("Configuracoes da empresa atualizadas.", "success");
+      showToast("Configurações da empresa atualizadas.", "success");
     } catch (error) {
       setFormError(getFriendlyErrorMessage(error));
     }
@@ -35,7 +35,7 @@ export function SettingsPage() {
   if (settingsQuery.isError || !settingsQuery.data) {
     return (
       <ErrorState
-        title="Nao foi possivel carregar as configuracoes."
+        title="Não foi possível carregar as configurações."
         onRetry={() => void settingsQuery.refetch()}
         isRetrying={settingsQuery.isFetching}
       />
@@ -45,13 +45,13 @@ export function SettingsPage() {
   return (
     <section>
       <PageHeader
-        title="Configuracoes"
-        description="Dados persistentes da assistencia usados em documentos e operacao."
+        title="Configurações"
+        description="Dados persistentes da assistência usados em documentos e operação."
       />
 
       <div className="rounded-md border border-slate-200 bg-white p-5 shadow-sm">
         <h2 className="text-base font-semibold text-slate-950">
-          Dados da assistencia
+          Dados da assistência
         </h2>
         <div className="mt-5">
           <CompanySettingsForm

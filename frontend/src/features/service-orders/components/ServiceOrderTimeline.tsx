@@ -8,17 +8,17 @@ type ServiceOrderTimelineProps = {
 };
 
 const transitionLabels: Record<string, string> = {
-  "RECEIVED->IN_ANALYSIS": "Iniciou analise",
-  "IN_ANALYSIS->AWAITING_APPROVAL": "Orcamento enviado para aprovacao",
-  "AWAITING_APPROVAL->BUDGET_APPROVED": "Orcamento aprovado",
-  "BUDGET_CHANGED_AWAITING_APPROVAL->BUDGET_APPROVED": "Revisao aprovada",
-  "AWAITING_APPROVAL->BUDGET_REJECTED": "Orcamento rejeitado",
-  "BUDGET_CHANGED_AWAITING_APPROVAL->BUDGET_REJECTED": "Revisao rejeitada",
-  "BUDGET_REJECTED->IN_ANALYSIS": "Retomou analise",
-  "BUDGET_APPROVED->IN_MAINTENANCE": "Iniciou manutencao",
+  "RECEIVED->IN_ANALYSIS": "Iniciou análise",
+  "IN_ANALYSIS->AWAITING_APPROVAL": "Orçamento enviado para aprovação",
+  "AWAITING_APPROVAL->BUDGET_APPROVED": "Orçamento aprovado",
+  "BUDGET_CHANGED_AWAITING_APPROVAL->BUDGET_APPROVED": "Revisão aprovada",
+  "AWAITING_APPROVAL->BUDGET_REJECTED": "Orçamento rejeitado",
+  "BUDGET_CHANGED_AWAITING_APPROVAL->BUDGET_REJECTED": "Revisão rejeitada",
+  "BUDGET_REJECTED->IN_ANALYSIS": "Retomou análise",
+  "BUDGET_APPROVED->IN_MAINTENANCE": "Iniciou manutenção",
   "IN_MAINTENANCE->BUDGET_CHANGED_AWAITING_APPROVAL":
-    "Revisao enviada para aprovacao",
-  "IN_MAINTENANCE->FINISHED": "Manutencao finalizada",
+    "Revisão enviada para aprovação",
+  "IN_MAINTENANCE->FINISHED": "Manutenção finalizada",
   "FINISHED->AWAITING_PICKUP": "Aguardando retirada",
   "AWAITING_PICKUP->DELIVERED": "Equipamento entregue",
 };
@@ -27,7 +27,7 @@ export function ServiceOrderTimeline({ histories }: ServiceOrderTimelineProps) {
   if (histories.length === 0) {
     return (
       <p className="mt-4 text-sm text-slate-500">
-        Nenhum historico disponivel.
+        Nenhum histórico disponível.
       </p>
     );
   }

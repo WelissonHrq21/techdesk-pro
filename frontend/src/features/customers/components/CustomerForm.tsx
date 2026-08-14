@@ -72,7 +72,7 @@ export function CustomerForm({
         <FormField label="CEP" error={errors.zipCode?.message}>
           <input className={inputClass} {...register("zipCode")} />
         </FormField>
-        <FormField label="Endereco" error={errors.address?.message}>
+        <FormField label="Endereço" error={errors.address?.message}>
           <input className={inputClass} {...register("address")} />
         </FormField>
       </div>
@@ -100,7 +100,7 @@ export function CustomerForm({
             ? "Salvando..."
             : mode === "create"
               ? "Cadastrar cliente"
-              : "Salvar alteracoes"}
+              : "Salvar alterações"}
         </button>
       </div>
     </form>

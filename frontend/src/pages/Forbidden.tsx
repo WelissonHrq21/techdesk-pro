@@ -10,7 +10,7 @@ export function Forbidden() {
           Acesso negado
         </h2>
         <p className="mt-2 text-sm text-slate-600">
-          Voce nao tem permissao para acessar esta area.
+          Você não tem permissão para acessar esta área.
         </p>
         <Link
           to="/dashboard"

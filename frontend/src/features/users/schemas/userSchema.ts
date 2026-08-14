@@ -21,7 +21,7 @@ export const userSchema = z
       context.addIssue({
         code: "custom",
         path: ["confirmPassword"],
-        message: "As senhas nao conferem.",
+        message: "As senhas não conferem.",
       });
     }
   });

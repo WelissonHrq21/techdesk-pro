@@ -82,7 +82,7 @@ export function Dashboard() {
         <div className="rounded-md border border-slate-200 bg-white p-8 text-center shadow-sm">
           <AlertTriangle className="mx-auto text-amber-500" size={34} />
           <h2 className="mt-4 text-lg font-semibold text-slate-950">
-            Nao foi possivel carregar o dashboard.
+            Não foi possível carregar o dashboard.
           </h2>
           <button
             type="button"
@@ -167,7 +167,7 @@ export function Dashboard() {
 
           {data.recentServiceOrders.length === 0 ? (
             <div className="p-5 text-sm text-slate-500">
-              Nenhuma ordem de servico recente.
+              Nenhuma ordem de serviço recente.
             </div>
           ) : (
             <div className="divide-y divide-slate-100">
@@ -225,7 +225,7 @@ export function Dashboard() {
           <div className="rounded-md border border-slate-200 bg-white shadow-sm">
             <div className="border-b border-slate-200 px-5 py-4">
               <h2 className="text-base font-semibold text-slate-950">
-                Movimentacoes recentes
+                Movimentações recentes
               </h2>
             </div>
 

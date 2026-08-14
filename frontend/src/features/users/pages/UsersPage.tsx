@@ -44,7 +44,7 @@ export function UsersPage() {
     try {
       await createUserMutation.mutateAsync(data);
       closeModal();
-      showToast("Usuario cadastrado.", "success");
+      showToast("Usuário cadastrado.", "success");
     } catch (error) {
       setFormError(getFriendlyErrorMessage(error));
     }
@@ -56,7 +56,7 @@ export function UsersPage() {
     try {
       await updateUserMutation.mutateAsync(data);
       closeModal();
-      showToast("Usuario atualizado.", "success");
+      showToast("Usuário atualizado.", "success");
     } catch (error) {
       setFormError(getFriendlyErrorMessage(error));
     }
@@ -68,7 +68,7 @@ export function UsersPage() {
     try {
       await deactivateUserMutation.mutateAsync();
       closeModal();
-      showToast("Usuario desativado.", "success");
+      showToast("Usuário desativado.", "success");
     } catch (error) {
       setFormError(getFriendlyErrorMessage(error));
     }
@@ -77,8 +77,8 @@ export function UsersPage() {
   return (
     <section>
       <PageHeader
-        title="Usuarios"
-        description="Gestao de acesso e perfis da equipe."
+        title="Usuários"
+        description="Gestão de acesso e perfis da equipe."
         actions={
           <button
             type="button"
@@ -86,7 +86,7 @@ export function UsersPage() {
             className="inline-flex h-10 items-center gap-2 rounded-md bg-sky-600 px-4 text-sm font-semibold text-white hover:bg-sky-700"
           >
             <Plus size={17} />
-            Novo usuario
+            Novo usuário
           </button>
         }
       />
@@ -99,14 +99,14 @@ export function UsersPage() {
         ) : usersQuery.isError || !usersQuery.data ? (
           <div className="p-4">
             <ErrorState
-              title="Nao foi possivel carregar usuarios."
+              title="Não foi possível carregar usuários."
               onRetry={() => void usersQuery.refetch()}
               isRetrying={usersQuery.isFetching}
             />
           </div>
         ) : usersQuery.data.length === 0 ? (
           <div className="p-4">
-            <EmptyState title="Nenhum usuario encontrado." />
+            <EmptyState title="Nenhum usuário encontrado." />
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -117,7 +117,7 @@ export function UsersPage() {
                   <th className="px-4 py-3 font-semibold">Login</th>
                   <th className="px-4 py-3 font-semibold">Perfil</th>
                   <th className="px-4 py-3 font-semibold">Status</th>
-                  <th className="px-4 py-3 text-right font-semibold">Acoes</th>
+                  <th className="px-4 py-3 text-right font-semibold">Ações</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -173,7 +173,7 @@ export function UsersPage() {
         )}
       </div>
 
-      <Modal title="Novo usuario" isOpen={modal === "create"} onClose={closeModal}>
+      <Modal title="Novo usuário" isOpen={modal === "create"} onClose={closeModal}>
         <UserForm
           mode="create"
           isSubmitting={createUserMutation.isPending}
@@ -183,7 +183,7 @@ export function UsersPage() {
         />
       </Modal>
 
-      <Modal title="Editar usuario" isOpen={modal === "edit"} onClose={closeModal}>
+      <Modal title="Editar usuário" isOpen={modal === "edit"} onClose={closeModal}>
         <UserForm
           mode="edit"
           user={selectedUser ?? undefined}
@@ -196,8 +196,8 @@ export function UsersPage() {
 
       <ConfirmDialog
         isOpen={modal === "deactivate"}
-        title={`Desativar ${selectedUser?.name ?? "usuario"}?`}
-        description="Ele perdera acesso imediatamente. O historico de acoes sera preservado."
+        title={`Desativar ${selectedUser?.name ?? "usuário"}?`}
+        description="Ele perderá acesso imediatamente. O histórico de ações será preservado."
         confirmLabel="Desativar"
         isSubmitting={deactivateUserMutation.isPending}
         onCancel={closeModal}

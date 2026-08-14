@@ -57,7 +57,7 @@ export function CompanySettingsForm({
 
   return (
     <form className="space-y-4" onSubmit={(event) => void handleSubmit(onSubmit)(event)}>
-      <FormField label="Nome da assistencia *" error={errors.name?.message}>
+      <FormField label="Nome da assistência *" error={errors.name?.message}>
         <input className={inputClass} {...register("name")} />
       </FormField>
 
@@ -78,7 +78,7 @@ export function CompanySettingsForm({
         <FormField label="CEP" error={errors.zipCode?.message}>
           <input className={inputClass} {...register("zipCode")} />
         </FormField>
-        <FormField label="Endereco" error={errors.address?.message}>
+        <FormField label="Endereço" error={errors.address?.message}>
           <input className={inputClass} {...register("address")} />
         </FormField>
       </div>
@@ -95,7 +95,7 @@ export function CompanySettingsForm({
           disabled={isSubmitting}
           className="h-10 rounded-md bg-sky-600 px-4 text-sm font-semibold text-white hover:bg-sky-700 disabled:bg-slate-300"
         >
-          {isSubmitting ? "Salvando..." : "Salvar configuracoes"}
+          {isSubmitting ? "Salvando..." : "Salvar configurações"}
         </button>
       </div>
     </form>

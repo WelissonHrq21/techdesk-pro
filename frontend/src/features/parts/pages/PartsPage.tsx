@@ -102,7 +102,7 @@ export function PartsPage() {
     <section>
       <PageHeader
         title="Pecas / Estoque"
-        description="Consulta de pecas e saldo atual de estoque."
+        description="Consulta de peças e saldo atual de estoque."
         actions={
           user?.role === "ADMIN" && (
             <button
@@ -111,7 +111,7 @@ export function PartsPage() {
               className="inline-flex h-10 items-center gap-2 rounded-md bg-sky-600 px-4 text-sm font-semibold text-white hover:bg-sky-700"
             >
               <Plus size={17} />
-              Nova peca
+              Nova peça
             </button>
           )
         }
@@ -149,14 +149,14 @@ export function PartsPage() {
         ) : partsQuery.isError || !partsQuery.data ? (
           <div className="p-4">
             <ErrorState
-              title="Nao foi possivel carregar as pecas."
+              title="Não foi possível carregar as peças."
               onRetry={() => void partsQuery.refetch()}
               isRetrying={partsQuery.isFetching}
             />
           </div>
         ) : visibleParts.length === 0 ? (
           <div className="p-4">
-            <EmptyState title="Nenhuma peca encontrada." />
+            <EmptyState title="Nenhuma peça encontrada." />
           </div>
         ) : (
           <>
@@ -166,10 +166,10 @@ export function PartsPage() {
                   <tr>
                     <th className="px-4 py-3 font-semibold">Peca</th>
                     <th className="px-4 py-3 font-semibold">Marca</th>
-                    <th className="px-4 py-3 font-semibold">Preco</th>
+                    <th className="px-4 py-3 font-semibold">Preço</th>
                     <th className="px-4 py-3 font-semibold">Estoque</th>
                     <th className="px-4 py-3 text-right font-semibold">
-                      Acoes
+                      Ações
                     </th>
                   </tr>
                 </thead>
@@ -220,7 +220,7 @@ export function PartsPage() {
       </div>
 
       <Modal
-        title="Nova peca"
+        title="Nova peça"
         isOpen={isCreateOpen}
         onClose={() => setIsCreateOpen(false)}
       >

@@ -80,9 +80,12 @@ export function CustomerDetailPage() {
     setFormError(null);
 
     try {
-      await createEquipmentMutation.mutateAsync(data);
+      const equipment = await createEquipmentMutation.mutateAsync(data);
       setIsEquipmentCreateOpen(false);
-      showToast("Equipamento cadastrado com sucesso.", "success");
+      showToast("Equipamento cadastrado. Continue abrindo a OS.", "success");
+      navigate(
+        `/service-orders/new?customerId=${customer.id}&equipmentId=${equipment.id}`
+      );
     } catch (error) {
       setFormError(getFriendlyErrorMessage(error));
     }
@@ -95,7 +98,7 @@ export function CustomerDetailPage() {
   if (customerQuery.isError || !customerQuery.data || !id) {
     return (
       <ErrorState
-        title="Nao foi possivel carregar o cliente."
+        title="Não foi possível carregar o cliente."
         onRetry={() => void customerQuery.refetch()}
         isRetrying={customerQuery.isFetching}
       />
@@ -156,7 +159,7 @@ export function CustomerDetailPage() {
               </dd>
             </div>
             <div>
-              <dt className="text-slate-500">Endereco</dt>
+              <dt className="text-slate-500">Endereço</dt>
               <dd className="font-medium text-slate-950">
                 {customer.address ?? "-"}
               </dd>
@@ -186,7 +189,7 @@ export function CustomerDetailPage() {
               <LoadingState rows={3} />
             ) : equipmentsQuery.isError || !equipmentsQuery.data ? (
               <ErrorState
-                title="Nao foi possivel carregar equipamentos."
+                title="Não foi possível carregar equipamentos."
                 onRetry={() => void equipmentsQuery.refetch()}
                 isRetrying={equipmentsQuery.isFetching}
               />
@@ -254,7 +257,7 @@ export function CustomerDetailPage() {
       <ConfirmDialog
         isOpen={isDeactivateCustomerOpen}
         title={`Desativar ${customer.name}?`}
-        description="O historico de atendimentos sera preservado."
+        description="O histórico de atendimentos será preservado."
         confirmLabel="Desativar"
         isSubmitting={deactivateCustomerMutation.isPending}
         onCancel={() => setIsDeactivateCustomerOpen(false)}
@@ -287,14 +290,14 @@ function EquipmentCard({
           {equipment.brand} {equipment.model}
         </h4>
         <p className="mt-1 text-sm text-slate-500">
-          Serial: {equipment.serialNumber ?? "Nao informado"}
+          Serial: {equipment.serialNumber ?? "Não informado"}
         </p>
       </div>
 
       <div className="mt-4 flex flex-wrap gap-2">
         <Link
           to={`/service-orders/new?customerId=${equipment.customer?.id ?? equipment.customerId ?? ""}&equipmentId=${equipment.id}`}
-          className="inline-flex h-9 items-center gap-2 rounded-md bg-slate-950 px-3 text-sm font-medium text-white hover:bg-slate-800"
+          className="inline-flex h-9 items-center gap-2 rounded-md bg-sky-600 px-3 text-sm font-semibold text-white shadow-sm hover:bg-sky-700 focus:outline-none focus:ring-2 focus:ring-sky-300"
         >
           <Wrench size={16} />
           Abrir OS
@@ -394,7 +397,7 @@ function DeactivateEquipmentDialog({
     <ConfirmDialog
       isOpen={Boolean(equipment)}
       title={`Desativar ${equipment?.brand ?? ""} ${equipment?.model ?? ""}?`}
-      description="O historico desse equipamento sera preservado."
+      description="O histórico desse equipamento será preservado."
       confirmLabel="Desativar"
       isSubmitting={mutation.isPending}
       onCancel={onClose}

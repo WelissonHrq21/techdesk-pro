@@ -61,40 +61,40 @@ const statusActionConfig: Partial<Record<ServiceOrderAction, StatusActionConfig>
   {
     START_ANALYSIS: {
       targetStatus: "IN_ANALYSIS",
-      title: "Iniciar analise",
-      description: "Iniciar analise tecnica desta OS?",
-      submitLabel: "Iniciar analise",
-      successMessage: "Analise iniciada.",
+      title: "Iniciar análise",
+      description: "Iniciar análise técnica desta OS?",
+      submitLabel: "Iniciar análise",
+      successMessage: "Análise iniciada.",
       defaultObservation: "Equipamento encaminhado para bancada.",
     },
     SEND_FOR_APPROVAL: {
       targetStatus: "AWAITING_APPROVAL",
-      title: "Enviar para aprovacao",
-      description: "Enviar o orcamento atual para decisao do cliente?",
-      submitLabel: "Enviar para aprovacao",
-      successMessage: "Orcamento enviado para aprovacao.",
-      defaultObservation: "Orcamento enviado ao cliente.",
+      title: "Enviar para aprovação",
+      description: "Enviar o orçamento atual para decisão do cliente?",
+      submitLabel: "Enviar para aprovação",
+      successMessage: "Orçamento enviado para aprovação.",
+      defaultObservation: "Orçamento enviado ao cliente.",
     },
     RETURN_TO_ANALYSIS: {
       targetStatus: "IN_ANALYSIS",
-      title: "Voltar para analise",
-      description: "Retomar a analise apos rejeicao do cliente?",
-      submitLabel: "Voltar para analise",
-      successMessage: "OS voltou para analise.",
+      title: "Voltar para análise",
+      description: "Retomar a análise após rejeição do cliente?",
+      submitLabel: "Voltar para análise",
+      successMessage: "OS voltou para análise.",
     },
     START_MAINTENANCE: {
       targetStatus: "IN_MAINTENANCE",
-      title: "Iniciar manutencao",
-      description: "Iniciar ou retomar a manutencao desta OS?",
-      submitLabel: "Iniciar manutencao",
-      successMessage: "Manutencao iniciada.",
+      title: "Iniciar manutenção",
+      description: "Iniciar ou retomar a manutenção desta OS?",
+      submitLabel: "Iniciar manutenção",
+      successMessage: "Manutenção iniciada.",
     },
     FINISH: {
       targetStatus: "FINISHED",
-      title: "Finalizar servico",
-      description: "Finalizar o servico tecnico desta OS?",
-      submitLabel: "Finalizar servico",
-      successMessage: "Servico finalizado.",
+      title: "Finalizar serviço",
+      description: "Finalizar o serviço técnico desta OS?",
+      submitLabel: "Finalizar serviço",
+      successMessage: "Serviço finalizado.",
     },
     MARK_AWAITING_PICKUP: {
       targetStatus: "AWAITING_PICKUP",
@@ -221,7 +221,7 @@ export function ServiceOrderDetailPage() {
 
     if (action === "APPROVE_BUDGET" || action === "REJECT_BUDGET") {
       if (!currentBudget) {
-        showToast("Nenhum orcamento atual encontrado.", "error");
+        showToast("Nenhum orçamento atual encontrado.", "error");
         return;
       }
 
@@ -290,7 +290,7 @@ export function ServiceOrderDetailPage() {
     try {
       await updateDiagnosisMutation.mutateAsync(data);
       resetModalState();
-      showToast("Diagnostico salvo.", "success");
+      showToast("Diagnóstico salvo.", "success");
     } catch (error) {
       handleError(error);
     }
@@ -300,7 +300,7 @@ export function ServiceOrderDetailPage() {
     try {
       await createBudgetMutation.mutateAsync(data);
       resetModalState();
-      showToast("Orcamento criado.", "success");
+      showToast("Orçamento criado.", "success");
     } catch (error) {
       handleError(error);
     }
@@ -310,7 +310,7 @@ export function ServiceOrderDetailPage() {
     try {
       await createRevisionMutation.mutateAsync(data);
       resetModalState();
-      showToast("Revisao enviada para aprovacao.", "success");
+      showToast("Revisão enviada para aprovação.", "success");
     } catch (error) {
       handleError(error);
     }
@@ -327,13 +327,13 @@ export function ServiceOrderDetailPage() {
           budgetId: currentBudget.id,
           data,
         });
-        showToast("Orcamento aprovado.", "success");
+        showToast("Orçamento aprovado.", "success");
       } else {
         await rejectBudgetMutation.mutateAsync({
           budgetId: currentBudget.id,
           data,
         });
-        showToast("Orcamento rejeitado.", "success");
+        showToast("Orçamento rejeitado.", "success");
       }
 
       resetModalState();
@@ -357,7 +357,7 @@ export function ServiceOrderDetailPage() {
         observation: data.observation,
       });
       resetModalState();
-      showToast("Peca consumida com sucesso.", "success");
+      showToast("Peça consumida com sucesso.", "success");
     } catch (error) {
       handleError(error);
     }
@@ -370,7 +370,7 @@ export function ServiceOrderDetailPage() {
   if (serviceOrderQuery.isError || !serviceOrder) {
     return (
       <ErrorState
-        title="Nao foi possivel carregar a OS."
+        title="Não foi possível carregar a OS."
         onRetry={() => void serviceOrderQuery.refetch()}
         isRetrying={serviceOrderQuery.isFetching}
       />
@@ -416,7 +416,7 @@ export function ServiceOrderDetailPage() {
             </h2>
             <p className="mt-1 text-sm text-slate-500">
               {serviceOrder.equipment.type} - Serial:{" "}
-              {serviceOrder.equipment.serialNumber ?? "Nao informado"}
+              {serviceOrder.equipment.serialNumber ?? "Não informado"}
             </p>
           </div>
 
@@ -452,13 +452,13 @@ export function ServiceOrderDetailPage() {
         {(serviceOrder.status === "AWAITING_APPROVAL" ||
           serviceOrder.status === "BUDGET_CHANGED_AWAITING_APPROVAL") && (
           <p className="mt-4 rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-700">
-            Orcamento aguardando decisao do cliente.
+            Orçamento aguardando decisão do cliente.
           </p>
         )}
         {serviceOrder.status === "BUDGET_REJECTED" && (
           <p className="mt-4 rounded-md bg-rose-50 px-3 py-2 text-sm text-rose-700">
-            Orcamento rejeitado. A bancada pode retomar a analise e gerar uma nova
-            versao.
+            Orçamento rejeitado. A bancada pode retomar a análise e gerar uma nova
+            versão.
           </p>
         )}
       </div>
@@ -477,9 +477,9 @@ export function ServiceOrderDetailPage() {
                 </p>
               </div>
               <div>
-                <span className="text-sm text-slate-500">Diagnostico</span>
+                <span className="text-sm text-slate-500">Diagnóstico</span>
                 <p className="mt-1 whitespace-pre-wrap text-sm font-medium text-slate-950">
-                  {serviceOrder.diagnosis || "Ainda nao informado."}
+                  {serviceOrder.diagnosis || "Ainda não informado."}
                 </p>
               </div>
             </div>
@@ -487,7 +487,7 @@ export function ServiceOrderDetailPage() {
 
           <div className="rounded-md border border-slate-200 bg-white p-5 shadow-sm">
             <h3 className="text-base font-semibold text-slate-950">
-              Orcamentos
+              Orçamentos
             </h3>
             <div className="mt-4">
               <BudgetList
@@ -500,11 +500,11 @@ export function ServiceOrderDetailPage() {
           <div className="rounded-md border border-slate-200 bg-white p-5 shadow-sm">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <h3 className="text-base font-semibold text-slate-950">
-                Manutencao
+                Manutenção
               </h3>
               {currentBudget && (
                 <span className="text-sm text-slate-500">
-                  Base: Orcamento V{currentBudget.version}
+                  Base: Orçamento V{currentBudget.version}
                 </span>
               )}
             </div>
@@ -520,11 +520,11 @@ export function ServiceOrderDetailPage() {
 
           <div className="rounded-md border border-slate-200 bg-white p-5 shadow-sm">
             <h3 className="text-base font-semibold text-slate-950">
-              Acessorios recebidos
+              Acessórios recebidos
             </h3>
             {serviceOrder.accessories.length === 0 ? (
               <div className="mt-4">
-                <EmptyState title="Nenhum acessorio registrado." />
+                <EmptyState title="Nenhum acessório registrado." />
               </div>
             ) : (
               <div className="mt-4 space-y-3">
@@ -576,7 +576,7 @@ export function ServiceOrderDetailPage() {
                       ? showPassword
                         ? serviceOrder.password
                         : "********"
-                      : "Nao informada"}
+                      : "Não informada"}
                   </span>
                   {serviceOrder.password && (
                     <button
@@ -598,11 +598,11 @@ export function ServiceOrderDetailPage() {
 
           <div className="rounded-md border border-slate-200 bg-white p-5 shadow-sm">
             <h3 className="text-base font-semibold text-slate-950">
-              Pecas consumidas
+              Peças consumidas
             </h3>
             {consumedParts.length === 0 ? (
               <p className="mt-4 text-sm text-slate-500">
-                Nenhuma peca consumida.
+                Nenhuma peça consumida.
               </p>
             ) : (
               <div className="mt-4 space-y-3">
@@ -631,7 +631,7 @@ export function ServiceOrderDetailPage() {
 
           <div className="rounded-md border border-slate-200 bg-white p-5 shadow-sm">
             <h3 className="text-base font-semibold text-slate-950">
-              Historico
+              Histórico
             </h3>
             <ServiceOrderTimeline
               histories={serviceOrder.serviceOrderHistories}
@@ -653,7 +653,7 @@ export function ServiceOrderDetailPage() {
             </p>
             {activeStatusAction === "FINISH" && unconsumedItems.length > 0 && (
               <div className="mb-4 rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-700">
-                <p className="font-medium">Pecas aprovadas nao consumidas:</p>
+                <p className="font-medium">Peças aprovadas não consumidas:</p>
                 <ul className="mt-1 list-inside list-disc">
                   {unconsumedItems.map((item) => {
                     const consumed = consumedByPartId[item.part.id] ?? 0;
@@ -680,7 +680,7 @@ export function ServiceOrderDetailPage() {
 
       <Modal
         title={
-          serviceOrder.diagnosis ? "Editar diagnostico" : "Registrar diagnostico"
+          serviceOrder.diagnosis ? "Editar diagnóstico" : "Registrar diagnóstico"
         }
         isOpen={isDiagnosisOpen}
         onClose={resetModalState}
@@ -696,7 +696,7 @@ export function ServiceOrderDetailPage() {
       </Modal>
 
       <Modal
-        title="Criar orcamento"
+        title="Criar orçamento"
         isOpen={isBudgetOpen}
         onClose={resetModalState}
         maxWidth="max-w-5xl"
@@ -711,7 +711,7 @@ export function ServiceOrderDetailPage() {
       </Modal>
 
       <Modal
-        title="Revisar orcamento"
+        title="Revisar orçamento"
         isOpen={isRevisionOpen}
         onClose={resetModalState}
         maxWidth="max-w-5xl"
@@ -733,8 +733,8 @@ export function ServiceOrderDetailPage() {
       <Modal
         title={
           decisionType === "approve"
-            ? "Registrar aprovacao"
-            : "Registrar rejeicao"
+            ? "Registrar aprovação"
+            : "Registrar rejeição"
         }
         isOpen={Boolean(decisionType)}
         onClose={resetModalState}
@@ -742,19 +742,19 @@ export function ServiceOrderDetailPage() {
       >
         <p className="mb-4 text-sm text-slate-600">
           {decisionType === "approve"
-            ? `Registrar aprovacao do orcamento V${currentBudget?.version}?`
-            : `Registrar rejeicao do orcamento V${currentBudget?.version}?`}
+            ? `Registrar aprovação do orçamento V${currentBudget?.version}?`
+            : `Registrar rejeição do orçamento V${currentBudget?.version}?`}
         </p>
         <ObservationForm
           defaultObservation={
             decisionType === "approve"
-              ? "Cliente aprovou o orcamento."
-              : "Cliente rejeitou o orcamento."
+              ? "Cliente aprovou o orçamento."
+              : "Cliente rejeitou o orçamento."
           }
           submitLabel={
             decisionType === "approve"
-              ? "Registrar aprovacao"
-              : "Registrar rejeicao"
+              ? "Registrar aprovação"
+              : "Registrar rejeição"
           }
           isSubmitting={
             approveBudgetMutation.isPending || rejectBudgetMutation.isPending
@@ -766,7 +766,7 @@ export function ServiceOrderDetailPage() {
       </Modal>
 
       <Modal
-        title="Consumir peca"
+        title="Consumir peça"
         isOpen={Boolean(consumeItem)}
         onClose={resetModalState}
         maxWidth="max-w-lg"

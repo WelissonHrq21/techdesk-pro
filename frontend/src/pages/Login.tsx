@@ -28,7 +28,7 @@ export function Login() {
       await signIn(data.login, data.password);
     } catch (error) {
       setErrorMessage(
-        getApiErrorMessage(error, "Login ou senha invalidos.")
+        getApiErrorMessage(error, "Login ou senha inválidos.")
       );
     }
   }
@@ -52,7 +52,7 @@ export function Login() {
           </div>
           <div className="rounded-md border border-slate-800 bg-slate-900 p-4">
             <span className="text-xs text-slate-400">Estoque</span>
-            <strong className="mt-2 block text-2xl">Auditavel</strong>
+            <strong className="mt-2 block text-2xl">Auditável</strong>
           </div>
           <div className="rounded-md border border-slate-800 bg-slate-900 p-4">
             <span className="text-xs text-slate-400">Acesso</span>
@@ -76,7 +76,7 @@ export function Login() {
             <div className="mb-6">
               <h2 className="text-xl font-semibold text-slate-950">Entrar</h2>
               <p className="mt-1 text-sm text-slate-500">
-                Acesse sua area de trabalho.
+                Acesse sua área de trabalho.
               </p>
             </div>
 

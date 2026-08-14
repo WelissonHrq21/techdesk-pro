@@ -62,7 +62,7 @@ export function EquipmentsPage() {
         ) : equipmentsQuery.isError || !equipmentsQuery.data ? (
           <div className="p-4">
             <ErrorState
-              title="Nao foi possivel carregar os equipamentos."
+              title="Não foi possível carregar os equipamentos."
               onRetry={() => void equipmentsQuery.refetch()}
               isRetrying={equipmentsQuery.isFetching}
             />

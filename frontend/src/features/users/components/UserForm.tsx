@@ -133,8 +133,8 @@ export function UserForm({
           {isSubmitting
             ? "Salvando..."
             : mode === "create"
-              ? "Cadastrar usuario"
-              : "Salvar alteracoes"}
+              ? "Cadastrar usuário"
+              : "Salvar alterações"}
         </button>
       </div>
     </form>

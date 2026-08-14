@@ -27,52 +27,52 @@ const actionConfig: Record<
   }
 > = {
   START_ANALYSIS: {
-    label: "Iniciar analise",
+    label: "Iniciar análise",
     icon: Play,
     tone: "primary",
   },
   EDIT_DIAGNOSIS: {
-    label: "Diagnostico",
+    label: "Diagnóstico",
     icon: FilePenLine,
     tone: "neutral",
   },
   CREATE_BUDGET: {
-    label: "Criar orcamento",
+    label: "Criar orçamento",
     icon: FilePlus2,
     tone: "primary",
   },
   SEND_FOR_APPROVAL: {
-    label: "Enviar para aprovacao",
+    label: "Enviar para aprovação",
     icon: Send,
     tone: "primary",
   },
   APPROVE_BUDGET: {
-    label: "Aprovar orcamento",
+    label: "Aprovar orçamento",
     icon: CheckCircle,
     tone: "primary",
   },
   REJECT_BUDGET: {
-    label: "Rejeitar orcamento",
+    label: "Rejeitar orçamento",
     icon: XCircle,
     tone: "danger",
   },
   RETURN_TO_ANALYSIS: {
-    label: "Voltar para analise",
+    label: "Voltar para análise",
     icon: RotateCcw,
     tone: "primary",
   },
   START_MAINTENANCE: {
-    label: "Iniciar manutencao",
+    label: "Iniciar manutenção",
     icon: Wrench,
     tone: "primary",
   },
   CONSUME_PART: {
-    label: "Consumir peca",
+    label: "Consumir peça",
     icon: PackageMinus,
     tone: "neutral",
   },
   REVISE_BUDGET: {
-    label: "Revisar orcamento",
+    label: "Revisar orçamento",
     icon: FilePlus2,
     tone: "neutral",
   },

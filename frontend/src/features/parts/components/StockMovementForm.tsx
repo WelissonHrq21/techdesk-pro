@@ -57,7 +57,7 @@ export function StockMovementForm({
       {type === "exit" && (
         <p className="rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-700">
           Use esta operacao para perdas, uso interno ou ajustes operacionais. Para
-          pecas usadas em reparo, utilize o consumo dentro da OS.
+          peças usadas em reparo, utilize o consumo dentro da OS.
         </p>
       )}
 

@@ -35,7 +35,7 @@ export function ProfilePage() {
     <section>
       <PageHeader
         title="Minha conta"
-        description="Dados do usuario autenticado e seguranca da conta."
+        description="Dados do usuário autenticado e segurança da conta."
       />
 
       <div className="grid gap-6 xl:grid-cols-[360px_1fr]">

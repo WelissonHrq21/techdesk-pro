@@ -13,23 +13,23 @@ export function getFriendlyErrorMessage(error: unknown) {
     "The last active admin cannot be deactivated":
       "O ultimo administrador ativo nao pode ser desativado.",
     "Users cannot deactivate themselves":
-      "Voce nao pode desativar seu proprio usuario.",
+      "Você não pode desativar seu próprio usuário.",
     "You cannot deactivate your own user":
-      "Voce nao pode desativar seu proprio usuario.",
+      "Você não pode desativar seu próprio usuário.",
     "Current password is incorrect": "Senha atual incorreta.",
     "New password must be different from current password":
       "A nova senha deve ser diferente da senha atual.",
     "Public service order not found":
-      "Nao foi possivel localizar esta ordem de servico.",
+      "Não foi possível localizar esta ordem de serviço.",
     "Customer is inactive":
-      "Nao e possivel cadastrar equipamento para um cliente desativado.",
+      "Não é possível cadastrar equipamento para um cliente desativado.",
     "Equipment does not belong to this customer":
       "O equipamento selecionado nao pertence ao cliente.",
     "This equipment already has an open service order":
-      "Este equipamento ja possui uma ordem de servico em andamento.",
-    "Service order not found": "Ordem de servico nao encontrada.",
+      "Este equipamento já possui uma ordem de serviço em andamento.",
+    "Service order not found": "Ordem de serviço não encontrada.",
     "Part not found": "Peca nao encontrada.",
-    "Part is inactive": "Esta peca esta inativa.",
+    "Part is inactive": "Esta peça está inativa.",
     "Insufficient stock": "Estoque insuficiente para esta saida.",
     "Only the latest budget version can be approved":
       "Apenas o orcamento mais recente pode ser aprovado.",
@@ -38,17 +38,17 @@ export function getFriendlyErrorMessage(error: unknown) {
     "Consumed quantity exceeds approved budget quantity":
       "A quantidade consumida ultrapassa a quantidade aprovada.",
     "Part is not included in the approved budget":
-      "Esta peca nao faz parte do orcamento aprovado.",
+      "Esta peça não faz parte do orçamento aprovado.",
     "Revised budget cannot remove a part already consumed":
-      "Uma peca ja consumida nao pode ser removida da revisao.",
+      "Uma peça já consumida não pode ser removida da revisão.",
     "Revised budget quantity cannot be lower than already consumed quantity":
-      "A revisao nao pode deixar quantidade menor que o total ja consumido.",
+      "A revisão não pode deixar quantidade menor que o total já consumido.",
     "Service order must have a budget before awaiting approval":
-      "A OS precisa ter um orcamento antes de ir para aprovacao.",
+      "A OS precisa ter um orçamento antes de ir para aprovação.",
     "Service order is not awaiting budget approval":
-      "Esta OS nao esta aguardando aprovacao de orcamento.",
+      "Esta OS não está aguardando aprovação de orçamento.",
     "Budget revision can only be created during maintenance":
-      "A revisao de orcamento so pode ser criada durante a manutencao.",
+      "A revisão de orçamento só pode ser criada durante a manutenção.",
     "Invalid status transition":
       "A OS mudou de estado. Atualize a tela e tente novamente.",
   };

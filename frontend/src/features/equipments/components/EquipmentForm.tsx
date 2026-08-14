@@ -104,7 +104,7 @@ export function EquipmentForm({
             ? "Salvando..."
             : mode === "create"
               ? "Cadastrar equipamento"
-              : "Salvar alteracoes"}
+              : "Salvar alterações"}
         </button>
       </div>
     </form>

@@ -1,0 +1,57 @@
+[
+  {
+    "label": "dashboard",
+    "abrirOsStyle": null,
+    "badText": [],
+    "toastBox": [],
+    "url": "http://127.0.0.1:5173/dashboard",
+    "visibleTextSample": "TechDesk Pro\nOperação\nDashboard\nClientes\nEquipamentos\nOrdens de Serviço\nPeças / Estoque\nPAINEL\nDashboard\nRecepção\nRecepção\nMinha conta\nSair\nOS abertas\n14\nRecebido\n9\nEm análise\n1\nAguardando aprovação\n0\nEm manutenção\n1\nAguardando retirada\n1\nEntregues hoje\n6\nSem estoque\n1\nOS recentes\n#20\n\nDell DIA7\n\nCliente Dia 7 20260814005359 - 14/08/2026, 00:54\n\nEntregue\n#19\n\nSony PS5\n\nGabriel Teste - 14/08/2026, 00:14\n\nRecebido\n#18\n\nPositivo Cq40\n\nRodrigo Vieira - 13/08/2026, 23:26\n\nEntregue\n#17\n\nAcer Nitro Dia5\n\nCLIENTE DIA5 222604 - 13/08/2026, 22:26\n\nEntregue\n#16\n\nAcer Nitro H8\n\nHelena Teste - 13/08/2026, 21:57\n\nEntregue\n#15\n\nVaio Fit G7\n\nGabriel Teste - 13/08/2026, 21:57\n\nAguardando retirada\n#14\n\nHP Pav"
+  },
+  {
+    "label": "customer-detail",
+    "abrirOsStyle": {
+      "backgroundColor": "oklch(0.588 0.158 241.966)",
+      "color": "oklch(0.208 0.042 265.755)",
+      "outlineColor": "oklch(0.208 0.042 265.755)",
+      "text": "Abrir OS"
+    },
+    "badText": [],
+    "toastBox": [],
+    "url": "http://127.0.0.1:5173/customers/6e65a0ca-d73c-479f-8e01-d847317da5e4",
+    "visibleTextSample": "TechDesk Pro\nOperação\nDashboard\nClientes\nEquipamentos\nOrdens de Serviço\nPeças / Estoque\nPAINEL\nDashboard\nRecepção\nRecepção\nMinha conta\nSair\nCliente Dia 7 20260814005359\n\nCliente ativo\n\nEditar\nContato\nTelefone\n85999990000\nE-mail\ndia7.20260814005359@example.com\nCEP\n60000-000\nEndereço\nRua Piloto Dia 7, 101\nEquipamentos do cliente\nNovo equipamento\n\nNotebook\n\nDell DIA7\n\nSerial: DIA7-20260814005359\n\nAbrir OS\nEditar"
+  },
+  {
+    "label": "new-service-order",
+    "abrirOsStyle": null,
+    "badText": [],
+    "toastBox": [],
+    "url": "http://127.0.0.1:5173/service-orders/new?customerId=6e65a0ca-d73c-479f-8e01-d847317da5e4&equipmentId=77b04a6d-5479-4bd3-a614-ecd3619e1cc6",
+    "visibleTextSample": "TechDesk Pro\nOperação\nDashboard\nClientes\nEquipamentos\nOrdens de Serviço\nPeças / Estoque\nPAINEL\nDashboard\nRecepção\nRecepção\nMinha conta\nSair\nNova OS\n\nAbra uma ordem de serviço para atendimento no balcão.\n\nCliente e equipamento\nCliente selecionado: Cliente Dia 7 20260814005359 - 85999990000\nEquipamento *\nSelecione o equipamento\nNotebook - Dell DIA7 (DIA7-20260814005359)\nCadastrar novo equipamento\nAtendimento\nDefeito relatado *\nSenha do equipamento\nAcessórios\nAdicionar acessório\n\nNenhum acessório registrado.\n\nFinalizar\n\nA OS será criada como recebida e vinculada ao usuário autenticado.\n\nCriar OS"
+  },
+  {
+    "label": "service-order-workspace",
+    "abrirOsStyle": null,
+    "badText": [],
+    "toastBox": [],
+    "url": "http://127.0.0.1:5173/service-orders/eed6be71-fd11-4f72-9209-d9414c128459",
+    "visibleTextSample": "TechDesk Pro\nOperação\nDashboard\nClientes\nEquipamentos\nOrdens de Serviço\nPeças / Estoque\nPAINEL\nDashboard\nRecepção\nRecepção\nMinha conta\nSair\nOS #20\n\nAberta em 14/08/2026, 00:54\n\nEntregue\n\nCliente Dia 7 20260814005359\n\nDell DIA7\n\nNotebook - Serial: DIA7-20260814005359\n\nImprimir protocolo\nCopiar link do cliente\n\nAtendimento encerrado.\n\nAtendimento\nDefeito relatado\n\nDia 7: equipamento liga e desliga durante teste de bancada.\n\nDiagnóstico\n\nDiagnóstico Dia 7: SSD com falha intermitente.\n\nOrçamentos\nOrçamento V1\nAtual\n\nCriado em 14/08/2026, 00:54\n\nR$ 250,00\n\nSSD BACKUP 512GB\n\n1 x R$ 250,00\n\nR$ 250,00\nTotal\nR$ 250,00\nImprimir orçamento\nManutencao\nBase: Orçamento V1\n\nSSD BACKUP 512GB\n\nAprovado: 1 - C"
+  },
+  {
+    "abrirOsStyle": {
+      "backgroundColor": "oklch(0.588 0.158 241.966)",
+      "color": "rgb(255, 255, 255)",
+      "text": "Abrir OS"
+    },
+    "badText": [],
+    "label": "customer-detail-after-contrast-fix",
+    "url": "http://127.0.0.1:5173/customers/6e65a0ca-d73c-479f-8e01-d847317da5e4",
+    "visibleTextSample": "TechDesk Pro\nOperação\nDashboard\nClientes\nEquipamentos\nOrdens de Serviço\nPeças / Estoque\nPAINEL\nDashboard\nRecepção\nRecepção\nMinha conta\nSair\nCliente Dia 7 20260814005359\n\nCliente ativo\n\nEditar\nContato\nTelefone\n85999990000\nE-mail\ndia7.20260814005359@example.com\nCEP\n60000-000\nEndereço\nRua Piloto Dia 7, 101\nEquipamentos do cliente\nNovo equipamento\n\nNotebook\n\nDell DIA7\n\nSerial: DIA7-20260814005359\n\nAbrir OS\nEditar"
+  },
+  {
+    "badText": [],
+    "hasManutencaoAccent": true,
+    "label": "service-order-workspace-after-label-fix",
+    "url": "http://127.0.0.1:5173/service-orders/eed6be71-fd11-4f72-9209-d9414c128459",
+    "visibleTextSample": "TechDesk Pro\nOperação\nDashboard\nClientes\nEquipamentos\nOrdens de Serviço\nPeças / Estoque\nPAINEL\nDashboard\nRecepção\nRecepção\nMinha conta\nSair\nOS #20\n\nAberta em 14/08/2026, 00:54\n\nEntregue\n\nCliente Dia 7 20260814005359\n\nDell DIA7\n\nNotebook - Serial: DIA7-20260814005359\n\nImprimir protocolo\nCopiar link do cliente\n\nAtendimento encerrado.\n\nAtendimento\nDefeito relatado\n\nDia 7: equipamento liga e desliga durante teste de bancada.\n\nDiagnóstico\n\nDiagnóstico Dia 7: SSD com falha intermitente.\n\nOrçamentos\nOrçamento V1\nAtual\n\nCriado em 14/08/2026, 00:54\n\nR$ 250,00\n\nSSD BACKUP 512GB\n\n1 x R$ 250,00\n\nR$ 250,00\nTotal\nR$ 250,00\nImprimir orçamento\nManutenção\nBase: Orçamento V1\n\nSSD BACKUP 512GB\n\nAprovado: 1 - Consumido: 1 - Restante: 0\n\nValor aprovado: R$ 250,00 - Estoque atual: 5\n\nQuantidade já consumida\nAcessórios recebidos\n\n1x Fonte\n\nOriginal do cliente\n\nCliente e equipamento\nCliente\nCliente Dia 7 202608"
+  }
+]

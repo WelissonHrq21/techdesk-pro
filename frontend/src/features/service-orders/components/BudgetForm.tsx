@@ -89,7 +89,7 @@ export function BudgetForm({
 
         if (item.quantity < consumed) {
           setRevisionError(
-            "A revisao nao pode deixar uma peca abaixo da quantidade ja consumida."
+            "A revisão não pode deixar uma peça abaixo da quantidade já consumida."
           );
           return;
         }
@@ -116,7 +116,7 @@ export function BudgetForm({
             >
               <div className="grid gap-4 lg:grid-cols-[1.4fr_110px_140px_120px_40px]">
                 <FormField
-                  label="Peca"
+                  label="Peça"
                   error={errors.items?.[index]?.partId?.message}
                 >
                   <PartSearchField
@@ -189,7 +189,7 @@ export function BudgetForm({
                     className="flex h-10 w-10 items-center justify-center rounded-md text-slate-500 hover:bg-rose-50 hover:text-rose-700 disabled:cursor-not-allowed disabled:text-slate-300 disabled:hover:bg-transparent"
                     title={
                       consumed > 0
-                        ? "Peca ja consumida nao pode ser removida"
+                        ? "Peça já consumida não pode ser removida"
                         : "Remover item"
                     }
                     aria-label="Remover item"
@@ -218,7 +218,7 @@ export function BudgetForm({
 
       {mode === "revision" && (
         <div className="mt-4">
-          <FormField label="Observacao da revisao" error={errors.observation?.message}>
+          <FormField label="Observação da revisão" error={errors.observation?.message}>
             <textarea
               {...register("observation")}
               rows={3}
@@ -258,7 +258,7 @@ export function BudgetForm({
             ? "Salvando..."
             : mode === "revision"
               ? "Criar revisao"
-              : "Criar orcamento"}
+              : "Criar orçamento"}
         </button>
       </div>
     </form>

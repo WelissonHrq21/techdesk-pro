@@ -17,7 +17,7 @@ export function MaintenanceParts({
   onConsume,
 }: MaintenancePartsProps) {
   if (!currentBudget) {
-    return <EmptyState title="Nenhum orcamento aprovado encontrado." />;
+    return <EmptyState title="Nenhum orçamento aprovado encontrado." />;
   }
 
   return (
@@ -57,7 +57,7 @@ export function MaintenanceParts({
                 disabled={!canConsume || remaining <= 0}
                 className="h-10 rounded-md bg-sky-600 px-4 text-sm font-semibold text-white hover:bg-sky-700 disabled:cursor-not-allowed disabled:bg-slate-300"
               >
-                {remaining <= 0 ? "Quantidade ja consumida" : "Consumir"}
+                {remaining <= 0 ? "Quantidade já consumida" : "Consumir"}
               </button>
             </div>
           </div>

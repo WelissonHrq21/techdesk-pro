@@ -36,7 +36,7 @@ export function ObservationForm({
 
   return (
     <form onSubmit={(event) => void handleSubmit(onSubmit)(event)}>
-      <FormField label="Observacao opcional" error={errors.observation?.message}>
+      <FormField label="Observação opcional" error={errors.observation?.message}>
         <textarea
           {...register("observation")}
           rows={4}

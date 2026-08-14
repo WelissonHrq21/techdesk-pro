@@ -25,13 +25,13 @@ type StatusFilter = {
 const statusFilters: StatusFilter[] = [
   { label: "Todas" },
   { label: "Recebidas", value: ["RECEIVED"] },
-  { label: "Em analise", value: ["IN_ANALYSIS"] },
+  { label: "Em análise", value: ["IN_ANALYSIS"] },
   {
-    label: "Aguard. aprovacao",
+    label: "Aguard. aprovação",
     value: ["AWAITING_APPROVAL", "BUDGET_CHANGED_AWAITING_APPROVAL"],
   },
   { label: "Aprovadas", value: ["BUDGET_APPROVED"] },
-  { label: "Em manutencao", value: ["IN_MAINTENANCE"] },
+  { label: "Em manutenção", value: ["IN_MAINTENANCE"] },
   { label: "Finalizadas", value: ["FINISHED"] },
   { label: "Aguard. retirada", value: ["AWAITING_PICKUP"] },
 ];
@@ -130,8 +130,8 @@ export function ServiceOrdersPage() {
   return (
     <section>
       <PageHeader
-        title="Ordens de Servico"
-        description="Fila operacional da recepcao e da bancada tecnica."
+        title="Ordens de Serviço"
+        description="Fila operacional da recepção e da bancada técnica."
         actions={
           <Link
             to="/service-orders/new"
@@ -215,7 +215,7 @@ export function ServiceOrdersPage() {
         ) : serviceOrdersQuery.isError || !serviceOrdersQuery.data ? (
           <div className="p-4">
             <ErrorState
-              title="Nao foi possivel carregar as ordens de servico."
+              title="Não foi possível carregar as ordens de serviço."
               onRetry={() => void serviceOrdersQuery.refetch()}
               isRetrying={serviceOrdersQuery.isFetching}
             />
@@ -236,7 +236,7 @@ export function ServiceOrdersPage() {
                     <th className="px-4 py-3 font-semibold">Status</th>
                     <th className="px-4 py-3 font-semibold">Atualizada</th>
                     <th className="px-4 py-3 text-right font-semibold">
-                      Acoes
+                      Ações
                     </th>
                   </tr>
                 </thead>

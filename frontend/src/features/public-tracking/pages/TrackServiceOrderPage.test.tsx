@@ -10,7 +10,7 @@ describe("TrackServiceOrderPage", () => {
     });
 
     expect(await screen.findByText(/OS #142/i)).toBeInTheDocument();
-    expect(screen.getByText(/Em manutencao/i)).toBeInTheDocument();
+    expect(screen.getByText(/Em manutenção/i)).toBeInTheDocument();
     expect(screen.getByText(/Notebook Acer Nitro 5/i)).toBeInTheDocument();
   });
 
@@ -20,7 +20,7 @@ describe("TrackServiceOrderPage", () => {
     });
 
     expect(
-      await screen.findByText(/nao foi possivel localizar/i)
+      await screen.findByText(/não foi possível localizar/i)
     ).toBeInTheDocument();
   });
 });

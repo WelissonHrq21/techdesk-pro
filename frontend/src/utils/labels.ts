@@ -3,19 +3,19 @@ import type { ServiceOrderStatus, StockMovementType } from "../types/dashboard";
 
 export const roleLabels: Record<UserRole, string> = {
   ADMIN: "Administrador",
-  RECEPTION: "Recepcao",
-  TECHNICIAN: "Tecnico",
+  RECEPTION: "Recepção",
+  TECHNICIAN: "Técnico",
 };
 
 export const serviceOrderStatusLabels: Record<ServiceOrderStatus, string> = {
   RECEIVED: "Recebido",
-  IN_ANALYSIS: "Em analise",
-  AWAITING_APPROVAL: "Aguardando aprovacao",
+  IN_ANALYSIS: "Em análise",
+  AWAITING_APPROVAL: "Aguardando aprovação",
   BUDGET_CHANGED_AWAITING_APPROVAL:
-    "Orcamento alterado - aguardando aprovacao",
-  BUDGET_APPROVED: "Orcamento aprovado",
-  BUDGET_REJECTED: "Orcamento rejeitado",
-  IN_MAINTENANCE: "Em manutencao",
+    "Orçamento alterado - aguardando aprovação",
+  BUDGET_APPROVED: "Orçamento aprovado",
+  BUDGET_REJECTED: "Orçamento rejeitado",
+  IN_MAINTENANCE: "Em manutenção",
   FINISHED: "Finalizado",
   AWAITING_PICKUP: "Aguardando retirada",
   DELIVERED: "Entregue",
@@ -24,6 +24,6 @@ export const serviceOrderStatusLabels: Record<ServiceOrderStatus, string> = {
 
 export const stockMovementTypeLabels: Record<StockMovementType, string> = {
   ENTRY: "Entrada",
-  EXIT: "Saida",
+  EXIT: "Saída",
   ADJUSTMENT: "Ajuste",
 };

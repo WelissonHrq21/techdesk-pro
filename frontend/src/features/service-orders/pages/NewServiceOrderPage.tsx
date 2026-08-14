@@ -1,6 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Plus, Trash2 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useFieldArray, useForm } from "react-hook-form";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { FormField } from "../../../components/ui/FormField";
@@ -35,6 +35,7 @@ export function NewServiceOrderPage() {
   const { showToast } = useToast();
   const initialCustomerId = searchParams.get("customerId") ?? "";
   const initialEquipmentId = searchParams.get("equipmentId") ?? "";
+  const invalidCustomerToastRef = useRef("");
   const [customerSearch, setCustomerSearch] = useState("");
   const debouncedCustomerSearch = useDebouncedValue(customerSearch);
   const [isEquipmentModalOpen, setIsEquipmentModalOpen] = useState(false);
@@ -78,6 +79,24 @@ export function NewServiceOrderPage() {
     }
   }, [initialCustomerId, initialEquipmentId, setValue]);
 
+  useEffect(() => {
+    if (
+      initialCustomerId &&
+      selectedCustomerQuery.isError &&
+      invalidCustomerToastRef.current !== initialCustomerId
+    ) {
+      invalidCustomerToastRef.current = initialCustomerId;
+      setValue("customerId", "", { shouldValidate: true });
+      setValue("equipmentId", "");
+      showToast("Cliente informado não foi encontrado.", "error");
+    }
+  }, [
+    initialCustomerId,
+    selectedCustomerQuery.isError,
+    setValue,
+    showToast,
+  ]);
+
   function handleSelectCustomer(customerId: string) {
     setValue("customerId", customerId, { shouldValidate: true });
     setValue("equipmentId", "");
@@ -118,7 +137,7 @@ export function NewServiceOrderPage() {
     <section>
       <PageHeader
         title="Nova OS"
-        description="Abra uma ordem de servico para atendimento no balcao."
+        description="Abra uma ordem de serviço para atendimento no balcão."
       />
 
       <form
@@ -236,7 +255,7 @@ export function NewServiceOrderPage() {
           <div className="rounded-md border border-slate-200 bg-white p-5 shadow-sm">
             <div className="flex items-center justify-between">
               <h3 className="text-base font-semibold text-slate-950">
-                Acessorios
+                Acessórios
               </h3>
               <button
                 type="button"
@@ -246,13 +265,13 @@ export function NewServiceOrderPage() {
                 className="inline-flex h-9 items-center gap-2 rounded-md border border-slate-200 px-3 text-sm font-medium text-slate-700 hover:bg-slate-50"
               >
                 <Plus size={16} />
-                Adicionar acessorio
+                Adicionar acessório
               </button>
             </div>
 
             {fields.length === 0 ? (
               <p className="mt-4 text-sm text-slate-500">
-                Nenhum acessorio registrado.
+                Nenhum acessório registrado.
               </p>
             ) : (
               <div className="mt-4 space-y-3">
@@ -262,7 +281,7 @@ export function NewServiceOrderPage() {
                     className="grid gap-3 rounded-md border border-slate-200 p-3 lg:grid-cols-[1fr_110px_1fr_auto]"
                   >
                     <FormField
-                      label="Descricao"
+                      label="Descrição"
                       error={errors.accessories?.[index]?.description?.message}
                     >
                       <input
@@ -284,7 +303,7 @@ export function NewServiceOrderPage() {
                       />
                     </FormField>
                     <FormField
-                      label="Observacao"
+                      label="Observação"
                       error={errors.accessories?.[index]?.observation?.message}
                     >
                       <input
@@ -296,8 +315,8 @@ export function NewServiceOrderPage() {
                       type="button"
                       onClick={() => remove(index)}
                       className="mt-6 inline-flex h-10 items-center justify-center rounded-md border border-rose-200 px-3 text-rose-700 hover:bg-rose-50"
-                      aria-label="Remover acessorio"
-                      title="Remover acessorio"
+                      aria-label="Remover acessório"
+                      title="Remover acessório"
                     >
                       <Trash2 size={17} />
                     </button>
@@ -311,7 +330,7 @@ export function NewServiceOrderPage() {
         <aside className="h-fit rounded-md border border-slate-200 bg-white p-5 shadow-sm">
           <h3 className="text-base font-semibold text-slate-950">Finalizar</h3>
           <p className="mt-2 text-sm text-slate-500">
-            A OS sera criada como recebida e vinculada ao usuario autenticado.
+            A OS será criada como recebida e vinculada ao usuário autenticado.
           </p>
 
           {formError && (

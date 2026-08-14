@@ -44,25 +44,25 @@ const navItems: NavItem[] = [
     roles: ["ADMIN", "RECEPTION", "TECHNICIAN"],
   },
   {
-    label: "Ordens de Servico",
+    label: "Ordens de Serviço",
     to: "/service-orders",
     icon: ClipboardList,
     roles: ["ADMIN", "RECEPTION", "TECHNICIAN"],
   },
   {
-    label: "Pecas / Estoque",
+    label: "Peças / Estoque",
     to: "/parts",
     icon: Boxes,
     roles: ["ADMIN", "RECEPTION", "TECHNICIAN"],
   },
   {
-    label: "Usuarios",
+    label: "Usuários",
     to: "/users",
     icon: Wrench,
     roles: ["ADMIN"],
   },
   {
-    label: "Configuracoes",
+    label: "Configurações",
     to: "/settings",
     icon: Settings,
     roles: ["ADMIN"],
@@ -92,7 +92,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
         <div className="flex h-16 items-center justify-between border-b border-slate-800 px-5">
           <div>
             <strong className="block text-base font-semibold">TechDesk Pro</strong>
-            <span className="text-xs text-slate-400">Operacao</span>
+            <span className="text-xs text-slate-400">Operação</span>
           </div>
 
           <button

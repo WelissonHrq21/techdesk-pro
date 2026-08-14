@@ -1,10 +1,10 @@
 import { z } from "zod";
 
 const budgetItemSchema = z.object({
-  partId: z.string().uuid("Selecione uma peca valida."),
+  partId: z.string().uuid("Selecione uma peça válida."),
   quantity: z
     .number()
-    .int("A quantidade deve ser um numero inteiro.")
+    .int("A quantidade deve ser um número inteiro.")
     .min(1, "A quantidade deve ser no minimo 1."),
   unitPrice: z
     .number()
@@ -15,7 +15,7 @@ export const observationSchema = z.object({
   observation: z
     .string()
     .trim()
-    .max(500, "A observacao deve ter no maximo 500 caracteres.")
+    .max(500, "A observação deve ter no máximo 500 caracteres.")
     .optional(),
 });
 
@@ -23,33 +23,33 @@ export const diagnosisSchema = z.object({
   diagnosis: z
     .string()
     .trim()
-    .min(1, "Informe o diagnostico tecnico.")
-    .max(2000, "O diagnostico deve ter no maximo 2000 caracteres."),
+    .min(1, "Informe o diagnóstico técnico.")
+    .max(2000, "O diagnóstico deve ter no máximo 2000 caracteres."),
 });
 
 export const budgetFormSchema = z.object({
   items: z
     .array(budgetItemSchema)
-    .min(1, "Inclua pelo menos uma peca no orcamento."),
+    .min(1, "Inclua pelo menos uma peça no orçamento."),
 });
 
 export const budgetRevisionFormSchema = budgetFormSchema.extend({
   observation: z
     .string()
     .trim()
-    .max(500, "A observacao deve ter no maximo 500 caracteres.")
+    .max(500, "A observação deve ter no máximo 500 caracteres.")
     .optional(),
 });
 
 export const consumePartSchema = z.object({
   quantity: z
     .number()
-    .int("A quantidade deve ser um numero inteiro.")
+    .int("A quantidade deve ser um número inteiro.")
     .min(1, "A quantidade deve ser no minimo 1."),
   observation: z
     .string()
     .trim()
-    .max(500, "A observacao deve ter no maximo 500 caracteres.")
+    .max(500, "A observação deve ter no máximo 500 caracteres.")
     .optional(),
 });
 

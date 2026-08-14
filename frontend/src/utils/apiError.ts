@@ -2,7 +2,7 @@ import axios from "axios";
 
 export function getApiErrorMessage(
   error: unknown,
-  fallback = "Nao foi possivel concluir a operacao."
+  fallback = "Não foi possível concluir a operação."
 ) {
   if (!axios.isAxiosError(error)) {
     return fallback;

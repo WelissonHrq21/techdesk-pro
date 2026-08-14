@@ -34,7 +34,7 @@ export function DiagnosisForm({
 
   return (
     <form onSubmit={(event) => void handleSubmit(onSubmit)(event)}>
-      <FormField label="Diagnostico tecnico" error={errors.diagnosis?.message}>
+      <FormField label="Diagnóstico técnico" error={errors.diagnosis?.message}>
         <textarea
           {...register("diagnosis")}
           rows={8}
@@ -61,7 +61,7 @@ export function DiagnosisForm({
           disabled={isSubmitting}
           className="h-10 rounded-md bg-sky-600 px-4 text-sm font-semibold text-white hover:bg-sky-700 disabled:bg-slate-300"
         >
-          {isSubmitting ? "Salvando..." : "Salvar diagnostico"}
+          {isSubmitting ? "Salvando..." : "Salvar diagnóstico"}
         </button>
       </div>
     </form>

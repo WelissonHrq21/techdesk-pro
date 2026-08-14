@@ -27,7 +27,7 @@ export const customerSchema = z.object({
     .optional()
     .or(z.literal("")),
   zipCode: optionalText(10, "CEP deve ter no maximo 10 caracteres."),
-  address: optionalText(200, "Endereco deve ter no maximo 200 caracteres."),
+  address: optionalText(200, "Endereço deve ter no máximo 200 caracteres."),
 });
 
 export type CustomerSchemaData = z.infer<typeof customerSchema>;

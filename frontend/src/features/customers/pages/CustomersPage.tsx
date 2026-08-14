@@ -1,6 +1,6 @@
 import { Plus } from "lucide-react";
 import { useEffect, useState } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { EmptyState } from "../../../components/ui/EmptyState";
 import { ErrorState } from "../../../components/ui/ErrorState";
 import { LoadingState } from "../../../components/ui/LoadingState";
@@ -19,6 +19,7 @@ const limit = 20;
 
 export function CustomersPage() {
   const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
   const page = Number(searchParams.get("page") ?? "1");
   const initialSearch = searchParams.get("search") ?? "";
   const [search, setSearch] = useState(initialSearch);
@@ -53,9 +54,10 @@ export function CustomersPage() {
     setFormError(null);
 
     try {
-      await createCustomerMutation.mutateAsync(data);
+      const customer = await createCustomerMutation.mutateAsync(data);
       setIsCreateOpen(false);
-      showToast("Cliente cadastrado com sucesso.", "success");
+      showToast("Cliente cadastrado. Continue abrindo a OS.", "success");
+      navigate(`/service-orders/new?customerId=${customer.id}`);
     } catch (error) {
       setFormError(getFriendlyErrorMessage(error));
     }
@@ -65,7 +67,7 @@ export function CustomersPage() {
     <section>
       <PageHeader
         title="Clientes"
-        description="Busca e cadastro de clientes para atendimento de balcao."
+        description="Busca e cadastro de clientes para atendimento de balcão."
         actions={
           <button
             type="button"
@@ -94,7 +96,7 @@ export function CustomersPage() {
         ) : customersQuery.isError || !customersQuery.data ? (
           <div className="p-4">
             <ErrorState
-              title="Nao foi possivel carregar os clientes."
+              title="Não foi possível carregar os clientes."
               onRetry={() => void customersQuery.refetch()}
               isRetrying={customersQuery.isFetching}
             />
@@ -112,7 +114,7 @@ export function CustomersPage() {
                     <th className="px-4 py-3 font-semibold">Nome</th>
                     <th className="px-4 py-3 font-semibold">Telefone</th>
                     <th className="px-4 py-3 font-semibold">E-mail</th>
-                    <th className="px-4 py-3 text-right font-semibold">Acoes</th>
+                    <th className="px-4 py-3 text-right font-semibold">Ações</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">

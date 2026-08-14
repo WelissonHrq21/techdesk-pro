@@ -23,7 +23,7 @@ export function ServiceOrderReceiptPrintPage() {
   ) {
     return (
       <ErrorState
-        title="Nao foi possivel carregar o protocolo."
+        title="Não foi possível carregar o protocolo."
         onRetry={() => void serviceOrderQuery.refetch()}
         isRetrying={serviceOrderQuery.isFetching}
       />
@@ -37,7 +37,7 @@ export function ServiceOrderReceiptPrintPage() {
       title={`Protocolo OS #${serviceOrder.number}`}
       companySettings={companySettingsQuery.data}
     >
-      <PrintSection title="Identificacao">
+      <PrintSection title="Identificação">
         <div className="grid grid-cols-2 gap-4 text-sm">
           <p>
             <strong>OS:</strong> #{serviceOrder.number}
@@ -61,7 +61,7 @@ export function ServiceOrderReceiptPrintPage() {
             <strong>E-mail:</strong> {serviceOrder.customer.email ?? "-"}
           </p>
           <p>
-            <strong>Endereco:</strong> {serviceOrder.customer.address ?? "-"}
+            <strong>Endereço:</strong> {serviceOrder.customer.address ?? "-"}
           </p>
         </div>
       </PrintSection>
@@ -79,7 +79,7 @@ export function ServiceOrderReceiptPrintPage() {
           </p>
           <p>
             <strong>Serial:</strong>{" "}
-            {serviceOrder.equipment.serialNumber ?? "Nao informado"}
+            {serviceOrder.equipment.serialNumber ?? "Não informado"}
           </p>
         </div>
       </PrintSection>
@@ -88,9 +88,9 @@ export function ServiceOrderReceiptPrintPage() {
         <p className="whitespace-pre-wrap text-sm">{serviceOrder.reportedIssue}</p>
       </PrintSection>
 
-      <PrintSection title="Acessorios">
+      <PrintSection title="Acessórios">
         {serviceOrder.accessories.length === 0 ? (
-          <p className="text-sm">Nenhum acessorio registrado.</p>
+          <p className="text-sm">Nenhum acessório registrado.</p>
         ) : (
           <ul className="space-y-2 text-sm">
             {serviceOrder.accessories.map((accessory, index) => (
@@ -103,21 +103,21 @@ export function ServiceOrderReceiptPrintPage() {
         )}
       </PrintSection>
 
-      <PrintSection title="Observacoes">
+      <PrintSection title="Observações">
         <p className="text-sm">
-          Senha do equipamento: cadastrada no sistema, nao impressa neste
+          Senha do equipamento: cadastrada no sistema, não impressa neste
           protocolo.
         </p>
         <p className="mt-3 text-sm">
-          Declaro que as informacoes acima correspondem ao equipamento entregue
-          para analise e autorizo a realizacao do diagnostico tecnico.
+          Declaro que as informações acima correspondem ao equipamento entregue
+          para análise e autorizo a realização do diagnóstico técnico.
         </p>
       </PrintSection>
 
       <div className="mt-16 grid grid-cols-2 gap-12 text-center text-sm">
         <div className="border-t border-slate-400 pt-2">Assinatura do cliente</div>
         <div className="border-t border-slate-400 pt-2">
-          Assinatura da assistencia
+          Assinatura da assistência
         </div>
       </div>
     </PrintLayout>

@@ -28,7 +28,7 @@ export function BudgetPrintPage() {
   ) {
     return (
       <ErrorState
-        title="Nao foi possivel carregar o orcamento."
+        title="Não foi possível carregar o orçamento."
         onRetry={() => void serviceOrderQuery.refetch()}
         isRetrying={serviceOrderQuery.isFetching}
       />
@@ -39,16 +39,16 @@ export function BudgetPrintPage() {
 
   return (
     <PrintLayout
-      title={`Orcamento V${budget.version}`}
+      title={`Orçamento V${budget.version}`}
       companySettings={companySettingsQuery.data}
     >
-      <PrintSection title="Identificacao">
+      <PrintSection title="Identificação">
         <div className="grid grid-cols-2 gap-4 text-sm">
           <p>
             <strong>OS:</strong> #{serviceOrder.number}
           </p>
           <p>
-            <strong>Versao:</strong> V{budget.version}
+            <strong>Versão:</strong> V{budget.version}
           </p>
           <p>
             <strong>Data:</strong> {formatDateTime(budget.createdAt)}
@@ -70,7 +70,7 @@ export function BudgetPrintPage() {
           </p>
           <p>
             <strong>Serial:</strong>{" "}
-            {serviceOrder.equipment.serialNumber ?? "Nao informado"}
+            {serviceOrder.equipment.serialNumber ?? "Não informado"}
           </p>
         </div>
       </PrintSection>
@@ -79,7 +79,7 @@ export function BudgetPrintPage() {
         <table className="w-full text-left text-sm">
           <thead>
             <tr className="border-b border-slate-300">
-              <th className="py-2 font-semibold">Peca</th>
+              <th className="py-2 font-semibold">Peça</th>
               <th className="py-2 text-right font-semibold">Qtd.</th>
               <th className="py-2 text-right font-semibold">Valor unit.</th>
               <th className="py-2 text-right font-semibold">Subtotal</th>
@@ -111,13 +111,13 @@ export function BudgetPrintPage() {
         </div>
       </PrintSection>
 
-      <PrintSection title="Observacoes e aprovacao">
-        <p className="text-sm">Validade do orcamento: conforme politica comercial.</p>
-        <p className="mt-3 text-sm">Observacoes:</p>
+      <PrintSection title="Observações e aprovação">
+        <p className="text-sm">Validade do orçamento: conforme política comercial.</p>
+        <p className="mt-3 text-sm">Observações:</p>
         <div className="mt-10 grid grid-cols-2 gap-12 text-center text-sm">
-          <div className="border-t border-slate-400 pt-2">Aprovacao do cliente</div>
+          <div className="border-t border-slate-400 pt-2">Aprovação do cliente</div>
           <div className="border-t border-slate-400 pt-2">
-            Responsavel pela assistencia
+            Responsável pela assistência
           </div>
         </div>
       </PrintSection>

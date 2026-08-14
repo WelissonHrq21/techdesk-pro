@@ -42,7 +42,7 @@ export function ConsumePartForm({
       <div className="rounded-md bg-slate-50 p-4">
         <h4 className="font-semibold text-slate-950">{item.part.name}</h4>
         <p className="mt-1 text-sm text-slate-500">
-          Aprovado: {item.quantity} - Ja consumido: {consumed} - Restante:{" "}
+          Aprovado: {item.quantity} - Já consumido: {consumed} - Restante:{" "}
           {Math.max(remaining, 0)}
         </p>
         {typeof item.part.stock === "number" && (
@@ -63,7 +63,7 @@ export function ConsumePartForm({
           />
         </FormField>
 
-        <FormField label="Observacao" error={errors.observation?.message}>
+        <FormField label="Observação" error={errors.observation?.message}>
           <textarea
             {...register("observation")}
             rows={3}

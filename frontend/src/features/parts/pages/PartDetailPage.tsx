@@ -62,7 +62,7 @@ export function PartDetailPage() {
     try {
       await updatePartMutation.mutateAsync(data);
       closeModal();
-      showToast("Peca atualizada.", "success");
+      showToast("Peça atualizada.", "success");
     } catch (error) {
       handleError(error);
     }
@@ -82,7 +82,7 @@ export function PartDetailPage() {
     try {
       await stockExitMutation.mutateAsync(data);
       closeModal();
-      showToast("Saida de estoque registrada.", "success");
+      showToast("Saída de estoque registrada.", "success");
     } catch (error) {
       handleError(error);
     }
@@ -92,7 +92,7 @@ export function PartDetailPage() {
     try {
       await deactivatePartMutation.mutateAsync();
       closeModal();
-      showToast("Peca desativada.", "success");
+      showToast("Peça desativada.", "success");
     } catch (error) {
       setFormError(getFriendlyErrorMessage(error));
     }
@@ -105,7 +105,7 @@ export function PartDetailPage() {
   if (partQuery.isError || !partQuery.data) {
     return (
       <ErrorState
-        title="Nao foi possivel carregar a peca."
+        title="Não foi possível carregar a peça."
         onRetry={() => void partQuery.refetch()}
         isRetrying={partQuery.isFetching}
       />
@@ -135,7 +135,7 @@ export function PartDetailPage() {
           <div className="rounded-md border border-slate-200 bg-white p-5 shadow-sm">
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               <div className="rounded-md bg-slate-50 p-4">
-                <span className="text-sm text-slate-500">Preco atual</span>
+                <span className="text-sm text-slate-500">Preço atual</span>
                 <strong className="mt-2 block text-xl text-slate-950">
                   {formatCurrency(part.currentPrice)}
                 </strong>
@@ -153,7 +153,7 @@ export function PartDetailPage() {
                 </strong>
               </div>
               <div className="rounded-md bg-slate-50 p-4">
-                <span className="text-sm text-slate-500">Saidas recentes</span>
+                <span className="text-sm text-slate-500">Saídas recentes</span>
                 <strong className="mt-2 block text-xl text-slate-950">
                   {recentExitCount}
                 </strong>
@@ -164,7 +164,7 @@ export function PartDetailPage() {
           <div className="rounded-md border border-slate-200 bg-white shadow-sm">
             <div className="border-b border-slate-200 px-5 py-4">
               <h3 className="text-base font-semibold text-slate-950">
-                Historico de estoque
+                Histórico de estoque
               </h3>
             </div>
             <div className="p-5">
@@ -172,7 +172,7 @@ export function PartDetailPage() {
                 <LoadingState />
               ) : movementsQuery.isError ? (
                 <ErrorState
-                  title="Nao foi possivel carregar o historico."
+                  title="Não foi possível carregar o histórico."
                   onRetry={() => void movementsQuery.refetch()}
                   isRetrying={movementsQuery.isFetching}
                 />
@@ -190,7 +190,7 @@ export function PartDetailPage() {
               <div>
                 <dt className="text-slate-500">Fornecedor</dt>
                 <dd className="font-medium text-slate-950">
-                  {part.supplier ?? "Nao informado"}
+                  {part.supplier ?? "Não informado"}
                 </dd>
               </div>
               <div>
@@ -204,7 +204,7 @@ export function PartDetailPage() {
 
           {isAdmin && (
             <div className="rounded-md border border-slate-200 bg-white p-5 shadow-sm">
-              <h3 className="text-base font-semibold text-slate-950">Acoes</h3>
+              <h3 className="text-base font-semibold text-slate-950">Ações</h3>
               <div className="mt-4 grid gap-2">
                 <button
                   type="button"
@@ -228,7 +228,7 @@ export function PartDetailPage() {
                   className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-amber-200 px-4 text-sm font-medium text-amber-700 hover:bg-amber-50"
                 >
                   <PackageMinus size={17} />
-                  Saida manual
+                  Saída manual
                 </button>
                 <button
                   type="button"
@@ -244,7 +244,7 @@ export function PartDetailPage() {
         </aside>
       </div>
 
-      <Modal title="Editar peca" isOpen={modal === "edit"} onClose={closeModal}>
+      <Modal title="Editar peça" isOpen={modal === "edit"} onClose={closeModal}>
         <PartForm
           mode="edit"
           part={part}
@@ -265,7 +265,7 @@ export function PartDetailPage() {
         />
       </Modal>
 
-      <Modal title="Saida manual" isOpen={modal === "exit"} onClose={closeModal}>
+      <Modal title="Saída manual" isOpen={modal === "exit"} onClose={closeModal}>
         <StockMovementForm
           type="exit"
           isSubmitting={stockExitMutation.isPending}
@@ -278,7 +278,7 @@ export function PartDetailPage() {
       <ConfirmDialog
         isOpen={modal === "deactivate"}
         title={`Desativar ${part.name}?`}
-        description="A peca deixara de aparecer nas operacoes normais. O historico sera preservado."
+        description="A peça deixará de aparecer nas operações normais. O histórico será preservado."
         confirmLabel="Desativar"
         isSubmitting={deactivatePartMutation.isPending}
         onCancel={closeModal}

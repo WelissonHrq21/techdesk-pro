@@ -29,10 +29,10 @@ export function TrackServiceOrderPage() {
         ) : serviceOrderQuery.isError || !serviceOrderQuery.data ? (
           <div className="py-10 text-center">
             <h1 className="text-xl font-semibold text-slate-950">
-              Nao foi possivel localizar esta ordem de servico.
+              Não foi possível localizar esta ordem de serviço.
             </h1>
             <p className="mt-2 text-sm text-slate-500">
-              Confira o link informado pela assistencia.
+              Confira o link informado pela assistência.
             </p>
           </div>
         ) : (
@@ -72,7 +72,7 @@ export function TrackServiceOrderPage() {
             </div>
 
             <p className="rounded-md bg-sky-50 px-3 py-2 text-sm text-sky-700">
-              Esta consulta mostra apenas informacoes basicas de andamento.
+              Esta consulta mostra apenas informações básicas de andamento.
             </p>
           </div>
         )}

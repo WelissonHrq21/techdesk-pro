@@ -59,7 +59,7 @@ export function PartForm({
         <input className={inputClass} {...register("brand")} />
       </FormField>
 
-      <FormField label="Preco atual *" error={errors.currentPrice?.message}>
+      <FormField label="Preço atual *" error={errors.currentPrice?.message}>
         <input
           className={inputClass}
           type="number"
@@ -75,7 +75,7 @@ export function PartForm({
 
       {mode === "create" && (
         <p className="rounded-md bg-slate-50 px-3 py-2 text-sm text-slate-600">
-          A peca nasce com estoque zero. Registre uma entrada depois do cadastro
+          A peça nasce com estoque zero. Registre uma entrada depois do cadastro
           para informar o saldo inicial.
         </p>
       )}
@@ -102,8 +102,8 @@ export function PartForm({
           {isSubmitting
             ? "Salvando..."
             : mode === "create"
-              ? "Cadastrar peca"
-              : "Salvar alteracoes"}
+              ? "Cadastrar peça"
+              : "Salvar alterações"}
         </button>
       </div>
     </form>

@@ -14,7 +14,7 @@ export function BudgetList({ budgets, currentBudgetId }: BudgetListProps) {
   const [expandedId, setExpandedId] = useState(currentBudgetId);
 
   if (budgets.length === 0) {
-    return <EmptyState title="Nenhum orcamento criado." />;
+    return <EmptyState title="Nenhum orçamento criado." />;
   }
 
   return (
@@ -37,7 +37,7 @@ export function BudgetList({ budgets, currentBudgetId }: BudgetListProps) {
                 <div>
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="text-sm font-semibold text-slate-950">
-                      Orcamento V{budget.version}
+                      Orçamento V{budget.version}
                     </span>
                     {budget.id === currentBudgetId && (
                       <span className="rounded-full bg-sky-50 px-2 py-0.5 text-xs font-medium text-sky-700 ring-1 ring-inset ring-sky-200">
@@ -97,7 +97,7 @@ export function BudgetList({ budgets, currentBudgetId }: BudgetListProps) {
                     target="_blank"
                     className="mt-4 inline-flex h-9 items-center rounded-md border border-slate-200 px-3 text-sm font-medium text-slate-700 hover:bg-slate-50"
                   >
-                    Imprimir orcamento
+                    Imprimir orçamento
                   </Link>
                 </div>
               )}
