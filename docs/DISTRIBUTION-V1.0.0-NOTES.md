@@ -87,8 +87,8 @@ A tag `v1.0.0` nao foi alterada. Se a publicacao das imagens exigir alterar codi
 - Tamanho: `16828 bytes`
 - SHA256: `498CD52F617DD32253C2A516BA11F6E81F266204322FF4DA5369BAA40D801358`
 - Fonte das imagens locais: `v1.0.0` (`8df6e70f3c0b20774fe654ba7433ba5fc6842d66`)
-- API image local ID: `sha256:99955c5e09e75820508b098134b84edb129b299d06ad961b5d56203f2bd7fc73`
-- Frontend image local ID: `sha256:61f47d6f7ece0e52d133375acddf8be741c8dc3e1b52778a416620901dbcdc65`
+- API image digest publicado: `ghcr.io/welissonhrq21/techdesk-pro-api@sha256:eb525285efb2d8473671440bd7b43044dbf0ad5e78581e431131312411c55228`
+- Frontend image digest publicado: `ghcr.io/welissonhrq21/techdesk-pro-frontend@sha256:f79c79e67bb937829ca5b595f1640a1297998bcbfdad44a6183be3d62a03ef3e`
 
 Teste limpo via ZIP em `techdesk-installer-test-4`:
 
@@ -106,4 +106,21 @@ Teste limpo via ZIP em `techdesk-installer-test-4`:
 
 ## Bloqueio restante
 
-Push direto para GHCR falhou com `denied` para API e frontend. Portanto uma maquina nova ainda nao consegue instalar apenas pelo ZIP ate as imagens serem publicadas no registry. O workflow de publicacao foi preparado para executar via GitHub Actions com permissao `packages: write`.
+Push direto local para GHCR falhou com `denied`, mas o workflow `Release Docker Images` foi disparado no GitHub Actions e concluiu com sucesso: https://github.com/WelissonHrq21/techdesk-pro/actions/runs/31896885634. Depois disso, `docker pull` validou as imagens publicadas.
+
+## Smoke funcional via pacote
+
+Executado no stack `techdesk-installer-test-4` usando o ZIP extraido e imagens publicadas:
+
+- ADMIN `/users`: 200.
+- RECEPTION `/users`: 403.
+- TECHNICIAN `/users`: 403.
+- CompanySettings atualizado.
+- Peca criada, entrada `+2`, consumo `1`, estoque final `1`.
+- Cliente, equipamento e OS criados.
+- Fluxo da OS: `RECEIVED -> IN_ANALYSIS -> AWAITING_APPROVAL -> BUDGET_APPROVED -> IN_MAINTENANCE -> FINISHED -> AWAITING_PICKUP -> DELIVERED`.
+- Budget V1 criado e aprovado.
+- Tracking publico retornou `DELIVERED` sem login.
+- Tracking invalido retornou 404.
+- Backup pos-smoke: `30524 bytes`; SHA256 `2BC7959C2BB8661BE9F03B17AA21EFB59510B700342C06B1DC053E2E9A41DBDD`.
+- `restore-check.ps1` validou o dump com `pg_restore -l`.

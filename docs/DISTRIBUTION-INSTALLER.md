@@ -130,6 +130,6 @@ O README orienta copia off-host.
 
 ## Limitacoes atuais
 
-- As imagens ainda precisam ser publicadas no registry; push direto local retornou `denied`.
+- As imagens foram publicadas no GHCR via GitHub Actions; push direto local retornou `denied`, entao publicacao deve ser feita pelo workflow.
 - O Docker daemon foi iniciado depois; smoke limpo por container passou com imagens locais buildadas da tag `v1.0.0`.
-- O pacote foi testado em diretorio limpo, mas a aprovacao final depende de publicar/puxar as imagens em ambiente sem cache.
+- O pacote foi testado em diretorio limpo com imagens publicadas, incluindo smoke funcional e backup.
