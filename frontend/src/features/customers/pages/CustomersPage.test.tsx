@@ -4,11 +4,11 @@ import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 import { ToastProvider } from "../../../contexts/ToastContext";
+import { testApiUrl } from "../../../test/apiUrl";
 import { renderWithProviders } from "../../../test/helpers/renderWithProviders";
 import { server } from "../../../test/server";
 import { CustomersPage } from "./CustomersPage";
 
-const apiUrl = "http://localhost:3333";
 const customerId = "11111111-1111-4111-8111-111111111111";
 
 function LocationProbe() {
@@ -20,7 +20,7 @@ function LocationProbe() {
 describe("CustomersPage", () => {
   it("continues to new service order after creating a customer", async () => {
     server.use(
-      http.get(`${apiUrl}/customers`, () => {
+      http.get(`${testApiUrl}/customers`, () => {
         return HttpResponse.json({
           data: [],
           meta: {
@@ -33,7 +33,7 @@ describe("CustomersPage", () => {
           },
         });
       }),
-      http.post(`${apiUrl}/customers`, async () => {
+      http.post(`${testApiUrl}/customers`, async () => {
         return HttpResponse.json(
           {
             id: customerId,

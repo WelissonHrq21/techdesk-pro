@@ -1,9 +1,8 @@
 import { http, HttpResponse } from "msw";
-
-const apiUrl = "http://localhost:3333";
+import { testApiUrl } from "./apiUrl";
 
 export const handlers = [
-  http.get(`${apiUrl}/public/service-orders/valid-token`, () => {
+  http.get(`${testApiUrl}/public/service-orders/valid-token`, () => {
     return HttpResponse.json({
       number: 142,
       status: "IN_MAINTENANCE",
@@ -16,7 +15,7 @@ export const handlers = [
       },
     });
   }),
-  http.get(`${apiUrl}/public/service-orders/invalid-token`, () => {
+  http.get(`${testApiUrl}/public/service-orders/invalid-token`, () => {
     return HttpResponse.json(
       { message: "Public service order not found" },
       { status: 404 }
