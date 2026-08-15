@@ -25,7 +25,7 @@ const envSchema = z.object({
     .string()
     .trim()
     .toLowerCase()
-    .default("true")
+    .default(process.env.NODE_ENV === "production" ? "false" : "true")
     .transform((value: string) => value === "true"),
 });
 

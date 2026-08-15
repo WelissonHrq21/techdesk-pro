@@ -1,169 +1,236 @@
-# TechDesk Pro API
+# TechDesk Pro
 
-API de assistencia tecnica com clientes, equipamentos, ordens de servico, orcamentos, estoque, usuarios, autenticacao JWT, RBAC, documentacao OpenAPI, health checks, logs estruturados, testes automatizados e runtime Docker para producao.
+Sistema para operação de assistência técnica, cobrindo balcão, bancada, orçamento, manutenção, estoque, usuários, impressão e consulta pública do andamento da OS.
 
-## Requisitos Para Desenvolvimento
+## Stack
+
+- Backend: Node.js, Express, TypeScript, Prisma, PostgreSQL.
+- Frontend: React, TypeScript, Vite, React Router, TanStack Query, Axios, Tailwind CSS.
+- Infra: Docker Compose, PostgreSQL 16, Nginx para frontend estático.
+- Segurança: JWT, RBAC, Helmet, CORS explícito, logs com redaction.
+
+## Funcionalidades principais
+
+- Login e sessão JWT.
+- Papéis `ADMIN`, `RECEPTION` e `TECHNICIAN`.
+- Clientes e equipamentos.
+- Abertura de ordem de serviço.
+- Ciclo da OS: recebida, análise, aprovação, manutenção, finalização, retirada e entrega.
+- Diagnóstico técnico.
+- Orçamentos versionados.
+- Aprovação/rejeição de orçamento.
+- Peças e estoque auditável.
+- Consumo de peça vinculado à OS.
+- Dashboard operacional.
+- Configurações da empresa.
+- Impressão de protocolo e orçamento.
+- Consulta pública por token.
+- Health checks e documentação OpenAPI.
+
+## Requisitos
 
 - Node.js 24+
 - Docker e Docker Compose
-- PostgreSQL 16, caso nao use Docker
+- PostgreSQL 16, caso rode sem Docker
 
-## Desenvolvimento Local
+## Ambiente
 
-1. Copie `.env.example` para `.env` e ajuste `DATABASE_URL` para o banco local, por exemplo `127.0.0.1:5433`.
+Copie `.env.example` para `.env` e preencha valores reais:
 
-2. Suba o banco de desenvolvimento:
+```powershell
+Copy-Item .env.example .env
+```
 
-```bash
+Variáveis principais:
+
+- `POSTGRES_DB`
+- `POSTGRES_USER`
+- `POSTGRES_PASSWORD`
+- `DATABASE_URL`
+- `JWT_SECRET`
+- `JWT_EXPIRES_IN`
+- `CORS_ORIGIN`
+- `VITE_API_URL`
+- `SWAGGER_ENABLED`
+- `LOG_LEVEL`
+- `ADMIN_NAME`
+- `ADMIN_LOGIN`
+- `ADMIN_PASSWORD`
+
+Não commite `.env`, `.env.pilot`, dumps, logs ou senhas.
+
+## Desenvolvimento
+
+Suba o banco local:
+
+```powershell
 docker compose -f docker-compose.dev.yml up -d
 ```
 
-3. Instale as dependencias:
+Instale dependências e rode migrations:
 
-```bash
+```powershell
 npm install
-```
-
-4. Rode as migrations de desenvolvimento:
-
-```bash
 npx prisma migrate dev
-```
-
-5. Inicie a API:
-
-```bash
 npm run dev
 ```
 
-A API sobe em `http://localhost:3333`.
+A API local roda em `http://localhost:3333`.
 
-## Build Local
+Frontend local:
 
-```bash
-npm run build
-npm start
-```
-
-O build TypeScript gera a pasta `dist/`, e o start executa `node dist/src/server.js`, sem `tsx`.
-
-## Frontend Local
-
-O frontend fica em `frontend/`.
-
-```bash
+```powershell
 cd frontend
 npm install
+Copy-Item .env.example .env
 npm run dev
 ```
 
-Configure `frontend/.env` com:
+Para desenvolvimento, `frontend/.env` pode usar:
 
 ```env
 VITE_API_URL=http://localhost:3333
 ```
 
-Com backend em `http://localhost:3333`, o Vite sobe em `http://localhost:5173`.
+## Produção com Docker Compose
 
-## Running With Docker
+O stack de produção inclui PostgreSQL, API e frontend estático:
 
-O fluxo de producao nao exige Node nem PostgreSQL instalados no host:
-
-```bash
-cp .env.example .env
-# preencha POSTGRES_PASSWORD, DATABASE_URL, JWT_SECRET, CORS_ORIGIN e ADMIN_*
+```powershell
 docker compose up -d --build
 ```
 
-No `.env` usado pelo Compose, `DATABASE_URL` deve apontar para o service interno `postgres`, por exemplo:
+Comportamento esperado:
 
-```env
-DATABASE_URL="postgresql://postgres:senha@postgres:5432/techdesk?schema=public"
+- PostgreSQL sem porta pública.
+- Volume persistente `techdesk_pgdata`.
+- API com restart policy, healthcheck, log rotation e migrations via `prisma migrate deploy`.
+- Frontend servido por Nginx, com fallback SPA para rotas como `/login`, `/customers`, `/service-orders/:id`, `/parts`, `/users`, `/settings` e `/track/:token`.
+- `CORS_ORIGIN` explícito.
+- `SWAGGER_ENABLED=false` recomendado em produção real.
+
+Exemplo de URLs:
+
+- API: `https://api.sua-assistencia.com`
+- Frontend: `https://app.sua-assistencia.com`
+- `VITE_API_URL=https://api.sua-assistencia.com`
+- `CORS_ORIGIN=https://app.sua-assistencia.com`
+
+## Build
+
+Backend:
+
+```powershell
+npm run build
+npm start
 ```
 
-Comandos uteis:
+Frontend:
 
-```bash
-docker compose ps
-docker compose logs -f api
-docker compose down
+```powershell
+cd frontend
+npm run build
 ```
 
-Atencao: `docker compose down -v` remove o volume do PostgreSQL e apaga o banco local desse stack.
-
-## Bootstrap Do Admin
-
-O seed nao roda automaticamente no startup. Depois que `api` e `postgres` estiverem saudaveis:
-
-```bash
-docker compose exec api npm run seed
-```
-
-O seed usa `ADMIN_NAME`, `ADMIN_LOGIN` e `ADMIN_PASSWORD` do ambiente e e idempotente.
+O frontend gera `frontend/dist`.
 
 ## Migrations
 
-Ambientes usam comandos diferentes:
+Desenvolvimento:
 
-- Desenvolvimento: `npx prisma migrate dev`
-- Testes: banco proprio definido por `DATABASE_URL_TEST`
-- Producao: `npx prisma migrate deploy`
+```powershell
+npx prisma migrate dev
+```
 
-Em Docker, `docker-entrypoint.sh` roda `prisma migrate deploy` antes da API iniciar. Em ambientes com varias replicas, rode migrations como etapa separada de deploy.
+Produção:
 
-## Endpoints Operacionais
+```powershell
+npx prisma migrate deploy
+```
 
-- `GET /health`: verifica se o processo HTTP esta vivo.
-- `GET /ready`: verifica se a API consegue consultar o PostgreSQL.
-- `GET /docs`: Swagger UI, controlado por `SWAGGER_ENABLED`.
-- `POST /sessions`: login e emissao de JWT.
-- `GET /me`: usuario autenticado.
+No Docker, o entrypoint da API executa `prisma migrate deploy` antes de iniciar o servidor.
 
-As rotas operacionais usam `Authorization: Bearer <token>`.
+## Primeiro ADMIN
+
+Configure `ADMIN_NAME`, `ADMIN_LOGIN` e `ADMIN_PASSWORD` no ambiente e execute:
+
+```powershell
+docker compose exec api npm run seed
+```
+
+O seed é idempotente: não cria múltiplos admins para o mesmo login e não sobrescreve usuário existente. Após o primeiro login, troque a senha inicial pela conta do usuário ou pela rota `/me/password`.
 
 ## Testes
 
-Os testes de integracao usam `DATABASE_URL_TEST`. O setup cria o banco `techdesk_test`, aplica as migrations e limpa os dados entre os testes.
+Backend:
 
-```bash
+```powershell
 npm run typecheck
-npm run build
 npm test
-npm run test:coverage
+npm run build
 ```
 
-## Backup E Restore
+Frontend:
 
-Crie backup com:
-
-```bash
-sh scripts/backup.sh
+```powershell
+cd frontend
+npm run lint
+npm test
+npm run build
 ```
 
-No PowerShell:
+Auditoria de dependências:
+
+```powershell
+npm audit
+cd frontend
+npm audit
+```
+
+## Health, readiness e logs
+
+- `GET /health`: processo HTTP vivo.
+- `GET /ready`: API consegue consultar PostgreSQL.
+- `GET /docs`: Swagger UI quando `SWAGGER_ENABLED=true`.
+
+Logs:
+
+```powershell
+docker compose logs -f api
+docker compose logs --tail 300 postgres
+```
+
+## Backup e restore
+
+Backup oficial:
 
 ```powershell
 .\scripts\backup.ps1
 ```
 
-Ou manualmente:
+Ou:
 
 ```bash
-docker compose exec -T postgres pg_dump -U postgres -d techdesk > backups/backup.sql
+sh scripts/backup.sh
 ```
 
-Restaure em um banco alvo com:
+O backup usa `pg_dump -Fc`, gera `.dump`, valida com `pg_restore -l` e calcula SHA256.
 
-```bash
-cat backups/backup.sql | docker compose exec -T postgres psql -U postgres -d techdesk
-```
+Restore deve ser testado primeiro em banco isolado. Não execute restore destrutivo em produção sem backup prévio validado e decisão manual explícita.
 
-Backup confiavel precisa ser testado com restore. Para primeira producao real, use backup diario, retencao minima de 7 dias e copia fora da mesma maquina.
+Procedimentos completos ficam em:
 
-## Logs
+- `docs/OPERATIONS-RUNBOOK.md`
+- `docs/RELEASE-CHECKLIST.md`
 
-A API usa logs estruturados com `pino` e `pino-http` em stdout. Cada request recebe `X-Request-Id`, e campos sensiveis como `Authorization`, `password` e `token` sao redigidos. O Compose limita logs com `max-size: 10m` e `max-file: 5`.
+## Dados do piloto
 
-## CI
+O banco piloto contém dados artificiais de validação. Para uma primeira produção real, a recomendação é iniciar com banco/volume limpo, aplicar `prisma migrate deploy`, executar seed do ADMIN e configurar dados da empresa antes do primeiro atendimento.
 
-O workflow em `.github/workflows/ci.yml` sobe PostgreSQL, instala dependencias com `npm ci`, gera Prisma Client, roda typecheck, build, testes, audit informativo de dependencias de producao e Docker build.
+Não use `prisma migrate reset` em produção.
+
+## Release
+
+Versão preparada: `1.0.0 Release Candidate`.
+
+Não criar tag `v1.0.0` até aprovação final da RC.

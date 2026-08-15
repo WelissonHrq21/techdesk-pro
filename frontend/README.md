@@ -14,7 +14,7 @@ Frontend React + TypeScript do TechDesk Pro.
 - Tailwind CSS
 - lucide-react
 
-## Configuracao
+## Configuração
 
 Copie `.env.example` para `.env`:
 
@@ -22,7 +22,7 @@ Copie `.env.example` para `.env`:
 cp .env.example .env
 ```
 
-Variavel principal:
+Variável principal:
 
 ```env
 VITE_API_URL=http://localhost:3333
@@ -37,17 +37,33 @@ npm run lint
 npm run preview
 ```
 
-## Fluxo Atual
+## Build de produção
+
+```bash
+npm run build
+```
+
+O build gera `dist/`.
+
+Também existe imagem Docker própria:
+
+```bash
+docker build --build-arg VITE_API_URL=https://api.example.com -t techdesk-frontend .
+```
+
+A imagem usa Nginx e fallback para `index.html`, preservando rotas SPA como `/login`, `/customers`, `/service-orders/:id`, `/parts`, `/users`, `/settings` e `/track/:token`.
+
+## Fluxo atual
 
 - `/login`: autentica em `POST /sessions`.
 - `/dashboard`: rota protegida com dados de `GET /dashboard/summary`.
-- `/customers`: busca, paginacao e criacao de clientes.
-- `/customers/:id`: detalhe, edicao, desativacao admin e equipamentos do cliente.
-- `/equipments`: busca e paginacao global de equipamentos.
-- `/service-orders/new`: abertura de OS com cliente, equipamento e acessorios.
-- `/service-orders/:id`: detalhe da OS com timeline, budgets e pecas consumidas.
-- `/me`: usado para restaurar sessao no refresh.
-- `401`: limpa sessao e envia para `/login`.
-- `403`: mantem sessao e exibe mensagem de permissao quando aplicavel.
+- `/customers`: busca, paginação e criação de clientes.
+- `/customers/:id`: detalhe, edição, desativação admin e equipamentos do cliente.
+- `/equipments`: busca e paginação global de equipamentos.
+- `/service-orders/new`: abertura de OS com cliente, equipamento e acessórios.
+- `/service-orders/:id`: detalhe da OS com timeline, budgets e peças consumidas.
+- `/me`: usado para restaurar sessão no refresh.
+- `401`: limpa sessão e envia para `/login`.
+- `403`: mantém sessão e exibe mensagem de permissão quando aplicável.
 
-O JWT fica em `localStorage` para o MVP. Uma evolucao futura pode trocar para cookie HttpOnly.
+O JWT fica em `localStorage` para a v1. Uma evolução futura pode trocar para cookie HttpOnly.
