@@ -3,7 +3,9 @@ FROM node:24-alpine AS builder
 WORKDIR /app
 
 COPY package*.json ./
-RUN npm ci
+COPY prisma ./prisma
+COPY prisma.config.ts ./
+RUN DATABASE_URL="postgresql://user:password@localhost:5432/techdesk?schema=public" npm ci
 
 COPY . .
 
@@ -17,9 +19,9 @@ WORKDIR /app
 ENV NODE_ENV=production
 
 COPY package*.json ./
-RUN npm ci --omit=dev
-
 COPY --chown=node:node prisma ./prisma
+COPY --chown=node:node prisma.config.ts ./
+RUN DATABASE_URL="postgresql://user:password@localhost:5432/techdesk?schema=public" npm ci --omit=dev
 RUN DATABASE_URL="postgresql://user:password@localhost:5432/techdesk?schema=public" npx prisma generate
 
 COPY --from=builder --chown=node:node /app/dist ./dist
