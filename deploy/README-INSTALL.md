@@ -10,7 +10,7 @@ Pre-requisito:
 
 Passos:
 
-1. Extraia o pacote `techdesk-pro-v1.0.0-install.zip`.
+1. Extraia o pacote `techdesk-pro-v1.0.0-install-r2.zip` ou a revisao de distribuicao aprovada mais recente.
 2. Abra o PowerShell na pasta extraida `deploy`.
 3. Execute:
 
