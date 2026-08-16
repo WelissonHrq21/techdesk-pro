@@ -91,11 +91,31 @@ O instalador nao altera firewall automaticamente.
 
 Se outras maquinas da LAN nao acessarem, libere a porta configurada em `TECHDESK_PORT` somente para a rede local. Por padrao, a API e o PostgreSQL nao sao publicados em portas externas.
 
-## Backup
+## Backup e recuperacao
 
 `backup` gera dump PostgreSQL em formato custom (`pg_dump -Fc`), valida com `pg_restore -l` e mostra SHA256.
 
 Um backup no mesmo disco nao e suficiente. Copie tambem para outro computador, NAS, HD externo ou storage definido pela assistencia.
+
+Configure backup desde o primeiro dia de uso real.
+
+Leia o procedimento oficial antes de depender de um backup em producao:
+
+```text
+README-BACKUP-RESTORE.md
+```
+
+Esse guia documenta:
+
+- criacao e verificacao de backup;
+- restore em banco isolado;
+- restore real conservador;
+- recuperacao em maquina nova;
+- secrets/configuracao que ficam fora do dump;
+- rollback se o restore falhar;
+- politica de copia fora do servidor e retencao.
+
+Backup nao testado nao deve ser considerado recuperacao garantida.
 
 ## Troubleshooting
 
