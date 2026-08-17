@@ -22,6 +22,7 @@ const stockMovementStyles: Record<StockMovementType, string> = {
   ENTRY: "bg-emerald-50 text-emerald-700 ring-emerald-200",
   EXIT: "bg-rose-50 text-rose-700 ring-rose-200",
   ADJUSTMENT: "bg-amber-50 text-amber-700 ring-amber-200",
+  REVERSAL: "bg-teal-50 text-teal-700 ring-teal-200",
 };
 
 type StatusBadgeProps =

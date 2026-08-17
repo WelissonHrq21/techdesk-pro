@@ -51,6 +51,15 @@ export function getFriendlyErrorMessage(error: unknown) {
       "A revisão de orçamento só pode ser criada durante a manutenção.",
     "Invalid status transition":
       "A OS mudou de estado. Atualize a tela e tente novamente.",
+    "Stock movement not found": "Movimento de consumo não encontrado.",
+    "Only EXIT movements can be reversed":
+      "Apenas movimentos de consumo podem ser estornados.",
+    "Only service order EXIT movements can be reversed":
+      "Apenas consumos vinculados a uma OS podem ser estornados.",
+    "Service order status does not allow stock reversal":
+      "O status atual da OS não permite estorno.",
+    "Reversal quantity exceeds available reversible quantity":
+      "Esse consumo já foi estornado total ou parcialmente por outra operação. Os dados foram atualizados.",
   };
 
   const partialMessage = Object.entries(knownMessages).find(([key]) =>

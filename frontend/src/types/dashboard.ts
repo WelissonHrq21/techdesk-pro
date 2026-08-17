@@ -11,7 +11,7 @@ export type ServiceOrderStatus =
   | "DELIVERED"
   | "CANCELLED";
 
-export type StockMovementType = "ENTRY" | "EXIT" | "ADJUSTMENT";
+export type StockMovementType = "ENTRY" | "EXIT" | "ADJUSTMENT" | "REVERSAL";
 
 export type DashboardSummary = {
   serviceOrders: {

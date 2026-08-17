@@ -1,5 +1,9 @@
 import axios from "axios";
 
+export function getApiErrorStatus(error: unknown) {
+  return axios.isAxiosError(error) ? error.response?.status : undefined;
+}
+
 export function getApiErrorMessage(
   error: unknown,
   fallback = "Não foi possível concluir a operação."

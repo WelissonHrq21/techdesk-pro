@@ -19,10 +19,11 @@ export type PartFormData = {
 
 export type StockMovement = {
   id: string;
-  type: "ENTRY" | "EXIT" | "ADJUSTMENT";
+  type: "ENTRY" | "EXIT" | "ADJUSTMENT" | "REVERSAL";
   quantity: number;
   reason: string | null;
   createdAt: string;
+  reversalOfMovementId: string | null;
   user: {
     id: string;
     name: string;

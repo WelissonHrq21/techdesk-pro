@@ -2,10 +2,12 @@ import { PackageCheck } from "lucide-react";
 import { EmptyState } from "../../../components/ui/EmptyState";
 import { formatCurrency } from "../../../utils/formatters";
 import type { BudgetSummary } from "../types/serviceOrder";
+import type { ConsumptionSummary } from "../utils/serviceOrderDerivedData";
 
 type MaintenancePartsProps = {
   currentBudget: BudgetSummary | null;
   consumedByPartId: Record<string, number>;
+  consumptionSummaryByPartId: Record<string, ConsumptionSummary>;
   canConsume: boolean;
   onConsume: (item: BudgetSummary["budgetItems"][number]) => void;
 };
@@ -13,6 +15,7 @@ type MaintenancePartsProps = {
 export function MaintenanceParts({
   currentBudget,
   consumedByPartId,
+  consumptionSummaryByPartId,
   canConsume,
   onConsume,
 }: MaintenancePartsProps) {
@@ -24,6 +27,10 @@ export function MaintenanceParts({
     <div className="space-y-3">
       {currentBudget.budgetItems.map((item) => {
         const consumed = consumedByPartId[item.part.id] ?? 0;
+        const summary = consumptionSummaryByPartId[item.part.id];
+        const reversed = summary?.reversedQuantity ?? 0;
+        const net = summary?.netQuantity ?? consumed;
+        const reversible = summary?.reversibleQuantity ?? 0;
         const remaining = item.quantity - consumed;
 
         return (
@@ -40,8 +47,12 @@ export function MaintenanceParts({
                   </p>
                 </div>
                 <p className="mt-1 text-sm text-slate-500">
-                  Aprovado: {item.quantity} - Consumido: {consumed} - Restante:{" "}
-                  {Math.max(remaining, 0)}
+                  Aprovado: {item.quantity} - Consumido: {consumed} -
+                  Estornado: {reversed}
+                </p>
+                <p className="mt-1 text-sm text-slate-500">
+                  Consumo líquido: {net} - Saldo reversível: {reversible} -
+                  Restante aprovado: {Math.max(remaining, 0)}
                 </p>
                 <p className="mt-1 text-sm text-slate-500">
                   Valor aprovado: {formatCurrency(item.unitPrice)}

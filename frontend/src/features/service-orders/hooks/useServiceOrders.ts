@@ -9,6 +9,7 @@ import {
   findServiceOrder,
   findServiceOrders,
   rejectBudget,
+  reverseStockMovement,
   updateServiceOrderDiagnosis,
 } from "../api/serviceOrdersApi";
 import type {
@@ -18,6 +19,7 @@ import type {
   ChangeServiceOrderStatusData,
   ConsumePartData,
   FindServiceOrdersParams,
+  ReverseStockMovementData,
   UpdateDiagnosisData,
 } from "../types/serviceOrder";
 
@@ -148,6 +150,24 @@ export function useConsumePart(serviceOrderId: string) {
     onSuccess: () => {
       invalidateServiceOrderQueries(queryClient, serviceOrderId);
       void queryClient.invalidateQueries({ queryKey: ["parts"] });
+    },
+  });
+}
+
+export function useReverseStockMovement(serviceOrderId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (data: ReverseStockMovementData) => reverseStockMovement(data),
+    onSuccess: (result) => {
+      invalidateServiceOrderQueries(queryClient, serviceOrderId);
+      void queryClient.invalidateQueries({ queryKey: ["parts"] });
+      void queryClient.invalidateQueries({
+        queryKey: ["part", result.part.id],
+      });
+      void queryClient.invalidateQueries({
+        queryKey: ["stock-movements", result.part.id],
+      });
     },
   });
 }

@@ -61,6 +61,10 @@ export type ServiceOrderStockMovement = {
   quantity: number;
   reason: string | null;
   createdAt: string;
+  partId: string;
+  serviceOrderId: string | null;
+  userId: string | null;
+  reversalOfMovementId: string | null;
   part: {
     id: string;
     name: string;
@@ -137,6 +141,41 @@ export type ConsumePartData = {
   partId: string;
   quantity: number;
   observation?: string;
+};
+
+export type ReverseStockMovementData = {
+  movementId: string;
+  quantity: number;
+  reason: string;
+};
+
+export type ReverseStockMovementResponse = {
+  part: {
+    id: string;
+    name: string;
+    brand: string;
+    currentPrice: string;
+    stock: number;
+    supplier: string | null;
+    active: boolean;
+    createdAt: string;
+    updatedAt: string;
+  };
+  movement: ServiceOrderStockMovement & {
+    reversalOfMovement: Pick<
+      ServiceOrderStockMovement,
+      | "id"
+      | "type"
+      | "quantity"
+      | "partId"
+      | "serviceOrderId"
+      | "userId"
+      | "createdAt"
+    >;
+  };
+  originalMovement: ServiceOrderStockMovement;
+  reversedQuantity: number;
+  reversibleQuantity: number;
 };
 
 export type ServiceOrderDetail = {

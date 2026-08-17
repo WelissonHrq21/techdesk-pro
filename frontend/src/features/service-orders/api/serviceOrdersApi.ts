@@ -7,6 +7,8 @@ import type {
   ChangeServiceOrderStatusData,
   ConsumePartData,
   FindServiceOrdersParams,
+  ReverseStockMovementData,
+  ReverseStockMovementResponse,
   ServiceOrderDetail,
   ServiceOrderFormData,
   ServiceOrderListItem,
@@ -129,6 +131,18 @@ export async function consumePart(data: ConsumePartData) {
     {
       quantity: data.quantity,
       observation: data.observation?.trim() || undefined,
+    }
+  );
+
+  return response.data;
+}
+
+export async function reverseStockMovement(data: ReverseStockMovementData) {
+  const response = await http.post<ReverseStockMovementResponse>(
+    `/stock-movements/${data.movementId}/reverse`,
+    {
+      quantity: data.quantity,
+      reason: data.reason.trim(),
     }
   );
 

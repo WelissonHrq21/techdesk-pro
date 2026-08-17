@@ -1,4 +1,4 @@
-import { Copy, Eye, EyeOff, Printer } from "lucide-react";
+import { Copy, Eye, EyeOff, Printer, RotateCcw } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useParams } from "react-router-dom";
 import { EmptyState } from "../../../components/ui/EmptyState";
@@ -10,6 +10,7 @@ import { StatusBadge } from "../../../components/ui/StatusBadge";
 import { useAuth } from "../../../hooks/useAuth";
 import { useToast } from "../../../hooks/useToast";
 import type { ServiceOrderStatus } from "../../../types/dashboard";
+import { getApiErrorStatus } from "../../../utils/apiError";
 import { getFriendlyErrorMessage } from "../../../utils/errorMessages";
 import { formatDateTime } from "../../../utils/formatters";
 import { BudgetForm } from "../components/BudgetForm";
@@ -18,6 +19,7 @@ import { ConsumePartForm } from "../components/ConsumePartForm";
 import { DiagnosisForm } from "../components/DiagnosisForm";
 import { MaintenanceParts } from "../components/MaintenanceParts";
 import { ObservationForm } from "../components/ObservationForm";
+import { ReverseStockMovementForm } from "../components/ReverseStockMovementForm";
 import { ServiceOrderActions } from "../components/ServiceOrderActions";
 import { ServiceOrderTimeline } from "../components/ServiceOrderTimeline";
 import {
@@ -27,6 +29,7 @@ import {
   useCreateBudget,
   useCreateBudgetRevision,
   useRejectBudget,
+  useReverseStockMovement,
   useServiceOrder,
   useUpdateDiagnosis,
 } from "../hooks/useServiceOrders";
@@ -41,7 +44,9 @@ import {
 } from "../utils/getAvailableActions";
 import {
   getConsumedByPartId,
+  getConsumptionSummaries,
   getCurrentBudget,
+  type ConsumptionSummary,
 } from "../utils/serviceOrderDerivedData";
 
 type LocationState = {
@@ -159,6 +164,8 @@ export function ServiceOrderDetailPage() {
   const [consumeItem, setConsumeItem] = useState<
     BudgetSummary["budgetItems"][number] | null
   >(null);
+  const [reverseSummary, setReverseSummary] =
+    useState<ConsumptionSummary | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
 
   const serviceOrder = serviceOrderQuery.data;
@@ -167,6 +174,32 @@ export function ServiceOrderDetailPage() {
   const consumedByPartId = useMemo(() => {
     return serviceOrder ? getConsumedByPartId(serviceOrder) : {};
   }, [serviceOrder]);
+  const consumptionSummaries = useMemo(() => {
+    return serviceOrder ? getConsumptionSummaries(serviceOrder) : [];
+  }, [serviceOrder]);
+  const consumptionSummaryByPartId = useMemo(() => {
+    return consumptionSummaries.reduce<Record<string, ConsumptionSummary>>(
+      (accumulator, summary) => {
+        const current = accumulator[summary.movement.part.id];
+
+        accumulator[summary.movement.part.id] = current
+          ? {
+              ...summary,
+              consumedQuantity:
+                current.consumedQuantity + summary.consumedQuantity,
+              reversedQuantity:
+                current.reversedQuantity + summary.reversedQuantity,
+              netQuantity: current.netQuantity + summary.netQuantity,
+              reversibleQuantity:
+                current.reversibleQuantity + summary.reversibleQuantity,
+            }
+          : summary;
+
+        return accumulator;
+      },
+      {}
+    );
+  }, [consumptionSummaries]);
   const availableActions = serviceOrder
     ? getAvailableActions({
         status: serviceOrder.status,
@@ -181,6 +214,8 @@ export function ServiceOrderDetailPage() {
   const approveBudgetMutation = useApproveBudget(serviceOrderId);
   const rejectBudgetMutation = useRejectBudget(serviceOrderId);
   const consumePartMutation = useConsumePart(serviceOrderId);
+  const reverseStockMovementMutation =
+    useReverseStockMovement(serviceOrderId);
 
   useEffect(() => {
     const state = location.state as LocationState | null;
@@ -198,6 +233,7 @@ export function ServiceOrderDetailPage() {
     setIsRevisionOpen(false);
     setDecisionType(null);
     setConsumeItem(null);
+    setReverseSummary(null);
     setFormError(null);
   }
 
@@ -363,6 +399,44 @@ export function ServiceOrderDetailPage() {
     }
   }
 
+  async function handleReverseStockMovement(data: {
+    quantity: number;
+    reason: string;
+  }) {
+    if (!reverseSummary) {
+      return;
+    }
+
+    try {
+      const result = await reverseStockMovementMutation.mutateAsync({
+        movementId: reverseSummary.movement.id,
+        quantity: data.quantity,
+        reason: data.reason,
+      });
+      resetModalState();
+      showToast(
+        result.reversibleQuantity === 0
+          ? "Consumo estornado com sucesso."
+          : `${data.quantity} unidade estornada com sucesso.`,
+        "success"
+      );
+    } catch (error) {
+      const status = getApiErrorStatus(error);
+      const message =
+        status === 409
+          ? "Esse consumo já foi estornado total ou parcialmente por outra operação. Os dados foram atualizados."
+          : getFriendlyErrorMessage(error);
+
+      setFormError(message);
+
+      if (status === 409) {
+        showToast(message, "error");
+      }
+
+      void serviceOrderQuery.refetch();
+    }
+  }
+
   if (serviceOrderQuery.isLoading) {
     return <LoadingState rows={5} />;
   }
@@ -377,9 +451,10 @@ export function ServiceOrderDetailPage() {
     );
   }
 
-  const consumedParts = serviceOrder.stockMovements.filter(
-    (movement) => movement.type === "EXIT"
-  );
+  const canReverseStock =
+    (user?.role === "ADMIN" || user?.role === "TECHNICIAN") &&
+    (serviceOrder.status === "IN_MAINTENANCE" ||
+      serviceOrder.status === "FINISHED");
   const revisionDefaultItems =
     currentBudget?.budgetItems.map((item) => ({
       partId: item.part.id,
@@ -512,6 +587,7 @@ export function ServiceOrderDetailPage() {
               <MaintenanceParts
                 currentBudget={currentBudget}
                 consumedByPartId={consumedByPartId}
+                consumptionSummaryByPartId={consumptionSummaryByPartId}
                 canConsume={availableActions.includes("CONSUME_PART")}
                 onConsume={setConsumeItem}
               />
@@ -600,28 +676,107 @@ export function ServiceOrderDetailPage() {
             <h3 className="text-base font-semibold text-slate-950">
               Peças consumidas
             </h3>
-            {consumedParts.length === 0 ? (
+            {consumptionSummaries.length === 0 ? (
               <p className="mt-4 text-sm text-slate-500">
                 Nenhuma peça consumida.
               </p>
             ) : (
               <div className="mt-4 space-y-3">
-                {consumedParts.map((movement) => (
+                {consumptionSummaries.map((summary) => (
                   <div
-                    key={movement.id}
+                    key={summary.movement.id}
                     className="rounded-md border border-slate-200 p-3"
                   >
-                    <p className="text-sm font-medium text-slate-950">
-                      {movement.quantity}x {movement.part.name}
-                    </p>
-                    <p className="mt-1 text-xs text-slate-500">
-                      {movement.user?.name ?? "Sistema"} -{" "}
-                      {formatDateTime(movement.createdAt)}
-                    </p>
-                    {movement.reason && (
-                      <p className="mt-1 text-xs text-slate-500">
-                        {movement.reason}
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <StatusBadge type="stock-movement" value="EXIT" />
+                          <p className="text-sm font-medium text-slate-950">
+                            {summary.movement.part.name}
+                          </p>
+                        </div>
+                        <p className="mt-1 text-xs text-slate-500">
+                          {summary.movement.user?.name ?? "Sistema"} -{" "}
+                          {formatDateTime(summary.movement.createdAt)}
+                        </p>
+                      </div>
+
+                      {canReverseStock && summary.reversibleQuantity > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setFormError(null);
+                            setReverseSummary(summary);
+                          }}
+                          className="inline-flex h-9 items-center gap-2 rounded-md border border-teal-200 px-3 text-xs font-semibold text-teal-700 hover:bg-teal-50"
+                        >
+                          <RotateCcw size={15} />
+                          Estornar
+                        </button>
+                      )}
+                    </div>
+
+                    <dl className="mt-3 grid grid-cols-2 gap-2 text-xs">
+                      <div className="rounded-md bg-rose-50 px-2 py-2">
+                        <dt className="text-rose-700">Consumido</dt>
+                        <dd className="font-semibold text-rose-800">
+                          -{summary.consumedQuantity}
+                        </dd>
+                      </div>
+                      <div className="rounded-md bg-teal-50 px-2 py-2">
+                        <dt className="text-teal-700">Estornado</dt>
+                        <dd className="font-semibold text-teal-800">
+                          +{summary.reversedQuantity}
+                        </dd>
+                      </div>
+                      <div className="rounded-md bg-slate-50 px-2 py-2">
+                        <dt className="text-slate-500">Consumo líquido</dt>
+                        <dd className="font-semibold text-slate-950">
+                          {summary.netQuantity}
+                        </dd>
+                      </div>
+                      <div className="rounded-md bg-sky-50 px-2 py-2">
+                        <dt className="text-sky-700">Saldo reversível</dt>
+                        <dd className="font-semibold text-sky-800">
+                          {summary.reversibleQuantity}
+                        </dd>
+                      </div>
+                    </dl>
+
+                    {summary.movement.reason && (
+                      <p className="mt-2 rounded-md bg-slate-50 px-2 py-2 text-xs text-slate-600">
+                        {summary.movement.reason}
                       </p>
+                    )}
+
+                    {summary.reversals.length > 0 && (
+                      <div className="mt-3 space-y-2 border-t border-slate-100 pt-3">
+                        {summary.reversals.map((reversal) => (
+                          <div
+                            key={reversal.id}
+                            className="rounded-md border border-teal-100 bg-teal-50 px-3 py-2"
+                          >
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                              <StatusBadge
+                                type="stock-movement"
+                                value="REVERSAL"
+                              />
+                              <span className="text-xs font-semibold text-teal-800">
+                                +{reversal.quantity}
+                              </span>
+                            </div>
+                            <p className="mt-1 text-xs text-teal-700">
+                              {reversal.user?.name ?? "Sistema"} -{" "}
+                              {formatDateTime(reversal.createdAt)}
+                            </p>
+                            {reversal.reason && (
+                              <p className="mt-1 text-xs text-teal-700">
+                                {reversal.reason}
+                              </p>
+                            )}
+                          </div>
+                        ))}
+                      </div>
                     )}
                   </div>
                 ))}
@@ -779,6 +934,23 @@ export function ServiceOrderDetailPage() {
             errorMessage={formError}
             onCancel={resetModalState}
             onSubmit={(data) => void handleConsumePart(data)}
+          />
+        )}
+      </Modal>
+
+      <Modal
+        title="Estornar consumo"
+        isOpen={Boolean(reverseSummary)}
+        onClose={resetModalState}
+        maxWidth="max-w-2xl"
+      >
+        {reverseSummary && (
+          <ReverseStockMovementForm
+            summary={reverseSummary}
+            isSubmitting={reverseStockMovementMutation.isPending}
+            errorMessage={formError}
+            onCancel={resetModalState}
+            onSubmit={(data) => void handleReverseStockMovement(data)}
           />
         )}
       </Modal>

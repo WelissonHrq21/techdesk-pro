@@ -26,4 +26,5 @@ export const stockMovementTypeLabels: Record<StockMovementType, string> = {
   ENTRY: "Entrada",
   EXIT: "Saída",
   ADJUSTMENT: "Ajuste",
+  REVERSAL: "Estorno",
 };
