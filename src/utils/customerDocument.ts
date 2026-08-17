@@ -1,4 +1,5 @@
 const repeatedDigitsPattern = /^(\d)\1+$/;
+const repeatedCnpjBasePattern = /^([A-Z0-9])\1{11}/;
 
 export function normalizeCustomerDocument(
   document: string | null | undefined
@@ -11,7 +12,10 @@ export function normalizeCustomerDocument(
     return undefined;
   }
 
-  const normalized = document.replace(/\D/g, "");
+  const normalized = document
+    .trim()
+    .toUpperCase()
+    .replace(/[\s./-]/g, "");
 
   return normalized || null;
 }
@@ -28,20 +32,29 @@ export function isValidCpf(document: string) {
   return digits[9] === firstVerifier && digits[10] === secondVerifier;
 }
 
-export function isValidNumericCnpj(document: string) {
-  if (!/^\d{14}$/.test(document) || repeatedDigitsPattern.test(document)) {
+export function isValidCnpj(document: string) {
+  if (
+    !/^[A-Z0-9]{12}\d{2}$/.test(document) ||
+    repeatedCnpjBasePattern.test(document)
+  ) {
     return false;
   }
 
-  const digits = document.split("").map(Number);
-  const firstVerifier = calculateVerifier(digits.slice(0, 12), 5);
-  const secondVerifier = calculateVerifier(digits.slice(0, 13), 6);
+  const values = document.split("").map(getCnpjCharacterValue);
+  const firstVerifier = calculateVerifier(values.slice(0, 12), 5);
+  const secondVerifier = calculateVerifier(
+    [...values.slice(0, 12), firstVerifier],
+    6
+  );
 
-  return digits[12] === firstVerifier && digits[13] === secondVerifier;
+  return (
+    Number(document[12]) === firstVerifier &&
+    Number(document[13]) === secondVerifier
+  );
 }
 
 export function isValidCustomerDocument(document: string) {
-  return isValidCpf(document) || isValidNumericCnpj(document);
+  return isValidCpf(document) || isValidCnpj(document);
 }
 
 function calculateVerifier(digits: number[], initialWeight: number) {
@@ -59,4 +72,8 @@ function calculateVerifier(digits: number[], initialWeight: number) {
   const remainder = sum % 11;
 
   return remainder < 2 ? 0 : 11 - remainder;
+}
+
+function getCnpjCharacterValue(character: string) {
+  return character.charCodeAt(0) - 48;
 }

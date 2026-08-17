@@ -179,6 +179,56 @@ describe("CustomersPage", () => {
     expect(requests[0]).toMatchObject({ document: "11222333000181" });
   });
 
+  it("accepts alphanumeric CNPJ with lowercase and sends uppercase normalized", async () => {
+    const requests: unknown[] = [];
+
+    server.use(
+      http.get(`${testApiUrl}/customers`, () => {
+        return HttpResponse.json(emptyCustomersResponse);
+      }),
+      http.post(`${testApiUrl}/customers`, async ({ request }) => {
+        requests.push(await request.json());
+
+        return HttpResponse.json(
+          {
+            id: customerId,
+            name: "Empresa Alfanumerica",
+            phone: "82999990000",
+            document: "12ABC34501DE35",
+            email: null,
+            active: true,
+            createdAt: "2026-08-17T00:00:00.000Z",
+            updatedAt: "2026-08-17T00:00:00.000Z",
+          },
+          { status: 201 }
+        );
+      })
+    );
+
+    renderCustomersPage();
+
+    await userEvent.click(screen.getByRole("button", { name: /novo cliente/i }));
+    await userEvent.type(screen.getByLabelText(/nome/i), "Empresa Alfanumerica");
+    await userEvent.type(screen.getByLabelText(/telefone/i), "82999990000");
+    await userEvent.type(
+      screen.getByLabelText(/cpf\/cnpj/i),
+      "12.abc.345/01de-35"
+    );
+
+    expect(screen.getByLabelText(/cpf\/cnpj/i)).toHaveValue(
+      "12.ABC.345/01DE-35"
+    );
+
+    await userEvent.click(
+      screen.getByRole("button", { name: /cadastrar cliente/i })
+    );
+
+    await waitFor(() => {
+      expect(requests).toHaveLength(1);
+    });
+    expect(requests[0]).toMatchObject({ document: "12ABC34501DE35" });
+  });
+
   it.each(["123.456.789-00", "11.222.333/0001-80"])(
     "blocks invalid document %s before sending",
     async (document) => {
@@ -211,6 +261,38 @@ describe("CustomersPage", () => {
     }
   );
 
+  it("blocks alphanumeric CNPJ with invalid verifier digit before sending", async () => {
+    const requests: unknown[] = [];
+
+    server.use(
+      http.get(`${testApiUrl}/customers`, () => {
+        return HttpResponse.json(emptyCustomersResponse);
+      }),
+      http.post(`${testApiUrl}/customers`, async ({ request }) => {
+        requests.push(await request.json());
+        return HttpResponse.json({}, { status: 201 });
+      })
+    );
+
+    renderCustomersPage();
+
+    await userEvent.click(screen.getByRole("button", { name: /novo cliente/i }));
+    await userEvent.type(screen.getByLabelText(/nome/i), "Empresa Invalida");
+    await userEvent.type(screen.getByLabelText(/telefone/i), "82999990000");
+    await userEvent.type(
+      screen.getByLabelText(/cpf\/cnpj/i),
+      "12.ABC.345/01DE-36"
+    );
+    await userEvent.click(
+      screen.getByRole("button", { name: /cadastrar cliente/i })
+    );
+
+    expect(
+      await screen.findByText(/informe um cpf ou cnpj válido/i)
+    ).toBeInTheDocument();
+    expect(requests).toHaveLength(0);
+  });
+
   it("shows a friendly duplicated document message", async () => {
     server.use(
       http.get(`${testApiUrl}/customers`, () => {
@@ -239,7 +321,7 @@ describe("CustomersPage", () => {
     ).toBeInTheDocument();
   });
 
-  it("searches by CPF or CNPJ text", async () => {
+  it("searches by CPF, numeric CNPJ or alphanumeric CNPJ text", async () => {
     const searches: string[] = [];
 
     server.use(
@@ -256,9 +338,13 @@ describe("CustomersPage", () => {
             ? [
                 {
                   id: customerId,
-                  name: "Cliente Busca",
+                  name: search.includes("abc")
+                    ? "Empresa Alfanumerica"
+                    : "Cliente Busca",
                   phone: "82999990000",
-                  document: "52998224725",
+                  document: search.includes("abc")
+                    ? "12ABC34501DE35"
+                    : "52998224725",
                   email: null,
                   active: true,
                   createdAt: "2026-08-17T00:00:00.000Z",
@@ -280,6 +366,15 @@ describe("CustomersPage", () => {
 
     expect(await screen.findByText("Cliente Busca")).toBeInTheDocument();
     expect(searches).toContain("529.982.247-25");
+
+    await userEvent.clear(screen.getByPlaceholderText(/cpf\/cnpj/i));
+    await userEvent.type(
+      screen.getByPlaceholderText(/cpf\/cnpj/i),
+      "12.abc.345/01de-35"
+    );
+
+    expect(await screen.findByText("Empresa Alfanumerica")).toBeInTheDocument();
+    expect(searches).toContain("12.abc.345/01de-35");
   });
 });
 

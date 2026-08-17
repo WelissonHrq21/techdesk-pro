@@ -75,8 +75,8 @@ export function CustomerForm({
           render={({ field }) => (
             <input
               className={inputClass}
-              inputMode="numeric"
-              placeholder="000.000.000-00 ou 00.000.000/0000-00"
+              inputMode="text"
+              placeholder="000.000.000-00 ou XX.XXX.XXX/XXXX-00"
               value={formatCustomerDocumentInput(field.value)}
               onChange={(event) => field.onChange(event.target.value)}
               onBlur={field.onBlur}

@@ -105,6 +105,18 @@ describe("TechDesk Pro integration rules", () => {
 
     expect(cnpj.body.document).toBe("11222333000181");
 
+    const alphanumericCnpj = await request(app)
+      .post("/customers")
+      .set("Authorization", `Bearer ${admin.token}`)
+      .send({
+        name: "Empresa CNPJ Alfanumerico Ficticia",
+        phone: "82999990009",
+        document: "12.abc.345/01de-35",
+      })
+      .expect(201);
+
+    expect(alphanumericCnpj.body.document).toBe("12ABC34501DE35");
+
     await request(app)
       .post("/customers")
       .set("Authorization", `Bearer ${admin.token}`)
@@ -165,6 +177,36 @@ describe("TechDesk Pro integration rules", () => {
         document: "11.222.333/0001-80",
       })
       .expect(400);
+
+    await request(app)
+      .post("/customers")
+      .set("Authorization", `Bearer ${admin.token}`)
+      .send({
+        name: "CNPJ Alfanumerico DV Invalido",
+        phone: "82999990010",
+        document: "12.ABC.345/01DE-36",
+      })
+      .expect(400);
+
+    await request(app)
+      .post("/customers")
+      .set("Authorization", `Bearer ${admin.token}`)
+      .send({
+        name: "CNPJ Alfanumerico Curto",
+        phone: "82999990011",
+        document: "12.ABC.345/01DE-3",
+      })
+      .expect(400);
+
+    await request(app)
+      .post("/customers")
+      .set("Authorization", `Bearer ${admin.token}`)
+      .send({
+        name: "CNPJ Alfanumerico Caractere Invalido",
+        phone: "82999990012",
+        document: "12.ABC.345/01D@-35",
+      })
+      .expect(400);
   });
 
   it("enforces unique normalized customer documents on create and update", async () => {
@@ -210,6 +252,28 @@ describe("TechDesk Pro integration rules", () => {
       })
       .expect(409);
 
+    const alphanumeric = await request(app)
+      .post("/customers")
+      .set("Authorization", `Bearer ${admin.token}`)
+      .send({
+        name: "Cliente CNPJ Alfanumerico",
+        phone: "82999990105",
+        document: "12.abc.345/01de-35",
+      })
+      .expect(201);
+
+    expect(alphanumeric.body.document).toBe("12ABC34501DE35");
+
+    await request(app)
+      .post("/customers")
+      .set("Authorization", `Bearer ${admin.token}`)
+      .send({
+        name: "Cliente CNPJ Alfanumerico Duplicado",
+        phone: "82999990106",
+        document: "12ABC34501DE35",
+      })
+      .expect(409);
+
     await request(app)
       .put(`/customers/${first.body.id}`)
       .set("Authorization", `Bearer ${admin.token}`)
@@ -227,6 +291,16 @@ describe("TechDesk Pro integration rules", () => {
         name: "Cliente Documento Um",
         phone: "82999990101",
         document: second.body.document,
+      })
+      .expect(409);
+
+    await request(app)
+      .put(`/customers/${first.body.id}`)
+      .set("Authorization", `Bearer ${admin.token}`)
+      .send({
+        name: "Cliente Documento Um",
+        phone: "82999990101",
+        document: alphanumeric.body.document,
       })
       .expect(409);
 
@@ -263,6 +337,17 @@ describe("TechDesk Pro integration rules", () => {
       })
       .expect(201);
 
+    await request(app)
+      .post("/customers")
+      .set("Authorization", `Bearer ${reception.token}`)
+      .send({
+        name: "Cliente Busca Alfanumerico",
+        phone: "82999990202",
+        email: "busca-alfanumerico@test.com",
+        document: "12.ABC.345/01DE-35",
+      })
+      .expect(201);
+
     const byFormattedDocument = await request(app)
       .get("/customers")
       .query({ search: "529.982.247-25" })
@@ -287,6 +372,17 @@ describe("TechDesk Pro integration rules", () => {
       .expect(200);
 
     expect(byEmail.body.data).toHaveLength(1);
+
+    const byAlphanumericDocument = await request(app)
+      .get("/customers")
+      .query({ search: "12.abc.345/01de-35" })
+      .set("Authorization", `Bearer ${reception.token}`)
+      .expect(200);
+
+    expect(byAlphanumericDocument.body.data).toHaveLength(1);
+    expect(byAlphanumericDocument.body.data[0].document).toBe(
+      "12ABC34501DE35"
+    );
   });
 
   it("minimizes customer document by role and never exposes it in public tracking", async () => {

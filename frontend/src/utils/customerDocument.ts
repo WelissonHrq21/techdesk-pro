@@ -1,4 +1,5 @@
 const repeatedDigitsPattern = /^(\d)\1+$/;
+const repeatedCnpjBasePattern = /^([A-Z0-9])\1{11}/;
 
 export function normalizeCustomerDocument(document?: string | null) {
   if (document === null) {
@@ -9,7 +10,10 @@ export function normalizeCustomerDocument(document?: string | null) {
     return undefined;
   }
 
-  const normalized = document.replace(/\D/g, "");
+  const normalized = document
+    .trim()
+    .toUpperCase()
+    .replace(/[\s./-]/g, "");
 
   return normalized || null;
 }
@@ -27,16 +31,24 @@ export function isValidCpf(document: string) {
   );
 }
 
-export function isValidNumericCnpj(document: string) {
-  if (!/^\d{14}$/.test(document) || repeatedDigitsPattern.test(document)) {
+export function isValidCnpj(document: string) {
+  if (
+    !/^[A-Z0-9]{12}\d{2}$/.test(document) ||
+    repeatedCnpjBasePattern.test(document)
+  ) {
     return false;
   }
 
-  const digits = document.split("").map(Number);
+  const values = document.split("").map(getCnpjCharacterValue);
+  const firstVerifier = calculateVerifier(values.slice(0, 12), 5);
+  const secondVerifier = calculateVerifier(
+    [...values.slice(0, 12), firstVerifier],
+    6
+  );
 
   return (
-    digits[12] === calculateVerifier(digits.slice(0, 12), 5) &&
-    digits[13] === calculateVerifier(digits.slice(0, 13), 6)
+    Number(document[12]) === firstVerifier &&
+    Number(document[13]) === secondVerifier
   );
 }
 
@@ -47,7 +59,7 @@ export function isValidCustomerDocument(document?: string | null) {
     return true;
   }
 
-  return isValidCpf(normalized) || isValidNumericCnpj(normalized);
+  return isValidCpf(normalized) || isValidCnpj(normalized);
 }
 
 export function formatCustomerDocument(document?: string | null) {
@@ -66,7 +78,7 @@ export function formatCustomerDocument(document?: string | null) {
 
   if (normalized.length === 14) {
     return normalized.replace(
-      /(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/,
+      /([A-Z0-9]{2})([A-Z0-9]{3})([A-Z0-9]{3})([A-Z0-9]{4})(\d{2})/,
       "$1.$2.$3/$4-$5"
     );
   }
@@ -77,7 +89,7 @@ export function formatCustomerDocument(document?: string | null) {
 export function formatCustomerDocumentInput(value?: string | null) {
   const normalized = normalizeCustomerDocument(value) ?? "";
 
-  if (normalized.length <= 11) {
+  if (normalized.length <= 11 && /^\d*$/.test(normalized)) {
     return normalized
       .replace(/(\d{3})(\d)/, "$1.$2")
       .replace(/(\d{3})(\d)/, "$1.$2")
@@ -85,12 +97,7 @@ export function formatCustomerDocumentInput(value?: string | null) {
       .slice(0, 14);
   }
 
-  return normalized
-    .slice(0, 14)
-    .replace(/(\d{2})(\d)/, "$1.$2")
-    .replace(/(\d{3})(\d)/, "$1.$2")
-    .replace(/(\d{3})(\d)/, "$1/$2")
-    .replace(/(\d{4})(\d{1,2})$/, "$1-$2");
+  return formatCnpjInput(normalized);
 }
 
 function calculateVerifier(digits: number[], initialWeight: number) {
@@ -108,4 +115,40 @@ function calculateVerifier(digits: number[], initialWeight: number) {
   const remainder = sum % 11;
 
   return remainder < 2 ? 0 : 11 - remainder;
+}
+
+function getCnpjCharacterValue(character: string) {
+  return character.charCodeAt(0) - 48;
+}
+
+function formatCnpjInput(document: string) {
+  const normalized = document.slice(0, 14);
+  const parts = [
+    normalized.slice(0, 2),
+    normalized.slice(2, 5),
+    normalized.slice(5, 8),
+    normalized.slice(8, 12),
+    normalized.slice(12, 14),
+  ].filter(Boolean);
+
+  if (parts.length <= 1) {
+    return parts[0] ?? "";
+  }
+
+  const [first, second, third, fourth, fifth] = parts;
+  let formatted = `${first}.${second}`;
+
+  if (third) {
+    formatted += `.${third}`;
+  }
+
+  if (fourth) {
+    formatted += `/${fourth}`;
+  }
+
+  if (fifth) {
+    formatted += `-${fifth}`;
+  }
+
+  return formatted;
 }

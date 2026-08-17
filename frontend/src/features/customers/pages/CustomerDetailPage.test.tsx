@@ -92,6 +92,13 @@ describe("CustomerDetailPage document privacy", () => {
     }
   );
 
+  it("shows formatted alphanumeric CNPJ for authorized roles", async () => {
+    renderDetail("ADMIN", "12ABC34501DE35");
+
+    expect(await screen.findByText("Cliente Documento")).toBeInTheDocument();
+    expect(screen.getByText("12.ABC.345/01DE-35")).toBeInTheDocument();
+  });
+
   it("does not show document for TECHNICIAN", async () => {
     renderDetail("TECHNICIAN", undefined);
 
@@ -128,14 +135,14 @@ describe("CustomerDetailPage document privacy", () => {
     await userEvent.clear(screen.getByLabelText(/cpf\/cnpj/i));
     await userEvent.type(
       screen.getByLabelText(/cpf\/cnpj/i),
-      "11.222.333/0001-81"
+      "12.abc.345/01de-35"
     );
     await userEvent.click(screen.getByRole("button", { name: /salvar/i }));
 
     await waitFor(() => {
       expect(requests).toHaveLength(2);
     });
-    expect(requests[1]).toMatchObject({ document: "11222333000181" });
+    expect(requests[1]).toMatchObject({ document: "12ABC34501DE35" });
 
     await userEvent.click(screen.getByRole("button", { name: /editar/i }));
     await userEvent.clear(screen.getByLabelText(/cpf\/cnpj/i));

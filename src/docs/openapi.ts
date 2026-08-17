@@ -81,8 +81,8 @@ export const openApiDocument = {
             type: "string",
             nullable: true,
             description:
-              "Optional CPF/CNPJ stored with digits only. Omitted from TECHNICIAN responses and never exposed by public tracking.",
-            example: "52998224725",
+              "Optional CPF/CNPJ. CPF is normalized with digits only. CNPJ is normalized without mask, uppercase, and may be numeric or alphanumeric. Omitted from TECHNICIAN responses and never exposed by public tracking.",
+            example: "12ABC34501DE35",
           },
           email: { type: "string", nullable: true },
           active: { type: "boolean" },
