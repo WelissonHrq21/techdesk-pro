@@ -1,4 +1,8 @@
-import { ServiceOrderStatus, StockMovementType } from "@prisma/client";
+import {
+  Prisma,
+  ServiceOrderStatus,
+  StockMovementType,
+} from "@prisma/client";
 import { prisma } from "../config/prisma";
 import { AppError } from "../errors/AppError";
 import { publicUserSelect } from "./UserRepository";
@@ -14,6 +18,11 @@ type CreateStockExitData = CreateStockEntryData & {
   serviceOrderId?: string;
 };
 
+type CreateServiceOrderStockExitData = CreateStockEntryData & {
+  serviceOrderId: string;
+  approvedQuantity: number;
+};
+
 type ReverseStockMovementData = {
   movementId: string;
   quantity: number;
@@ -21,6 +30,8 @@ type ReverseStockMovementData = {
   userId: string;
   allowedStatuses: ServiceOrderStatus[];
 };
+
+type PrismaExecutor = typeof prisma | Prisma.TransactionClient;
 
 class StockMovementRepository {
   async createEntry(data: CreateStockEntryData) {
@@ -61,6 +72,80 @@ class StockMovementRepository {
 
   async createExit(data: CreateStockExitData) {
     return prisma.$transaction(async (transaction) => {
+      const part = await transaction.part.update({
+        where: {
+          id: data.partId,
+        },
+        data: {
+          stock: {
+            decrement: data.quantity,
+          },
+        },
+      });
+
+      const movement = await transaction.stockMovement.create({
+        data: {
+          type: StockMovementType.EXIT,
+          quantity: data.quantity,
+          reason: data.reason,
+          partId: data.partId,
+          serviceOrderId: data.serviceOrderId,
+          userId: data.userId,
+        },
+        include: {
+          user: {
+            select: publicUserSelect,
+          },
+          serviceOrder: true,
+        },
+      });
+
+      return {
+        part,
+        movement,
+      };
+    });
+  }
+
+  async createServiceOrderExit(data: CreateServiceOrderStockExitData) {
+    return prisma.$transaction(async (transaction) => {
+      await this.lockServiceOrder(transaction, data.serviceOrderId);
+
+      const netConsumed =
+        await this.sumNetConsumedQuantityByPartAndServiceOrder(
+          data.partId,
+          data.serviceOrderId,
+          transaction
+        );
+
+      if (netConsumed + data.quantity > data.approvedQuantity) {
+        throw new AppError(
+          "Consumed quantity exceeds approved budget quantity",
+          409
+        );
+      }
+
+      await transaction.$queryRaw`
+        SELECT "id"
+        FROM "Part"
+        WHERE "id" = ${data.partId}
+        FOR UPDATE
+      `;
+
+      const existingPart = await transaction.part.findUnique({
+        where: {
+          id: data.partId,
+        },
+      });
+
+      if (!existingPart) {
+        throw new AppError("Part not found", 404);
+      }
+
+      if (existingPart.stock < data.quantity) {
+        throw new AppError("Insufficient stock", 400);
+      }
+
       const part = await transaction.part.update({
         where: {
           id: data.partId,
@@ -174,6 +259,11 @@ class StockMovementRepository {
         );
       }
 
+      await this.lockServiceOrder(
+        transaction,
+        originalMovement.serviceOrderId
+      );
+
       const reversedQuantityResult =
         await transaction.stockMovement.aggregate({
           where: {
@@ -272,22 +362,130 @@ class StockMovementRepository {
     return result._sum.quantity ?? 0;
   }
 
-  async findConsumedPartsByServiceOrder(serviceOrderId: string) {
-    const consumedParts = await prisma.stockMovement.groupBy({
-      by: ["partId"],
+  async sumNetConsumedQuantityByPartAndServiceOrder(
+    partId: string,
+    serviceOrderId: string,
+    executor: PrismaExecutor = prisma
+  ) {
+    const exitMovements = await executor.stockMovement.findMany({
       where: {
         type: StockMovementType.EXIT,
+        partId,
         serviceOrderId,
+      },
+      select: {
+        id: true,
+        quantity: true,
+      },
+    });
+
+    const grossConsumed = exitMovements.reduce((total, movement) => {
+      return total + movement.quantity;
+    }, 0);
+
+    if (exitMovements.length === 0) {
+      return 0;
+    }
+
+    const reversedResult = await executor.stockMovement.aggregate({
+      where: {
+        type: StockMovementType.REVERSAL,
+        reversalOfMovementId: {
+          in: exitMovements.map((movement) => movement.id),
+        },
       },
       _sum: {
         quantity: true,
       },
     });
 
-    return consumedParts.map((item) => ({
-      partId: item.partId,
-      consumed: item._sum.quantity ?? 0,
-    }));
+    const reversed = reversedResult._sum.quantity ?? 0;
+    const netConsumed = grossConsumed - reversed;
+
+    if (netConsumed < 0) {
+      throw new AppError(
+        "Net consumed quantity is inconsistent",
+        500
+      );
+    }
+
+    return netConsumed;
+  }
+
+  async findConsumedPartsByServiceOrder(serviceOrderId: string) {
+    const exitMovements = await prisma.stockMovement.findMany({
+      where: {
+        type: StockMovementType.EXIT,
+        serviceOrderId,
+      },
+      select: {
+        id: true,
+        partId: true,
+        quantity: true,
+      },
+    });
+
+    if (exitMovements.length === 0) {
+      return [];
+    }
+
+    const reversedByOriginalMovement = await prisma.stockMovement.groupBy({
+      by: ["reversalOfMovementId"],
+      where: {
+        type: StockMovementType.REVERSAL,
+        reversalOfMovementId: {
+          in: exitMovements.map((movement) => movement.id),
+        },
+      },
+      _sum: {
+        quantity: true,
+      },
+    });
+
+    const reversedByMovementId = new Map(
+      reversedByOriginalMovement.map((item) => [
+        item.reversalOfMovementId,
+        item._sum.quantity ?? 0,
+      ])
+    );
+
+    const consumedByPartId = new Map<string, number>();
+
+    for (const movement of exitMovements) {
+      const netConsumed =
+        movement.quantity - (reversedByMovementId.get(movement.id) ?? 0);
+
+      if (netConsumed < 0) {
+        throw new AppError(
+          "Net consumed quantity is inconsistent",
+          500
+        );
+      }
+
+      consumedByPartId.set(
+        movement.partId,
+        (consumedByPartId.get(movement.partId) ?? 0) + netConsumed
+      );
+    }
+
+    return Array.from(consumedByPartId.entries())
+      .filter(([, consumed]) => consumed > 0)
+      .map(([partId, consumed]) => ({
+        partId,
+        consumed,
+      }));
+  }
+
+  private async lockServiceOrder(
+    transaction: Prisma.TransactionClient,
+    serviceOrderId: string
+  ) {
+    await transaction.$queryRaw`
+      SELECT "id"
+      FROM "ServiceOrder"
+      WHERE "id" = ${serviceOrderId}
+      FOR UPDATE
+    `;
   }
 }
 

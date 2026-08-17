@@ -95,12 +95,18 @@ export async function createTestServiceOrder(
   };
 }
 
-export async function createApprovedMaintenanceScenario() {
+export async function createApprovedMaintenanceScenario({
+  budgetQuantity = 2,
+  stock = 5,
+}: {
+  budgetQuantity?: number;
+  stock?: number;
+} = {}) {
   const { token } = await authenticateTestUser(UserRole.TECHNICIAN);
   const { serviceOrder } = await createTestServiceOrder(
     ServiceOrderStatus.IN_ANALYSIS
   );
-  const part = await createTestPart(5);
+  const part = await createTestPart(stock);
 
   const budgetResponse = await request(app)
     .post(`/service-orders/${serviceOrder.id}/budgets`)
@@ -109,7 +115,7 @@ export async function createApprovedMaintenanceScenario() {
       items: [
         {
           partId: part.id,
-          quantity: 2,
+          quantity: budgetQuantity,
           unitPrice: 250,
         },
       ],

@@ -88,27 +88,11 @@ class ConsumePartService {
       );
     }
 
-    const consumedQuantity =
-      await stockMovementRepository.sumExitedQuantityByPartAndServiceOrder(
-        partId,
-        serviceOrderId
-      );
-
-    if (consumedQuantity + quantity > budgetItem.quantity) {
-      throw new AppError(
-        "Consumed quantity exceeds approved budget quantity",
-        409
-      );
-    }
-
-    if (part.stock < quantity) {
-      throw new AppError("Insufficient stock", 400);
-    }
-
-    return stockMovementRepository.createExit({
+    return stockMovementRepository.createServiceOrderExit({
       partId,
       quantity,
       serviceOrderId,
+      approvedQuantity: budgetItem.quantity,
       userId,
       reason: observation ?? "Part consumed during service order",
     });

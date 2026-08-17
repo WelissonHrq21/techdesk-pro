@@ -64,6 +64,99 @@ function reverseMovement(
     .send(body);
 }
 
+function consumePart(
+  serviceOrderId: string,
+  partId: string,
+  token: string,
+  quantity: number
+) {
+  return request(app)
+    .post(`/service-orders/${serviceOrderId}/parts/${partId}/consume`)
+    .set("Authorization", `Bearer ${token}`)
+    .send({ quantity });
+}
+
+async function getConsumptionBalance(
+  serviceOrderId: string,
+  partId: string
+) {
+  const exits = await prisma.stockMovement.findMany({
+    where: {
+      type: StockMovementType.EXIT,
+      serviceOrderId,
+      partId,
+    },
+    select: {
+      id: true,
+      quantity: true,
+    },
+  });
+
+  const reversed = exits.length
+    ? await prisma.stockMovement.aggregate({
+        where: {
+          type: StockMovementType.REVERSAL,
+          reversalOfMovementId: {
+            in: exits.map((exit) => exit.id),
+          },
+        },
+        _sum: {
+          quantity: true,
+        },
+      })
+    : { _sum: { quantity: 0 } };
+
+  const grossConsumed = exits.reduce((total, exit) => {
+    return total + exit.quantity;
+  }, 0);
+  const reversedQuantity = reversed._sum.quantity ?? 0;
+
+  return {
+    grossConsumed,
+    reversed: reversedQuantity,
+    netConsumed: grossConsumed - reversedQuantity,
+  };
+}
+
+async function createApprovedMaintenanceScenarioForPart({
+  partId,
+  budgetQuantity,
+  token,
+}: {
+  partId: string;
+  budgetQuantity: number;
+  token: string;
+}) {
+  const { serviceOrder } = await createTestServiceOrder(
+    ServiceOrderStatus.IN_ANALYSIS
+  );
+
+  await request(app)
+    .post(`/service-orders/${serviceOrder.id}/budgets`)
+    .set("Authorization", `Bearer ${token}`)
+    .send({
+      items: [
+        {
+          partId,
+          quantity: budgetQuantity,
+          unitPrice: 250,
+        },
+      ],
+    })
+    .expect(201);
+
+  await prisma.serviceOrder.update({
+    where: {
+      id: serviceOrder.id,
+    },
+    data: {
+      status: ServiceOrderStatus.IN_MAINTENANCE,
+    },
+  });
+
+  return serviceOrder;
+}
+
 describe("Auditable stock reversal", () => {
   beforeEach(async () => {
     await resetDatabase();
@@ -380,6 +473,334 @@ describe("Auditable stock reversal", () => {
 
     expect(updatedPart.stock).toBe(4);
     expect(exitMovement?.quantity).toBe(1);
+  });
+
+  it("uses net consumption after a partial reversal when enforcing the approved budget", async () => {
+    const scenario = await createApprovedMaintenanceScenario({
+      budgetQuantity: 2,
+      stock: 5,
+    });
+
+    const firstConsume = await consumePart(
+      scenario.serviceOrder.id,
+      scenario.part.id,
+      scenario.token,
+      2
+    ).expect(201);
+
+    await reverseMovement(
+      firstConsume.body.movement.id,
+      scenario.token,
+      {
+        quantity: 1,
+        reason: "Partially returned to stock",
+      }
+    ).expect(201);
+
+    await consumePart(
+      scenario.serviceOrder.id,
+      scenario.part.id,
+      scenario.token,
+      1
+    ).expect(201);
+
+    const balance = await getConsumptionBalance(
+      scenario.serviceOrder.id,
+      scenario.part.id
+    );
+
+    expect(balance).toEqual({
+      grossConsumed: 3,
+      reversed: 1,
+      netConsumed: 2,
+    });
+
+    await consumePart(
+      scenario.serviceOrder.id,
+      scenario.part.id,
+      scenario.token,
+      1
+    ).expect(409);
+  });
+
+  it("allows consuming restored capacity after multiple partial reversals", async () => {
+    const scenario = await createApprovedMaintenanceScenario({
+      budgetQuantity: 3,
+      stock: 8,
+    });
+
+    const firstConsume = await consumePart(
+      scenario.serviceOrder.id,
+      scenario.part.id,
+      scenario.token,
+      3
+    ).expect(201);
+
+    await reverseMovement(
+      firstConsume.body.movement.id,
+      scenario.token,
+      {
+        quantity: 1,
+        reason: "First unit returned",
+      }
+    ).expect(201);
+
+    await reverseMovement(
+      firstConsume.body.movement.id,
+      scenario.token,
+      {
+        quantity: 1,
+        reason: "Second unit returned",
+      }
+    ).expect(201);
+
+    await consumePart(
+      scenario.serviceOrder.id,
+      scenario.part.id,
+      scenario.token,
+      2
+    ).expect(201);
+
+    const balance = await getConsumptionBalance(
+      scenario.serviceOrder.id,
+      scenario.part.id
+    );
+
+    expect(balance).toEqual({
+      grossConsumed: 5,
+      reversed: 2,
+      netConsumed: 3,
+    });
+  });
+
+  it("allows consuming the approved quantity again after a total reversal", async () => {
+    const scenario = await createApprovedMaintenanceScenario({
+      budgetQuantity: 2,
+      stock: 5,
+    });
+
+    const firstConsume = await consumePart(
+      scenario.serviceOrder.id,
+      scenario.part.id,
+      scenario.token,
+      2
+    ).expect(201);
+
+    await reverseMovement(
+      firstConsume.body.movement.id,
+      scenario.token,
+      {
+        quantity: 2,
+        reason: "Total return",
+      }
+    ).expect(201);
+
+    const zeroBalance = await getConsumptionBalance(
+      scenario.serviceOrder.id,
+      scenario.part.id
+    );
+
+    expect(zeroBalance.netConsumed).toBe(0);
+
+    await consumePart(
+      scenario.serviceOrder.id,
+      scenario.part.id,
+      scenario.token,
+      2
+    ).expect(201);
+
+    const finalBalance = await getConsumptionBalance(
+      scenario.serviceOrder.id,
+      scenario.part.id
+    );
+
+    expect(finalBalance).toEqual({
+      grossConsumed: 4,
+      reversed: 2,
+      netConsumed: 2,
+    });
+  });
+
+  it("keeps consumption behavior unchanged when there is no reversal", async () => {
+    const scenario = await createApprovedMaintenanceScenario({
+      budgetQuantity: 2,
+      stock: 5,
+    });
+
+    await consumePart(
+      scenario.serviceOrder.id,
+      scenario.part.id,
+      scenario.token,
+      1
+    ).expect(201);
+
+    await consumePart(
+      scenario.serviceOrder.id,
+      scenario.part.id,
+      scenario.token,
+      1
+    ).expect(201);
+
+    await consumePart(
+      scenario.serviceOrder.id,
+      scenario.part.id,
+      scenario.token,
+      1
+    ).expect(409);
+
+    const balance = await getConsumptionBalance(
+      scenario.serviceOrder.id,
+      scenario.part.id
+    );
+
+    expect(balance).toEqual({
+      grossConsumed: 2,
+      reversed: 0,
+      netConsumed: 2,
+    });
+  });
+
+  it("does not let a reversal from another service order reduce this service order consumption", async () => {
+    const scenarioA = await createApprovedMaintenanceScenario({
+      budgetQuantity: 2,
+      stock: 10,
+    });
+    const serviceOrderB = await createApprovedMaintenanceScenarioForPart({
+      partId: scenarioA.part.id,
+      budgetQuantity: 1,
+      token: scenarioA.token,
+    });
+
+    const firstConsumeA = await consumePart(
+      scenarioA.serviceOrder.id,
+      scenarioA.part.id,
+      scenarioA.token,
+      2
+    ).expect(201);
+
+    await consumePart(
+      serviceOrderB.id,
+      scenarioA.part.id,
+      scenarioA.token,
+      1
+    ).expect(201);
+
+    await reverseMovement(
+      firstConsumeA.body.movement.id,
+      scenarioA.token,
+      {
+        quantity: 1,
+        reason: "Different service order reversal",
+      }
+    ).expect(201);
+
+    await consumePart(
+      serviceOrderB.id,
+      scenarioA.part.id,
+      scenarioA.token,
+      1
+    ).expect(409);
+
+    const balanceB = await getConsumptionBalance(
+      serviceOrderB.id,
+      scenarioA.part.id
+    );
+
+    expect(balanceB).toEqual({
+      grossConsumed: 1,
+      reversed: 0,
+      netConsumed: 1,
+    });
+  });
+
+  it("uses net consumption when protecting revised budget quantities", async () => {
+    const scenario = await createApprovedMaintenanceScenario({
+      budgetQuantity: 2,
+      stock: 5,
+    });
+
+    const firstConsume = await consumePart(
+      scenario.serviceOrder.id,
+      scenario.part.id,
+      scenario.token,
+      2
+    ).expect(201);
+
+    await reverseMovement(
+      firstConsume.body.movement.id,
+      scenario.token,
+      {
+        quantity: 1,
+        reason: "Reduce effective consumption before revision",
+      }
+    ).expect(201);
+
+    const revision = await request(app)
+      .post(`/service-orders/${scenario.serviceOrder.id}/budgets/revision`)
+      .set("Authorization", `Bearer ${scenario.token}`)
+      .send({
+        items: [
+          {
+            partId: scenario.part.id,
+            quantity: 1,
+            unitPrice: 250,
+          },
+        ],
+      })
+      .expect(201);
+
+    expect(revision.body.version).toBe(2);
+  });
+
+  it("keeps net consumption within budget during concurrent reverse and consume", async () => {
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      const scenario = await createApprovedMaintenanceScenario({
+        budgetQuantity: 1,
+        stock: 2,
+      });
+
+      const firstConsume = await consumePart(
+        scenario.serviceOrder.id,
+        scenario.part.id,
+        scenario.token,
+        1
+      ).expect(201);
+
+      const [reversalResponse, consumeResponse] = await Promise.all([
+        reverseMovement(
+          firstConsume.body.movement.id,
+          scenario.token,
+          {
+            quantity: 1,
+            reason: `Concurrent return ${attempt}`,
+          }
+        ),
+        consumePart(
+          scenario.serviceOrder.id,
+          scenario.part.id,
+          scenario.token,
+          1
+        ),
+      ]);
+
+      expect(reversalResponse.status).toBe(201);
+      expect([201, 409]).toContain(consumeResponse.status);
+
+      const balance = await getConsumptionBalance(
+        scenario.serviceOrder.id,
+        scenario.part.id
+      );
+      const updatedPart = await prisma.part.findUniqueOrThrow({
+        where: {
+          id: scenario.part.id,
+        },
+      });
+
+      expect(balance.netConsumed).toBeLessThanOrEqual(1);
+      expect(updatedPart.stock).toBe(
+        2 - balance.grossConsumed + balance.reversed
+      );
+    }
   });
 
   it("documents the reversal endpoint and REVERSAL enum in OpenAPI", () => {
