@@ -30,6 +30,7 @@ enum StockMovementType {
   ENTRY
   EXIT
   ADJUSTMENT
+  REVERSAL
 }
 
 enum UserRole {
@@ -69,8 +70,8 @@ model Equipment {
 }
 
 model ServiceOrder {
-  id     String @id @default(uuid())
-  number Int    @unique @default(autoincrement())
+  id          String @id @default(uuid())
+  number      Int    @unique @default(autoincrement())
   publicToken String @unique @default(uuid())
 
   customerId String
@@ -211,8 +212,13 @@ model StockMovement {
   userId String?
   user   User?   @relation(fields: [userId], references: [id])
 
+  reversalOfMovementId String?
+  reversalOfMovement   StockMovement?  @relation("StockMovementReversals", fields: [reversalOfMovementId], references: [id])
+  reversals            StockMovement[] @relation("StockMovementReversals")
+
   @@index([partId])
   @@index([serviceOrderId])
+  @@index([reversalOfMovementId])
   @@index([createdAt])
 }
 
