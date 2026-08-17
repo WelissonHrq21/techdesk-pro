@@ -9,6 +9,8 @@ ENV_FILE="${ENV_FILE:-${DEPLOY_ROOT}/.env}"
 COMPOSE_FILE="${COMPOSE_FILE:-${DEPLOY_ROOT}/docker-compose.yml}"
 METADATA_FILE="${METADATA_FILE:-${DEPLOY_ROOT}/techdesk-installation.json}"
 LOG_DIR="${LOG_DIR:-${DEPLOY_ROOT}/logs}"
+BACKUP_DIR="${BACKUP_DIR:-${DEPLOY_ROOT}/backups}"
+RUNTIME_ROOT="${TECHDESK_RUNTIME_ROOT:-/opt/techdesk-pro}"
 INSTALLER_VERSION="${INSTALLER_VERSION:-1.1.0-stage5}"
 DEFAULT_VERSION="$(cat "${DEPLOY_ROOT}/VERSION" 2>/dev/null || printf '1.0.0')"
 DEFAULT_PROJECT_NAME="${DEFAULT_PROJECT_NAME:-techdesk-prod}"
@@ -32,6 +34,148 @@ setup_log_init() {
     echo "arch=$(uname -m 2>/dev/null || printf unknown)"
   } >> "$SETUP_LOG_FILE"
   chmod 600 "$SETUP_LOG_FILE" 2>/dev/null || true
+}
+
+physical_path() {
+  path="$1"
+  if [ -d "$path" ]; then
+    (CDPATH= cd -- "$path" && pwd -P)
+    return
+  fi
+  parent="$(dirname -- "$path")"
+  leaf="$(basename -- "$path")"
+  if [ -d "$parent" ]; then
+    printf '%s/%s' "$(CDPATH= cd -- "$parent" && pwd -P)" "$leaf"
+  else
+    printf '%s' "$path"
+  fi
+}
+
+is_runtime_root() {
+  [ "$(physical_path "$DEPLOY_ROOT")" = "$(physical_path "$RUNTIME_ROOT")" ]
+}
+
+runtime_file_list() {
+  cat <<EOF
+techdesk
+setup-core.sh
+install.sh
+start.sh
+stop.sh
+restart.sh
+status.sh
+backup.sh
+restore-check.sh
+_lib.sh
+docker-compose.yml
+seed-admin.js
+VERSION
+.env.example
+README-INSTALL.md
+README-BACKUP-RESTORE.md
+nginx/default.conf
+EOF
+}
+
+ensure_runtime_privileges() {
+  if [ -d "$RUNTIME_ROOT" ] && [ -w "$RUNTIME_ROOT" ]; then
+    return 0
+  fi
+
+  if [ "$(id -u 2>/dev/null || printf 1)" = "0" ]; then
+    mkdir -p "$RUNTIME_ROOT"
+    return 0
+  fi
+
+  if ! command -v sudo >/dev/null 2>&1; then
+    fail "Permissao insuficiente para criar ${RUNTIME_ROOT}; execute com sudo ou defina TECHDESK_RUNTIME_ROOT para um caminho persistente gravavel."
+    return 1
+  fi
+
+  if ! sudo -v; then
+    fail "Permissao sudo nao obtida; instalacao abortada antes de modificar o runtime permanente."
+    return 1
+  fi
+
+  sudo mkdir -p "$RUNTIME_ROOT"
+  sudo chown "$(id -u):$(id -g)" "$RUNTIME_ROOT"
+}
+
+sync_runtime_from_source() {
+  ensure_runtime_privileges || return 1
+
+  staging="${RUNTIME_ROOT}/.runtime-staging-$$"
+  rm -rf "$staging"
+  mkdir -p "$staging/nginx" "$staging/logs" "$staging/backups"
+
+  runtime_file_list | while IFS= read -r file; do
+    [ -n "$file" ] || continue
+    if [ ! -f "${DEPLOY_ROOT}/${file}" ]; then
+      echo "Arquivo obrigatorio ausente no installer: ${file}" >&2
+      exit 1
+    fi
+    mkdir -p "${staging}/$(dirname -- "$file")"
+    cp "${DEPLOY_ROOT}/${file}" "${staging}/${file}"
+  done
+
+  chmod 755 "$staging/techdesk" "$staging"/*.sh 2>/dev/null || true
+  chmod 700 "$staging/logs" "$staging/backups" 2>/dev/null || true
+
+  runtime_file_list | while IFS= read -r file; do
+    [ -n "$file" ] || continue
+    [ -s "${staging}/${file}" ] || {
+      echo "Runtime staging invalido: ${file}" >&2
+      exit 1
+    }
+  done
+
+  mkdir -p "$RUNTIME_ROOT/nginx" "$RUNTIME_ROOT/logs" "$RUNTIME_ROOT/backups"
+  runtime_file_list | while IFS= read -r file; do
+    [ -n "$file" ] || continue
+    mkdir -p "${RUNTIME_ROOT}/$(dirname -- "$file")"
+    cp "${staging}/${file}" "${RUNTIME_ROOT}/${file}"
+  done
+  chmod 755 "${RUNTIME_ROOT}/techdesk" "${RUNTIME_ROOT}"/*.sh 2>/dev/null || true
+  chmod 700 "${RUNTIME_ROOT}/logs" "${RUNTIME_ROOT}/backups" 2>/dev/null || true
+  rm -rf "$staging"
+}
+
+runtime_has_cli() {
+  [ -x "${RUNTIME_ROOT}/techdesk" ]
+}
+
+ensure_or_delegate_runtime() {
+  command_name="$1"
+  shift
+
+  is_runtime_root && return 0
+
+  case "$command_name" in
+    install)
+      sync_runtime_from_source || exit 1
+      echo "Runtime permanente preparado em ${RUNTIME_ROOT}."
+      echo "Continuando instalacao a partir do runtime permanente."
+      exec "${RUNTIME_ROOT}/techdesk" install "$@"
+      ;;
+    upgrade)
+      if ! runtime_has_cli; then
+        fail "Instalacao persistente nao encontrada em ${RUNTIME_ROOT}. Execute install primeiro."
+        exit 1
+      fi
+      sync_runtime_from_source || exit 1
+      echo "Runtime permanente atualizado a partir do pacote em ${RUNTIME_ROOT}."
+      exec "${RUNTIME_ROOT}/techdesk" upgrade "$@"
+      ;;
+    status|repair|backup|restore-check)
+      if ! runtime_has_cli; then
+        fail "Instalacao persistente nao encontrada em ${RUNTIME_ROOT}. Execute ${RUNTIME_ROOT}/techdesk install."
+        exit 1
+      fi
+      exec "${RUNTIME_ROOT}/techdesk" "$command_name" "$@"
+      ;;
+  esac
+
+  return 0
 }
 
 redact() {
@@ -127,7 +271,7 @@ base_url() {
 }
 
 compose() {
-  docker compose -p "$(project_name)" --env-file "$ENV_FILE" -f "$COMPOSE_FILE" "$@"
+  docker compose --project-directory "$DEPLOY_ROOT" -p "$(project_name)" --env-file "$ENV_FILE" -f "$COMPOSE_FILE" "$@"
 }
 
 validate_port() {
@@ -166,7 +310,13 @@ semver_normalize() {
   printf '%s' "$1" | sed -E 's/^v//; s/[^0-9.].*$//'
 }
 
+semver_is_valid() {
+  printf '%s' "$1" | grep -Eq '^v?[0-9]+\.[0-9]+\.[0-9]+$'
+}
+
 semver_cmp() {
+  semver_is_valid "$1" || return 2
+  semver_is_valid "$2" || return 2
   a="$(semver_normalize "$1")"
   b="$(semver_normalize "$2")"
   a1="$(printf '%s' "$a" | cut -d. -f1)"
@@ -192,6 +342,26 @@ semver_cmp() {
   done
 
   printf '0'
+}
+
+semver_upgrade_classification() {
+  target="$1"
+  current="$2"
+  if ! semver_is_valid "$target"; then
+    printf 'INVALID_VERSION'
+    return
+  fi
+  if ! semver_is_valid "$current"; then
+    printf 'INVALID_CURRENT_VERSION'
+    return
+  fi
+  cmp="$(semver_cmp "$target" "$current")"
+  case "$cmp" in
+    0) printf 'SAME_VERSION' ;;
+    -1) printf 'DOWNGRADE' ;;
+    1) printf 'UPGRADE' ;;
+    *) printf 'INVALID_VERSION' ;;
+  esac
 }
 
 metadata_value() {
@@ -534,13 +704,21 @@ ensure_env_permissions() {
   [ -f "$ENV_FILE" ] && chmod 600 "$ENV_FILE" 2>/dev/null || true
   [ -f "$METADATA_FILE" ] && chmod 600 "$METADATA_FILE" 2>/dev/null || true
   [ -d "$LOG_DIR" ] && chmod 700 "$LOG_DIR" 2>/dev/null || true
-  [ -d "${DEPLOY_ROOT}/backups" ] && chmod 700 "${DEPLOY_ROOT}/backups" 2>/dev/null || true
+  [ -d "$BACKUP_DIR" ] && chmod 700 "$BACKUP_DIR" 2>/dev/null || true
 }
 
 self_test_setup_core() {
   [ "$(semver_cmp 1.10.0 1.9.0)" = "1" ] || return 1
   [ "$(semver_cmp 1.0.0 1.1.0)" = "-1" ] || return 1
   [ "$(semver_cmp v1.1.0 1.1.0)" = "0" ] || return 1
+  [ "$(semver_upgrade_classification invalid 1.0.0)" = "INVALID_VERSION" ] || return 1
+  [ "$(semver_upgrade_classification 1 1.0.0)" = "INVALID_VERSION" ] || return 1
+  [ "$(semver_upgrade_classification 1.0 1.0.0)" = "INVALID_VERSION" ] || return 1
+  [ "$(semver_upgrade_classification abc 1.0.0)" = "INVALID_VERSION" ] || return 1
+  [ "$(semver_upgrade_classification 1.0.0 1.0.0)" = "SAME_VERSION" ] || return 1
+  [ "$(semver_upgrade_classification 1.1.0 1.0.0)" = "UPGRADE" ] || return 1
+  [ "$(semver_upgrade_classification 1.10.0 1.0.0)" = "UPGRADE" ] || return 1
+  [ "$(semver_upgrade_classification 0.9.0 1.0.0)" = "DOWNGRADE" ] || return 1
   validate_port 8080 || return 1
   ! validate_port 70000 || return 1
   secret_suffix="STAGE501"

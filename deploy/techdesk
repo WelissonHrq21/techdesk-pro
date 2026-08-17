@@ -12,10 +12,16 @@ Uso:
   ./techdesk install [--port 8080] [--version X.Y.Z] [--non-interactive --admin-password SENHA]
   ./techdesk status
   ./techdesk repair
+  ./techdesk backup
+  ./techdesk restore-check caminho/do/backup.dump [sha256-esperado]
   ./techdesk upgrade --version X.Y.Z
 
 Producao oficial: Ubuntu Server LTS com Docker Engine e Docker Compose Plugin.
 Windows permanece best effort via scripts PowerShell existentes.
+
+No Linux, o install prepara o runtime permanente em /opt/techdesk-pro por
+padrao. Depois do install, use /opt/techdesk-pro/techdesk ou o symlink
+/usr/local/bin/techdesk quando criado manualmente pelo operador.
 EOF
 }
 
@@ -95,7 +101,8 @@ install_cmd() {
 
   preflight install "$port" || return 10
 
-  say "[2/8] Preparando configuracao..."
+  say "[2/8] Preparando configuracao persistente..."
+  mkdir -p "$LOG_DIR" "$BACKUP_DIR"
   write_env_file "$port" "$admin_name" "$admin_login" "$admin_password" "$target_version" "$DEFAULT_PROJECT_NAME"
   ensure_env_permissions
   say "OK: configuracao criada. Secrets nao foram exibidos."
@@ -128,6 +135,7 @@ install_cmd() {
   ensure_env_permissions
   say "TechDesk Pro instalado com sucesso."
   say "Versao: ${target_version}"
+  say "Runtime permanente: ${DEPLOY_ROOT}"
   say "Status: Healthy"
   show_urls
   say "Proximo passo: abra a URL acima para configurar o TechDesk Pro."
@@ -143,6 +151,11 @@ status_cmd() {
   echo ""
   echo "Version: ${version}"
   echo "Installation: ${state}"
+  echo "Runtime: ${DEPLOY_ROOT}"
+  echo "Env: ${ENV_FILE}"
+  echo "Metadata: ${METADATA_FILE}"
+  echo "Logs: ${LOG_DIR}"
+  echo "Backups: ${BACKUP_DIR}"
   if docker_available; then
     if docker_daemon_running; then
       echo "Docker: running"
@@ -185,6 +198,34 @@ status_cmd() {
     return 0
   fi
   return 1
+}
+
+backup_cmd() {
+  setup_log_init
+  require_env
+  tmp="${LOG_DIR}/backup-command-$$.tmp"
+  "${DEPLOY_ROOT}/backup.sh" >"$tmp" 2>&1 || {
+    code="$?"
+    redact < "$tmp" | tee -a "$SETUP_LOG_FILE" >&2
+    rm -f "$tmp"
+    return "$code"
+  }
+  redact < "$tmp" | tee -a "$SETUP_LOG_FILE"
+  rm -f "$tmp"
+}
+
+restore_check_cmd() {
+  setup_log_init
+  require_env
+  tmp="${LOG_DIR}/restore-check-command-$$.tmp"
+  "${DEPLOY_ROOT}/restore-check.sh" "$@" >"$tmp" 2>&1 || {
+    code="$?"
+    redact < "$tmp" | tee -a "$SETUP_LOG_FILE" >&2
+    rm -f "$tmp"
+    return "$code"
+  }
+  redact < "$tmp" | tee -a "$SETUP_LOG_FILE"
+  rm -f "$tmp"
 }
 
 repair_cmd() {
@@ -244,12 +285,20 @@ upgrade_cmd() {
   fi
 
   current="$(current_version)"
-  cmp="$(semver_cmp "$target_version" "$current")"
-  if [ "$cmp" = "0" ]; then
+  version_class="$(semver_upgrade_classification "$target_version" "$current")"
+  if [ "$version_class" = "INVALID_VERSION" ]; then
+    fail "invalid SemVer: ${target_version}. Use X.Y.Z, por exemplo 1.1.0."
+    return 2
+  fi
+  if [ "$version_class" = "INVALID_CURRENT_VERSION" ]; then
+    fail "Versao atual invalida na instalacao: ${current}."
+    return 2
+  fi
+  if [ "$version_class" = "SAME_VERSION" ]; then
     fail "Versao alvo igual a atual (${current}); nao e upgrade."
     return 2
   fi
-  if [ "$cmp" = "-1" ]; then
+  if [ "$version_class" = "DOWNGRADE" ]; then
     fail "Downgrade automatico nao e suportado. Use disaster recovery/restore apropriado."
     return 2
   fi
@@ -301,9 +350,17 @@ if [ "$#" -gt 0 ]; then
 fi
 
 case "$command" in
+  install|status|repair|backup|restore-check|upgrade)
+    ensure_or_delegate_runtime "$command" "$@"
+    ;;
+esac
+
+case "$command" in
   install) install_cmd "$@" ;;
   status) status_cmd "$@" ;;
   repair) repair_cmd "$@" ;;
+  backup) backup_cmd "$@" ;;
+  restore-check) restore_check_cmd "$@" ;;
   upgrade) upgrade_cmd "$@" ;;
   --self-test) self_test_cmd ;;
   ""|-h|--help) usage ;;

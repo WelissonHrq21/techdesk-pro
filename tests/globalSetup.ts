@@ -4,6 +4,10 @@ import { join } from "node:path";
 import { PrismaClient } from "@prisma/client";
 
 export default async function globalSetup() {
+  if (process.env.SKIP_DB_GLOBAL_SETUP === "true") {
+    return;
+  }
+
   const databaseUrlTest =
     process.env.DATABASE_URL_TEST ??
     "postgresql://postgres:postgres@127.0.0.1:5433/techdesk_test?schema=public";

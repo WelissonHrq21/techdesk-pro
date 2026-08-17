@@ -5,7 +5,7 @@ DEPLOY_ROOT="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
 REPO_ROOT="$(CDPATH= cd -- "${DEPLOY_ROOT}/.." && pwd)"
 VERSION="$(cat "${DEPLOY_ROOT}/VERSION")"
 OUT_DIR="${REPO_ROOT}/dist"
-PACKAGE_SUFFIX="${PACKAGE_SUFFIX:-stage5-experimental}"
+PACKAGE_SUFFIX="${PACKAGE_SUFFIX:-stage5-experimental-r3}"
 PACKAGE_NAME="techdesk-pro-setup-${VERSION}-${PACKAGE_SUFFIX}"
 STAGING="${OUT_DIR}/${PACKAGE_NAME}"
 
@@ -64,10 +64,13 @@ Start here:
 This package intentionally excludes .env, secrets, logs, backups, node_modules, source trees and test data.
 EOF
 
-if command -v zip >/dev/null 2>&1; then
+if command -v tar >/dev/null 2>&1; then
+  tar -C "$OUT_DIR" -czf "${OUT_DIR}/${PACKAGE_NAME}.tar.gz" "$PACKAGE_NAME"
+  echo "${OUT_DIR}/${PACKAGE_NAME}.tar.gz"
+elif command -v zip >/dev/null 2>&1; then
   (cd "$OUT_DIR" && zip -qr "${PACKAGE_NAME}.zip" "$PACKAGE_NAME")
   echo "${OUT_DIR}/${PACKAGE_NAME}.zip"
 else
-  tar -C "$OUT_DIR" -czf "${OUT_DIR}/${PACKAGE_NAME}.tar.gz" "$PACKAGE_NAME"
-  echo "${OUT_DIR}/${PACKAGE_NAME}.tar.gz"
+  echo "tar ou zip nao encontrado para gerar pacote." >&2
+  exit 1
 fi

@@ -15,10 +15,14 @@ chmod +x *.sh techdesk
 Depois da instalacao:
 
 ```sh
-./techdesk status
-./techdesk repair
-./techdesk upgrade --version X.Y.Z
+/opt/techdesk-pro/techdesk status
+/opt/techdesk-pro/techdesk repair
+/opt/techdesk-pro/techdesk backup
+/opt/techdesk-pro/techdesk upgrade --version X.Y.Z
 ```
+
+O diretorio extraido do installer pode ser removido depois de um `install`
+bem-sucedido. A operacao permanente fica em `/opt/techdesk-pro`.
 
 Producao oficial:
 
@@ -45,6 +49,12 @@ Fluxo simples:
 4. Abra a URL exibida ao final.
 
 O setup executa preflight, gera secrets tecnicos, cria `.env`, baixa imagens versionadas, inicia containers, aplica migrations pelo startup da API, executa smoke `health/ready` e grava metadata local.
+
+No Linux, o `install` copia primeiro os arquivos operacionais necessarios para
+`/opt/techdesk-pro` e continua a partir desse runtime persistente. Se esse
+diretorio exigir privilegio, o instalador solicita `sudo` antes de modificar
+estado importante. Sem permissao para preparar o runtime, a instalacao falha
+antes de gerar secrets, iniciar containers ou tocar no banco.
 
 ## Windows
 
@@ -114,15 +124,16 @@ Modo nao interativo para automacao futura:
 ### STATUS
 
 ```sh
-./techdesk status
+/opt/techdesk-pro/techdesk status
 ```
 
-Mostra versao, estado da instalacao, Docker, Compose, containers, health, ready e URLs. Nao mostra secrets.
+Mostra versao, estado da instalacao, runtime, `.env`, metadata, logs, backups,
+Docker, Compose, containers, health, ready e URLs. Nao mostra secrets.
 
 ### REPAIR
 
 ```sh
-./techdesk repair
+/opt/techdesk-pro/techdesk repair
 ```
 
 Operacao nao destrutiva. Pode subir containers parados, baixar imagem conhecida ausente, revalidar health/ready e preservar banco, volumes e secrets.
@@ -138,10 +149,29 @@ Nao executa:
 ### UPGRADE
 
 ```sh
-./techdesk upgrade --version X.Y.Z
+/opt/techdesk-pro/techdesk upgrade --version X.Y.Z
 ```
 
 Exige backup pre-upgrade validado antes de trocar imagens. Bloqueia downgrade automatico e so atualiza metadata depois de health/ready/smoke passarem.
+
+Versoes invalidas, como `invalid`, `1`, `1.0` ou `abc`, falham como SemVer
+invalido antes da classificacao de downgrade.
+
+### BACKUP
+
+```sh
+/opt/techdesk-pro/techdesk backup
+```
+
+Gera dump PostgreSQL em formato custom (`pg_dump -Fc`), valida com
+`pg_restore -l`, calcula SHA256 e salva por padrao em:
+
+```text
+/opt/techdesk-pro/backups
+```
+
+Tambem e possivel usar `BACKUP_DIR=/mnt/backup/techdesk` para direcionar a
+copia local a outro volume persistente.
 
 ## Primeiro acesso
 
@@ -172,8 +202,10 @@ Reserve IP fixo ou DHCP reservation para o servidor. Se o IP mudar, atualize `CO
 O setup pode criar:
 
 ```text
-techdesk-installation.json
-logs/setup-YYYY-MM-DD_HHMMSS.log
+/opt/techdesk-pro/.env
+/opt/techdesk-pro/techdesk-installation.json
+/opt/techdesk-pro/logs/setup-YYYY-MM-DD_HHMMSS.log
+/opt/techdesk-pro/backups/
 ```
 
 Metadata nao guarda `POSTGRES_PASSWORD`, `JWT_SECRET`, `ADMIN_PASSWORD`, tokens ou dados funcionais da assistencia.
@@ -181,6 +213,9 @@ Metadata nao guarda `POSTGRES_PASSWORD`, `JWT_SECRET`, `ADMIN_PASSWORD`, tokens 
 Logs sao sanitizados para nao registrar secrets, connection strings com senha, Bearer token ou `publicToken`.
 
 No Linux, `.env`, metadata, logs e backups recebem permissoes restritivas quando o sistema permite.
+
+O `.env` nao e recriado em rerun, repair ou upgrade. `JWT_SECRET`,
+`POSTGRES_PASSWORD` e `ADMIN_PASSWORD` existentes sao preservados.
 
 ## Firewall
 
@@ -234,7 +269,7 @@ Container unhealthy:
 - Verifique logs com:
 
 ```sh
-docker compose -p techdesk-prod --env-file .env -f docker-compose.yml logs --tail 100 api
+docker compose --project-directory /opt/techdesk-pro -p techdesk-prod --env-file /opt/techdesk-pro/.env -f /opt/techdesk-pro/docker-compose.yml logs --tail 100 api
 ```
 
 API nao fica ready:
@@ -258,3 +293,9 @@ IP da maquina mudou:
 Producao nao deve seguir `main` automaticamente. Atualizacoes devem usar imagens versionadas, por exemplo `1.0.1`, precedidas de backup e smoke test.
 
 Como a v1.1.0 ainda esta em desenvolvimento, nao execute `upgrade --version 1.1.0` em producao ate existirem imagens publicadas e release aprovada.
+
+## Desinstalacao futura
+
+Esta Stage nao implementa uninstall destrutivo. Remover TechDesk de producao
+deve continuar sendo um procedimento manual e deliberado, com backup validado,
+porque envolve containers, volume PostgreSQL, `.env`, logs e backups.

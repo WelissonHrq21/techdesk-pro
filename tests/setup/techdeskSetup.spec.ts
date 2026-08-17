@@ -1,13 +1,15 @@
-import { spawnSync } from "node:child_process";
+import { spawnSync, type SpawnSyncReturns } from "node:child_process";
 import {
   copyFileSync,
+  existsSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
+  rmSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 
 const root = process.cwd();
 const deployDir = join(root, "deploy");
@@ -15,7 +17,39 @@ const techdeskScript = join(deployDir, "techdesk");
 const setupCoreScript = join(deployDir, "setup-core.sh");
 const composeFile = join(deployDir, "docker-compose.yml");
 
+const linuxRuntimeFiles = [
+  "techdesk",
+  "setup-core.sh",
+  "install.sh",
+  "start.sh",
+  "stop.sh",
+  "restart.sh",
+  "status.sh",
+  "backup.sh",
+  "restore-check.sh",
+  "_lib.sh",
+  "docker-compose.yml",
+  "seed-admin.js",
+  "VERSION",
+  ".env.example",
+  "README-INSTALL.md",
+  "README-BACKUP-RESTORE.md",
+  join("nginx", "default.conf"),
+];
+
 function hasShell() {
+  const result = spawnSync("sh", ["-c", "exit 0"], {
+    stdio: "ignore",
+  });
+
+  if (result.status === 0) {
+    return true;
+  }
+
+  return hasWslShell();
+}
+
+function hasDirectShell() {
   const result = spawnSync("sh", ["-c", "exit 0"], {
     stdio: "ignore",
   });
@@ -23,10 +57,89 @@ function hasShell() {
   return result.status === 0;
 }
 
-function hasDockerCompose() {
-  const result = spawnSync("docker", ["compose", "version"], {
+function hasWslShell() {
+  const result = spawnSync("wsl", ["sh", "-lc", "exit 0"], {
     stdio: "ignore",
   });
+
+  return result.status === 0;
+}
+
+function toShellPath(path: string) {
+  if (hasDirectShell()) {
+    return path;
+  }
+
+  return path.replace(/^([A-Za-z]):\\/, (_match, drive: string) => {
+    return `/mnt/${drive.toLowerCase()}/`;
+  }).replace(/\\/g, "/");
+}
+
+function fromShellPath(path: string) {
+  return path.replace(/^\/mnt\/([a-z])\//, (_match, drive: string) => {
+    return `${drive.toUpperCase()}:\\`;
+  }).replace(/\//g, "\\");
+}
+
+function shellQuote(value: string) {
+  return `'${value.replace(/'/g, `'\\''`)}'`;
+}
+
+function runShellCommand(
+  script: string,
+  args: string[] = [],
+  env: Record<string, string> = {},
+  cwd = root
+): SpawnSyncReturns<string> {
+  if (hasDirectShell()) {
+    const argSetup = args.map((arg) => shellQuote(arg)).join(" ");
+    const scriptWithArgs = `${argSetup ? `set -- ${argSetup}; ` : ""}${script}`;
+
+    return spawnSync("sh", ["-c", scriptWithArgs, "techdesk-setup-test"], {
+      cwd,
+      encoding: "utf8",
+      env: {
+        ...process.env,
+        ...env,
+      },
+    });
+  }
+
+  const exports = Object.entries(env)
+    .map(([key, value]) => `export ${key}=${shellQuote(value)}`)
+    .join("\n");
+  const argSetup = args.map((arg) => shellQuote(toShellPath(arg))).join(" ");
+  const scriptWithArgs = `${argSetup ? `set -- ${argSetup}; ` : ""}${script}`;
+  const tempScript = join(
+    mkdtempSync(join(tmpdir(), "techdesk-shell-runner-")),
+    "run.sh"
+  );
+  writeFileSync(
+    tempScript,
+    [
+      "#!/bin/sh",
+      "set -eu",
+      `cd ${shellQuote(toShellPath(cwd))}`,
+      exports,
+      scriptWithArgs,
+    ].filter(Boolean).join("\n")
+  );
+
+  return spawnSync("wsl", ["sh", toShellPath(tempScript)], {
+    encoding: "utf8",
+  });
+}
+
+function hasDockerCompose() {
+  const result = hasDirectShell()
+    ? spawnSync("sh", ["-c", "docker compose version >/dev/null 2>&1"], {
+        stdio: "ignore",
+      })
+    : spawnSync(
+        "wsl",
+        ["sh", "-lc", "docker compose version >/dev/null 2>&1"],
+        { stdio: "ignore" }
+      );
 
   return result.status === 0;
 }
@@ -42,6 +155,18 @@ function createFakeDeployRoot() {
     join(deployDir, "nginx", "default.conf"),
     join(fakeRoot, "nginx", "default.conf")
   );
+
+  return fakeRoot;
+}
+
+function createFakeInstallerSource() {
+  const fakeRoot = mkdtempSync(join(tmpdir(), "techdesk-installer-source-"));
+
+  for (const file of linuxRuntimeFiles) {
+    const destination = join(fakeRoot, file);
+    mkdirSync(dirname(destination), { recursive: true });
+    copyFileSync(join(deployDir, file), destination);
+  }
 
   return fakeRoot;
 }
@@ -87,15 +212,104 @@ describe("TechDesk setup bootstrapper", () => {
   });
 
   it.runIf(hasShell())("passes shell self-test for SemVer, port and redaction", () => {
-    const result = spawnSync("sh", [techdeskScript, "--self-test"], {
-      cwd: root,
-      encoding: "utf8",
-    });
+    const result = runShellCommand(`${shellQuote(toShellPath(techdeskScript))} --self-test`);
 
     expect(result.stderr).toBe("");
     expect(result.stdout).toContain("setup self-test: PASS");
     expect(result.status).toBe(0);
   });
+
+  it.runIf(hasShell())(
+    "syncs a persistent Linux runtime that survives installer source deletion",
+    () => {
+      const installerSource = createFakeInstallerSource();
+      const runtimeRoot = mkdtempSync(join(tmpdir(), "techdesk-runtime-"));
+
+      const syncResult = runShellCommand(
+        '. "$1"; sync_runtime_from_source',
+        [join(installerSource, "setup-core.sh")],
+        {
+          DEPLOY_ROOT: toShellPath(installerSource),
+          TECHDESK_RUNTIME_ROOT: toShellPath(runtimeRoot),
+        },
+        tmpdir()
+      );
+
+      expect(syncResult.stderr).toBe("");
+      expect(syncResult.status).toBe(0);
+
+      rmSync(installerSource, { recursive: true, force: true });
+      expect(existsSync(installerSource)).toBe(false);
+
+      for (const file of linuxRuntimeFiles) {
+        expect(existsSync(join(runtimeRoot, file))).toBe(true);
+      }
+
+      const runtimeInspection = runShellCommand(
+        [
+          'DEPLOY_ROOT="$1"',
+          'TECHDESK_RUNTIME_ROOT="$1"',
+          '. "$1/setup-core.sh"',
+          'printf "env=%s\\nmetadata=%s\\nlogs=%s\\nbackups=%s\\n" "$ENV_FILE" "$METADATA_FILE" "$LOG_DIR" "$BACKUP_DIR"',
+        ].join("; "),
+        [runtimeRoot],
+        {},
+        root
+      );
+
+      expect(runtimeInspection.status).toBe(0);
+      const expectedRuntimeRoot = toShellPath(runtimeRoot);
+      expect(runtimeInspection.stdout).toContain(`env=${expectedRuntimeRoot}/.env`);
+      expect(runtimeInspection.stdout).toContain(
+        `metadata=${expectedRuntimeRoot}/techdesk-installation.json`
+      );
+      expect(runtimeInspection.stdout).toContain(`logs=${expectedRuntimeRoot}/logs`);
+      expect(runtimeInspection.stdout).toContain(
+        `backups=${expectedRuntimeRoot}/backups`
+      );
+      expect(runtimeInspection.stdout).not.toContain(toShellPath(installerSource));
+    }
+  );
+
+  it.runIf(hasShell())(
+    "separates invalid, same, downgrade and upgrade SemVer classifications",
+    () => {
+      const result = runShellCommand(
+        [
+          '. "$1"',
+          'semver_upgrade_classification invalid 1.0.0',
+          'printf "\\n"',
+          'semver_upgrade_classification 1 1.0.0',
+          'printf "\\n"',
+          'semver_upgrade_classification 1.0 1.0.0',
+          'printf "\\n"',
+          'semver_upgrade_classification abc 1.0.0',
+          'printf "\\n"',
+          'semver_upgrade_classification 1.0.0 1.0.0',
+          'printf "\\n"',
+          'semver_upgrade_classification 1.1.0 1.0.0',
+          'printf "\\n"',
+          'semver_upgrade_classification 1.10.0 1.0.0',
+          'printf "\\n"',
+          'semver_upgrade_classification 0.9.0 1.0.0',
+        ].join("; "),
+        [setupCoreScript]
+      );
+
+      expect(result.stderr).toBe("");
+      expect(result.status).toBe(0);
+      expect(result.stdout.trim().split(/\r?\n/)).toEqual([
+        "INVALID_VERSION",
+        "INVALID_VERSION",
+        "INVALID_VERSION",
+        "INVALID_VERSION",
+        "SAME_VERSION",
+        "UPGRADE",
+        "UPGRADE",
+        "DOWNGRADE",
+      ]);
+    }
+  );
 
   it.runIf(hasShell() && hasDockerCompose())(
     "validates compose config without logging expanded secrets",
@@ -130,24 +344,14 @@ describe("TechDesk setup bootstrapper", () => {
 
       writeFileSync(fakeEnvFile, envContent);
 
-      const result = spawnSync(
-        "sh",
-        [
-          "-c",
-          '. "$1"; setup_log_init; validate_compose_config; printf "%s" "$SETUP_LOG_FILE"',
-          "techdesk-setup-test",
-          setupCoreScript,
-        ],
+      const result = runShellCommand(
+        '. "$1"; setup_log_init; validate_compose_config; printf "%s" "$SETUP_LOG_FILE"',
+        [setupCoreScript],
         {
-          cwd: root,
-          encoding: "utf8",
-          env: {
-            ...process.env,
-            DEPLOY_ROOT: fakeRoot,
-            ENV_FILE: fakeEnvFile,
-            COMPOSE_FILE: fakeComposeFile,
-            LOG_DIR: logDir,
-          },
+          DEPLOY_ROOT: toShellPath(fakeRoot),
+          ENV_FILE: toShellPath(fakeEnvFile),
+          COMPOSE_FILE: toShellPath(fakeComposeFile),
+          LOG_DIR: toShellPath(logDir),
         }
       );
 
@@ -155,7 +359,7 @@ describe("TechDesk setup bootstrapper", () => {
       expect(result.stdout).toContain("Compose configuration: OK");
       expect(result.status).toBe(0);
 
-      const logPath = result.stdout.trim().split(/\r?\n/).at(-1) ?? "";
+      const logPath = fromShellPath(result.stdout.trim().split(/\r?\n/).at(-1) ?? "");
       const log = readFileSync(logPath, "utf8");
 
       expect(log).toContain("Compose configuration: OK");

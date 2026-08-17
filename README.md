@@ -94,7 +94,22 @@ VITE_API_URL=http://localhost:3333
 
 ## Produção com Docker Compose
 
-O stack de produção inclui PostgreSQL, API e frontend estático:
+Para instalacao real em Linux, use o pacote de setup em vez de rodar a raiz do
+repositorio. O runtime permanente fica em `/opt/techdesk-pro`:
+
+```bash
+cd deploy
+chmod +x *.sh techdesk
+./techdesk install
+/opt/techdesk-pro/techdesk status
+```
+
+Logs e backups ficam em `/opt/techdesk-pro/logs` e
+`/opt/techdesk-pro/backups`. O diretorio extraido do installer pode ser
+removido depois do install.
+
+O stack de produção inclui PostgreSQL, API e frontend estático. Para
+desenvolvimento ou build manual:
 
 ```powershell
 docker compose up -d --build

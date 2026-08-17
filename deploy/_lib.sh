@@ -4,6 +4,7 @@ set -eu
 DEPLOY_ROOT="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
 ENV_FILE="${DEPLOY_ROOT}/.env"
 COMPOSE_FILE="${DEPLOY_ROOT}/docker-compose.yml"
+BACKUP_DIR="${BACKUP_DIR:-${DEPLOY_ROOT}/backups}"
 VERSION="$(cat "${DEPLOY_ROOT}/VERSION")"
 
 env_value() {
@@ -32,7 +33,7 @@ techdesk_port() {
 }
 
 compose() {
-  docker compose -p "$(project_name)" --env-file "$ENV_FILE" -f "$COMPOSE_FILE" "$@"
+  docker compose --project-directory "$DEPLOY_ROOT" -p "$(project_name)" --env-file "$ENV_FILE" -f "$COMPOSE_FILE" "$@"
 }
 
 require_env() {
