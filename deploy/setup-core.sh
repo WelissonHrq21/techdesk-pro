@@ -36,10 +36,8 @@ setup_log_init() {
 
 redact() {
   sed -E \
-    -e 's/(POSTGRES_PASSWORD=)[^[:space:]]+/\1[REDACTED]/g' \
-    -e 's/(JWT_SECRET=)[^[:space:]]+/\1[REDACTED]/g' \
-    -e 's/(ADMIN_PASSWORD=)[^[:space:]]+/\1[REDACTED]/g' \
-    -e 's#(postgresql://[^:]+:)[^@]+@#\1[REDACTED]@#g' \
+    -e 's#((^|[[:space:],{])["'\'']?(POSTGRES_PASSWORD|JWT_SECRET|ADMIN_PASSWORD)["'\'']?[[:space:]]*[:=][[:space:]]*)["'\'']?[^"'\''[:space:],}]+["'\'']?#\1[REDACTED]#Ig' \
+    -e 's#([A-Za-z][A-Za-z0-9+.-]*://[^:/@[:space:]]+:)[^@[:space:]]+@#\1[REDACTED]@#g' \
     -e 's/(Authorization:[[:space:]]*Bearer[[:space:]]+)[A-Za-z0-9._~+\/=-]+/\1[REDACTED]/Ig' \
     -e 's/(Bearer[[:space:]]+)[A-Za-z0-9._~+\/=-]+/\1[REDACTED]/Ig' \
     -e 's/(publicToken["'\'']?[[:space:]]*[:=][[:space:]]*["'\'']?)[A-Za-z0-9-]+/\1[REDACTED]/Ig'
@@ -75,6 +73,22 @@ run_logged() {
   }
   redact < "$tmp" >> "$SETUP_LOG_FILE"
   rm -f "$tmp"
+  return 0
+}
+
+validate_compose_config() {
+  tmp="${LOG_DIR}/setup-compose-config-$$.tmp"
+  log_line "RUN compose config validation"
+  compose config >"$tmp" 2>&1 || {
+    code="$?"
+    say "Compose configuration: FAIL"
+    redact < "$tmp" >> "$SETUP_LOG_FILE"
+    rm -f "$tmp"
+    log_line "FAILED compose config validation: exit=${code}"
+    return "$code"
+  }
+  rm -f "$tmp"
+  say "Compose configuration: OK"
   return 0
 }
 
@@ -529,8 +543,34 @@ self_test_setup_core() {
   [ "$(semver_cmp v1.1.0 1.1.0)" = "0" ] || return 1
   validate_port 8080 || return 1
   ! validate_port 70000 || return 1
-  redacted="$(printf '%s\n' 'POSTGRES_PASSWORD=secret JWT_SECRET=abc ADMIN_PASSWORD=pass postgresql://u:p@db:5432/x Authorization: Bearer token' | redact)"
+  secret_suffix="STAGE501"
+  admin_secret="TEST_ADMIN_PASSWORD_${secret_suffix}"
+  jwt_secret="TEST_JWT_SECRET_${secret_suffix}_ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+  postgres_secret="TEST_POSTGRES_PASSWORD_${secret_suffix}"
+  redacted="$(
+    cat <<EOF | redact
+ADMIN_PASSWORD=${admin_secret}
+ADMIN_PASSWORD: ${admin_secret}
+"ADMIN_PASSWORD": "${admin_secret}"
+'ADMIN_PASSWORD': '${admin_secret}'
+JWT_SECRET=${jwt_secret}
+JWT_SECRET: ${jwt_secret}
+"JWT_SECRET": "${jwt_secret}"
+POSTGRES_PASSWORD=${postgres_secret}
+POSTGRES_PASSWORD: ${postgres_secret}
+"POSTGRES_PASSWORD": "${postgres_secret}"
+DATABASE_URL=postgresql://postgres:${postgres_secret}@postgres:5432/techdesk
+DATABASE_URL: postgresql://postgres:${postgres_secret}@postgres:5432/techdesk
+postgres://postgres:${postgres_secret}@postgres:5432/techdesk
+https://user:${postgres_secret}@example.test/path
+Authorization: Bearer ${jwt_secret}
+Bearer ${jwt_secret}
+publicToken: abc123
+EOF
+  )"
   printf '%s' "$redacted" | grep -q '\[REDACTED\]' || return 1
-  ! printf '%s' "$redacted" | grep -q 'secret' || return 1
-  ! printf '%s' "$redacted" | grep -q 'Bearer token' || return 1
+  ! printf '%s' "$redacted" | grep -q "$admin_secret" || return 1
+  ! printf '%s' "$redacted" | grep -q "$jwt_secret" || return 1
+  ! printf '%s' "$redacted" | grep -q "$postgres_secret" || return 1
+  ! printf '%s' "$redacted" | grep -q "Bearer ${jwt_secret}" || return 1
 }

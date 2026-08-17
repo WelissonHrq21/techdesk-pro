@@ -101,7 +101,7 @@ install_cmd() {
   say "OK: configuracao criada. Secrets nao foram exibidos."
 
   say "[3/8] Baixando imagens..."
-  run_logged "compose config" compose config || return 20
+  validate_compose_config || return 20
   run_logged "compose pull" compose pull || return 20
 
   say "[4/8] Iniciando banco..."
@@ -115,7 +115,7 @@ install_cmd() {
 
   say "[7/8] Verificando health/ready/smoke..."
   if ! wait_for_ready 120; then
-    compose ps >> "$SETUP_LOG_FILE" 2>&1 || true
+    compose ps 2>&1 | redact >> "$SETUP_LOG_FILE" || true
     compose logs --tail 120 api 2>&1 | redact >> "$SETUP_LOG_FILE" || true
     fail "TechDesk Pro nao ficou healthy/ready dentro do timeout."
     return 60
@@ -200,11 +200,11 @@ repair_cmd() {
   fi
 
   say "Repair nao destrutivo iniciado. Volumes e banco serao preservados."
-  run_logged "compose config" compose config || return 20
+  validate_compose_config || return 20
   run_logged "compose pull" compose pull || return 20
   run_logged "compose up" compose up -d || return 30
   if ! wait_for_ready 120; then
-    compose ps >> "$SETUP_LOG_FILE" 2>&1 || true
+    compose ps 2>&1 | redact >> "$SETUP_LOG_FILE" || true
     compose logs --tail 120 api 2>&1 | redact >> "$SETUP_LOG_FILE" || true
     fail "Repair executado, mas health/ready ainda falhou."
     return 60
@@ -272,11 +272,12 @@ upgrade_cmd() {
   ensure_env_permissions
 
   say "Aplicando upgrade via Compose..."
+  validate_compose_config || return 20
   run_logged "compose up target" compose up -d || return 40
 
   say "Verificando health/ready/smoke..."
   if ! wait_for_ready 120; then
-    compose ps >> "$SETUP_LOG_FILE" 2>&1 || true
+    compose ps 2>&1 | redact >> "$SETUP_LOG_FILE" || true
     compose logs --tail 120 api 2>&1 | redact >> "$SETUP_LOG_FILE" || true
     fail "Upgrade aplicado parcialmente, mas health/ready falhou. Backup foi preservado; downgrade automatico nao sera executado."
     return 60
