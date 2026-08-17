@@ -1,7 +1,8 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect } from "react";
-import { useForm } from "react-hook-form";
+import { Controller, useForm } from "react-hook-form";
 import { FormField } from "../../../components/ui/FormField";
+import { formatCustomerDocumentInput } from "../../../utils/customerDocument";
 import {
   customerSchema,
   type CustomerSchemaData,
@@ -30,6 +31,7 @@ export function CustomerForm({
 }: CustomerFormProps) {
   const {
     register,
+    control,
     handleSubmit,
     reset,
     formState: { errors },
@@ -38,6 +40,7 @@ export function CustomerForm({
     defaultValues: {
       name: "",
       phone: "",
+      document: "",
       email: "",
       zipCode: "",
       address: "",
@@ -48,6 +51,7 @@ export function CustomerForm({
     reset({
       name: customer?.name ?? "",
       phone: customer?.phone ?? "",
+      document: customer?.document ?? "",
       email: customer?.email ?? "",
       zipCode: customer?.zipCode ?? "",
       address: customer?.address ?? "",
@@ -62,6 +66,24 @@ export function CustomerForm({
 
       <FormField label="Telefone *" error={errors.phone?.message}>
         <input className={inputClass} {...register("phone")} />
+      </FormField>
+
+      <FormField label="CPF/CNPJ" error={errors.document?.message}>
+        <Controller
+          control={control}
+          name="document"
+          render={({ field }) => (
+            <input
+              className={inputClass}
+              inputMode="numeric"
+              placeholder="000.000.000-00 ou 00.000.000/0000-00"
+              value={formatCustomerDocumentInput(field.value)}
+              onChange={(event) => field.onChange(event.target.value)}
+              onBlur={field.onBlur}
+              ref={field.ref}
+            />
+          )}
+        />
       </FormField>
 
       <FormField label="E-mail" error={errors.email?.message}>

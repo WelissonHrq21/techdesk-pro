@@ -9,10 +9,13 @@ export const logger = pino({
     paths: [
       "req.headers.authorization",
       "req.body.password",
+      "req.body.document",
       "request.headers.authorization",
       "request.body.password",
+      "request.body.document",
       "password",
       "token",
+      "document",
     ],
     censor: "[REDACTED]",
   },

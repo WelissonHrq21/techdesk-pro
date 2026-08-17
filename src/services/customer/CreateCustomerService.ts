@@ -1,9 +1,11 @@
 import { CustomerRepository } from "../../repositories/CustomerRepository";
-import { Prisma } from "@prisma/client";
+import { UserRole } from "@prisma/client";
 import { AppError } from "../../errors/AppError";
+import type { CreateCustomerSchema } from "../../schemas/customer/createCustomerSchema";
+import { isUniqueConstraintError } from "../../utils/prismaErrors";
 
 class CreateCustomerService {
-    async execute(data: Prisma.CustomerCreateInput){
+    async execute(data: CreateCustomerSchema, role: UserRole){
 
         const customerRepository = new CustomerRepository()
 
@@ -14,7 +16,26 @@ class CreateCustomerService {
             }
         }
 
-        return customerRepository.create(data);
+        if (data.document){
+            const existingCustomer = await customerRepository.findByDocument(data.document)
+            if (existingCustomer){
+                throw new AppError("Customer document already exists", 409)
+            }
+        }
+
+        try {
+            return await customerRepository.create(data, role);
+        } catch (error) {
+            if (isUniqueConstraintError(error, "document")) {
+                throw new AppError("Customer document already exists", 409);
+            }
+
+            if (isUniqueConstraintError(error, "email")) {
+                throw new AppError("Email already exists", 409);
+            }
+
+            throw error;
+        }
 ;    }
 }
 

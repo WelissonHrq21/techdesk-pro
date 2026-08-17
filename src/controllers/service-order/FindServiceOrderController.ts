@@ -14,7 +14,10 @@ class FindServiceOrderController {
 
     const findServiceOrderService = new FindServiceOrderService();
 
-    const serviceOrder = await findServiceOrderService.execute(id);
+    const serviceOrder = await findServiceOrderService.execute(
+      id,
+      request.user.role
+    );
 
     return response.status(200).json(serviceOrder);
   }

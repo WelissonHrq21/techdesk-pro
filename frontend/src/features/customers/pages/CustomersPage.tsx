@@ -85,7 +85,7 @@ export function CustomersPage() {
           <SearchInput
             value={search}
             onChange={setSearch}
-            placeholder="Buscar por nome, telefone ou e-mail..."
+            placeholder="Buscar por nome, telefone, e-mail ou CPF/CNPJ..."
           />
         </div>
 

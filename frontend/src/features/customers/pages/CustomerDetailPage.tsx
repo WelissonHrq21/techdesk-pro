@@ -9,6 +9,7 @@ import { Modal } from "../../../components/ui/Modal";
 import { PageHeader } from "../../../components/ui/PageHeader";
 import { useAuth } from "../../../hooks/useAuth";
 import { useToast } from "../../../hooks/useToast";
+import { formatCustomerDocument } from "../../../utils/customerDocument";
 import { getFriendlyErrorMessage } from "../../../utils/errorMessages";
 import { EquipmentForm } from "../../equipments/components/EquipmentForm";
 import {
@@ -146,6 +147,14 @@ export function CustomerDetailPage() {
               <dt className="text-slate-500">Telefone</dt>
               <dd className="font-medium text-slate-950">{customer.phone}</dd>
             </div>
+            {"document" in customer && (
+              <div>
+                <dt className="text-slate-500">CPF/CNPJ</dt>
+                <dd className="font-medium text-slate-950">
+                  {formatCustomerDocument(customer.document)}
+                </dd>
+              </div>
+            )}
             <div>
               <dt className="text-slate-500">E-mail</dt>
               <dd className="font-medium text-slate-950">

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { isValidCustomerDocument } from "../../../utils/customerDocument";
 
 const optionalText = (max: number, message: string) =>
   z
@@ -19,6 +20,13 @@ export const customerSchema = z.object({
     .trim()
     .min(1, "Informe o telefone.")
     .max(20, "Telefone deve ter no maximo 20 caracteres."),
+  document: z
+    .string()
+    .optional()
+    .or(z.literal(""))
+    .refine((value) => isValidCustomerDocument(value), {
+      message: "Informe um CPF ou CNPJ válido.",
+    }),
   email: z
     .string()
     .trim()

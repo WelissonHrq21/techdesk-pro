@@ -77,6 +77,13 @@ export const openApiDocument = {
           id: { type: "string", format: "uuid" },
           name: { type: "string" },
           phone: { type: "string" },
+          document: {
+            type: "string",
+            nullable: true,
+            description:
+              "Optional CPF/CNPJ stored with digits only. Omitted from TECHNICIAN responses and never exposed by public tracking.",
+            example: "52998224725",
+          },
           email: { type: "string", nullable: true },
           active: { type: "boolean" },
         },

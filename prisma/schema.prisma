@@ -43,6 +43,7 @@ model Customer {
   id            String         @id @default(uuid())
   name          String
   phone         String
+  document      String?        @unique
   email         String?        @unique
   zipCode       String?
   address       String?

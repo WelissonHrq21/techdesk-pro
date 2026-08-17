@@ -1,4 +1,5 @@
 import { CustomerRepository } from "../../repositories/CustomerRepository";
+import { UserRole } from "@prisma/client";
 import {
     getPagination,
     getPaginationMeta,
@@ -8,6 +9,7 @@ type FindCustomersData = {
     page: number;
     limit: number;
     search?: string;
+    role: UserRole;
 };
 
 class FindCustomersService {
@@ -18,6 +20,7 @@ class FindCustomersService {
         const result = await customerRepository.findMany({
             ...pagination,
             search: data.search,
+            role: data.role,
         });
 
         return {

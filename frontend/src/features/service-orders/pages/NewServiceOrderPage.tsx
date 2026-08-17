@@ -11,6 +11,7 @@ import { SearchInput } from "../../../components/ui/SearchInput";
 import { useDebouncedValue } from "../../../hooks/useDebouncedValue";
 import { useToast } from "../../../hooks/useToast";
 import { getFriendlyErrorMessage } from "../../../utils/errorMessages";
+import { formatCustomerDocument } from "../../../utils/customerDocument";
 import { useCustomer, useCustomers } from "../../customers/hooks/useCustomers";
 import { EquipmentForm } from "../../equipments/components/EquipmentForm";
 import {
@@ -158,7 +159,7 @@ export function NewServiceOrderPage() {
                 <SearchInput
                   value={customerSearch}
                   onChange={setCustomerSearch}
-                  placeholder="Buscar cliente por nome, telefone ou e-mail..."
+                  placeholder="Buscar cliente por nome, telefone, e-mail ou CPF/CNPJ..."
                 />
                 {errors.customerId && (
                   <p className="mt-1 text-sm text-rose-600">
@@ -172,6 +173,10 @@ export function NewServiceOrderPage() {
                   Cliente selecionado:{" "}
                   <strong>{selectedCustomer.name}</strong> -{" "}
                   {selectedCustomer.phone}
+                  {"document" in selectedCustomer &&
+                    selectedCustomer.document && (
+                      <> - {formatCustomerDocument(selectedCustomer.document)}</>
+                    )}
                 </div>
               )}
 
@@ -190,6 +195,11 @@ export function NewServiceOrderPage() {
                       <span className="ml-2 text-slate-500">
                         {customer.phone}
                       </span>
+                      {"document" in customer && customer.document && (
+                        <span className="ml-2 text-slate-500">
+                          {formatCustomerDocument(customer.document)}
+                        </span>
+                      )}
                     </button>
                   ))}
                 </div>

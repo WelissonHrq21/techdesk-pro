@@ -1,5 +1,6 @@
-import { Prisma, ServiceOrderStatus } from "@prisma/client";
+import { Prisma, ServiceOrderStatus, UserRole } from "@prisma/client";
 import { prisma } from "../config/prisma";
+import { getCustomerSelectForRole } from "../serializers/customerSerializer";
 import { publicUserSelect } from "./UserRepository";
 
 type CreateServiceOrderData = {
@@ -74,13 +75,15 @@ class ServiceOrderRepository {
     });
   }
 
-  async findById(id: string) {
+  async findById(id: string, role: UserRole = UserRole.ADMIN) {
     return prisma.serviceOrder.findUnique({
       where: {
         id,
       },
       include: {
-        customer: true,
+        customer: {
+          select: getCustomerSelectForRole(role),
+        },
         equipment: true,
         user: {
           select: publicUserSelect,

@@ -1,5 +1,6 @@
 import { http } from "../../../api/http";
 import type { PaginatedResponse } from "../../../types/pagination";
+import { normalizeCustomerDocument } from "../../../utils/customerDocument";
 import type { Customer, CustomerFormData } from "../types/customer";
 
 type FindCustomersParams = {
@@ -12,6 +13,7 @@ function cleanCustomerPayload(data: CustomerFormData) {
   return {
     name: data.name.trim(),
     phone: data.phone.trim(),
+    document: normalizeCustomerDocument(data.document) ?? null,
     email: data.email?.trim() || undefined,
     zipCode: data.zipCode?.trim() || undefined,
     address: data.address?.trim() || undefined,

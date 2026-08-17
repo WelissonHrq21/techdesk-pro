@@ -5,6 +5,8 @@ export function getFriendlyErrorMessage(error: unknown) {
 
   const knownMessages: Record<string, string> = {
     "Email already exists": "Ja existe um cliente cadastrado com este e-mail.",
+    "Customer document already exists":
+      "Ja existe um cliente cadastrado com este CPF/CNPJ.",
     "Serial number already exists":
       "Este numero de serie ja esta cadastrado.",
     "Login already registered": "Este login ja esta em uso.",

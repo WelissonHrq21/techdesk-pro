@@ -11,7 +11,10 @@ class FindCustomerController {
 
     const findCustomerService = new FindCustomerService();
 
-    const customer = await findCustomerService.execute(id);
+    const customer = await findCustomerService.execute(
+      id,
+      request.user.role
+    );
 
     return response.status(200).json(customer);
   }

@@ -1,16 +1,20 @@
-import { Prisma } from "@prisma/client";
+import { Prisma, UserRole } from "@prisma/client";
 import { prisma } from "../config/prisma";
+import { getCustomerSelectForRole } from "../serializers/customerSerializer";
+import { normalizeCustomerDocument } from "../utils/customerDocument";
 
 type FindManyCustomersData = {
   skip: number;
   limit: number;
   search?: string;
+  role: UserRole;
 };
 
 class CustomerRepository {
-  async create(data: Prisma.CustomerCreateInput) {
+  async create(data: Prisma.CustomerCreateInput, role: UserRole) {
     return prisma.customer.create({
       data,
+      select: getCustomerSelectForRole(role),
     });
   };
 
@@ -23,6 +27,7 @@ class CustomerRepository {
   }
 
   async findMany(data: FindManyCustomersData) {
+    const normalizedSearchDocument = normalizeCustomerDocument(data.search);
     const where: Prisma.CustomerWhereInput = {
       active: true,
       ...(data.search
@@ -46,6 +51,15 @@ class CustomerRepository {
                   mode: "insensitive",
                 },
               },
+              ...(normalizedSearchDocument
+                ? [
+                    {
+                      document: {
+                        contains: normalizedSearchDocument,
+                      },
+                    },
+                  ]
+                : []),
             ],
           }
         : {}),
@@ -60,15 +74,7 @@ class CustomerRepository {
           name: "asc",
         },
         select: {
-          id: true,
-          name: true,
-          phone: true,
-          email: true,
-          zipCode: true,
-          address: true,
-          active: true,
-          createdAt: true,
-          updatedAt: true,
+          ...getCustomerSelectForRole(data.role),
         },
       }),
       prisma.customer.count({
@@ -90,6 +96,15 @@ class CustomerRepository {
     })
   }
 
+  async findByIdForRole(id: string, role: UserRole){
+    return prisma.customer.findUnique({
+      where: {
+        id
+      },
+      select: getCustomerSelectForRole(role),
+    })
+  }
+
   async findByEmail(email: string) {
   return prisma.customer.findUnique({
     where: {
@@ -98,12 +113,25 @@ class CustomerRepository {
   });
 }
 
-  async update(id: string, data: Prisma.CustomerUpdateInput){
+  async findByDocument(document: string) {
+    return prisma.customer.findUnique({
+      where: {
+        document,
+      },
+    });
+  }
+
+  async update(id: string, data: Prisma.CustomerUpdateInput, role?: UserRole){
     return prisma.customer.update({
       where: {
         id
       },
-      data
+      data,
+      ...(role
+        ? {
+            select: getCustomerSelectForRole(role),
+          }
+        : {}),
     })
   }
 

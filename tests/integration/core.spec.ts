@@ -78,6 +78,280 @@ describe("TechDesk Pro integration rules", () => {
       .expect(200);
   });
 
+  it("validates and normalizes optional customer CPF/CNPJ documents", async () => {
+    const admin = await authenticateTestUser(UserRole.ADMIN);
+
+    const cpf = await request(app)
+      .post("/customers")
+      .set("Authorization", `Bearer ${admin.token}`)
+      .send({
+        name: "Cliente CPF Ficticio",
+        phone: "82999990001",
+        document: "529.982.247-25",
+      })
+      .expect(201);
+
+    expect(cpf.body.document).toBe("52998224725");
+
+    const cnpj = await request(app)
+      .post("/customers")
+      .set("Authorization", `Bearer ${admin.token}`)
+      .send({
+        name: "Empresa CNPJ Ficticia",
+        phone: "82999990002",
+        document: "11.222.333/0001-81",
+      })
+      .expect(201);
+
+    expect(cnpj.body.document).toBe("11222333000181");
+
+    await request(app)
+      .post("/customers")
+      .set("Authorization", `Bearer ${admin.token}`)
+      .send({
+        name: "Cliente sem Documento",
+        phone: "82999990003",
+      })
+      .expect(201);
+
+    await request(app)
+      .post("/customers")
+      .set("Authorization", `Bearer ${admin.token}`)
+      .send({
+        name: "Cliente Documento Null",
+        phone: "82999990004",
+        document: null,
+      })
+      .expect(201);
+
+    const emptyDocument = await request(app)
+      .post("/customers")
+      .set("Authorization", `Bearer ${admin.token}`)
+      .send({
+        name: "Cliente Documento Vazio",
+        phone: "82999990005",
+        document: "   ",
+      })
+      .expect(201);
+
+    expect(emptyDocument.body.document).toBeNull();
+
+    await request(app)
+      .post("/customers")
+      .set("Authorization", `Bearer ${admin.token}`)
+      .send({
+        name: "CPF Invalido",
+        phone: "82999990006",
+        document: "123.456.789-00",
+      })
+      .expect(400);
+
+    await request(app)
+      .post("/customers")
+      .set("Authorization", `Bearer ${admin.token}`)
+      .send({
+        name: "CPF Repetido Invalido",
+        phone: "82999990007",
+        document: "111.111.111-11",
+      })
+      .expect(400);
+
+    await request(app)
+      .post("/customers")
+      .set("Authorization", `Bearer ${admin.token}`)
+      .send({
+        name: "CNPJ Invalido",
+        phone: "82999990008",
+        document: "11.222.333/0001-80",
+      })
+      .expect(400);
+  });
+
+  it("enforces unique normalized customer documents on create and update", async () => {
+    const admin = await authenticateTestUser(UserRole.ADMIN);
+
+    const first = await request(app)
+      .post("/customers")
+      .set("Authorization", `Bearer ${admin.token}`)
+      .send({
+        name: "Cliente Documento Um",
+        phone: "82999990101",
+        document: "529.982.247-25",
+      })
+      .expect(201);
+
+    const second = await request(app)
+      .post("/customers")
+      .set("Authorization", `Bearer ${admin.token}`)
+      .send({
+        name: "Cliente Documento Dois",
+        phone: "82999990102",
+        document: "11222333000181",
+      })
+      .expect(201);
+
+    await request(app)
+      .post("/customers")
+      .set("Authorization", `Bearer ${admin.token}`)
+      .send({
+        name: "Cliente CPF Duplicado",
+        phone: "82999990103",
+        document: "52998224725",
+      })
+      .expect(409);
+
+    await request(app)
+      .post("/customers")
+      .set("Authorization", `Bearer ${admin.token}`)
+      .send({
+        name: "Cliente CNPJ Duplicado",
+        phone: "82999990104",
+        document: "11.222.333/0001-81",
+      })
+      .expect(409);
+
+    await request(app)
+      .put(`/customers/${first.body.id}`)
+      .set("Authorization", `Bearer ${admin.token}`)
+      .send({
+        name: "Cliente Documento Um",
+        phone: "82999990101",
+        document: "529.982.247-25",
+      })
+      .expect(200);
+
+    await request(app)
+      .put(`/customers/${first.body.id}`)
+      .set("Authorization", `Bearer ${admin.token}`)
+      .send({
+        name: "Cliente Documento Um",
+        phone: "82999990101",
+        document: second.body.document,
+      })
+      .expect(409);
+
+    await request(app)
+      .put(`/customers/${first.body.id}`)
+      .set("Authorization", `Bearer ${admin.token}`)
+      .send({
+        name: "Cliente Documento Um",
+        phone: "82999990101",
+        document: "",
+      })
+      .expect(200);
+
+    const updated = await prisma.customer.findUniqueOrThrow({
+      where: {
+        id: first.body.id,
+      },
+    });
+
+    expect(updated.document).toBeNull();
+  });
+
+  it("searches customers by normalized and formatted document without breaking existing search", async () => {
+    const reception = await authenticateTestUser(UserRole.RECEPTION);
+
+    await request(app)
+      .post("/customers")
+      .set("Authorization", `Bearer ${reception.token}`)
+      .send({
+        name: "Cliente Busca Documento",
+        phone: "82999990201",
+        email: "busca-documento@test.com",
+        document: "529.982.247-25",
+      })
+      .expect(201);
+
+    const byFormattedDocument = await request(app)
+      .get("/customers")
+      .query({ search: "529.982.247-25" })
+      .set("Authorization", `Bearer ${reception.token}`)
+      .expect(200);
+
+    expect(byFormattedDocument.body.data).toHaveLength(1);
+    expect(byFormattedDocument.body.data[0].document).toBe("52998224725");
+
+    const byNormalizedDocument = await request(app)
+      .get("/customers")
+      .query({ search: "52998224725" })
+      .set("Authorization", `Bearer ${reception.token}`)
+      .expect(200);
+
+    expect(byNormalizedDocument.body.data).toHaveLength(1);
+
+    const byEmail = await request(app)
+      .get("/customers")
+      .query({ search: "busca-documento@test.com" })
+      .set("Authorization", `Bearer ${reception.token}`)
+      .expect(200);
+
+    expect(byEmail.body.data).toHaveLength(1);
+  });
+
+  it("minimizes customer document by role and never exposes it in public tracking", async () => {
+    const admin = await authenticateTestUser(UserRole.ADMIN);
+    const reception = await authenticateTestUser(UserRole.RECEPTION);
+    const technician = await authenticateTestUser(UserRole.TECHNICIAN);
+
+    const customer = await request(app)
+      .post("/customers")
+      .set("Authorization", `Bearer ${admin.token}`)
+      .send({
+        name: "Cliente Privacidade",
+        phone: "82999990301",
+        document: "529.982.247-25",
+      })
+      .expect(201);
+
+    const adminView = await request(app)
+      .get(`/customers/${customer.body.id}`)
+      .set("Authorization", `Bearer ${admin.token}`)
+      .expect(200);
+
+    expect(adminView.body.document).toBe("52998224725");
+
+    const receptionView = await request(app)
+      .get(`/customers/${customer.body.id}`)
+      .set("Authorization", `Bearer ${reception.token}`)
+      .expect(200);
+
+    expect(receptionView.body.document).toBe("52998224725");
+
+    const technicianView = await request(app)
+      .get(`/customers/${customer.body.id}`)
+      .set("Authorization", `Bearer ${technician.token}`)
+      .expect(200);
+
+    expect(technicianView.body.document).toBeUndefined();
+
+    const { equipment } = await createTestServiceOrder(
+      ServiceOrderStatus.RECEIVED
+    );
+    const serviceOrder = await prisma.serviceOrder.create({
+      data: {
+        customerId: customer.body.id,
+        equipmentId: equipment.id,
+        reportedIssue: "Teste de privacidade",
+        status: ServiceOrderStatus.RECEIVED,
+      },
+    });
+
+    const serviceOrderForTechnician = await request(app)
+      .get(`/service-orders/${serviceOrder.id}`)
+      .set("Authorization", `Bearer ${technician.token}`)
+      .expect(200);
+
+    expect(serviceOrderForTechnician.body.customer.document).toBeUndefined();
+
+    const publicResponse = await request(app)
+      .get(`/public/service-orders/${serviceOrder.publicToken}`)
+      .expect(200);
+
+    expect(JSON.stringify(publicResponse.body)).not.toContain("52998224725");
+    expect(publicResponse.body.customer).toBeUndefined();
+  });
+
   it("enforces core RBAC rules", async () => {
     const admin = await authenticateTestUser(UserRole.ADMIN);
     const reception = await authenticateTestUser(UserRole.RECEPTION);
