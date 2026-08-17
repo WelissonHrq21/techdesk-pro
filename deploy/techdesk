@@ -1,0 +1,310 @@
+#!/bin/sh
+set -eu
+
+DEPLOY_ROOT="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
+. "${DEPLOY_ROOT}/setup-core.sh"
+
+usage() {
+  cat <<EOF
+TechDesk Pro Setup
+
+Uso:
+  ./techdesk install [--port 8080] [--version X.Y.Z] [--non-interactive --admin-password SENHA]
+  ./techdesk status
+  ./techdesk repair
+  ./techdesk upgrade --version X.Y.Z
+
+Producao oficial: Ubuntu Server LTS com Docker Engine e Docker Compose Plugin.
+Windows permanece best effort via scripts PowerShell existentes.
+EOF
+}
+
+require_env() {
+  if [ ! -f "$ENV_FILE" ]; then
+    fail ".env nao encontrado. Use install primeiro."
+    return 1
+  fi
+}
+
+prompt_default() {
+  label="$1"
+  default="$2"
+  printf '%s [%s]: ' "$label" "$default" >&2
+  read -r value
+  value="${value:-$default}"
+  printf '%s' "$value"
+}
+
+prompt_password() {
+  printf '%s' "Senha do ADMIN inicial: " >&2
+  stty -echo 2>/dev/null || true
+  read -r value
+  stty echo 2>/dev/null || true
+  printf '\n' >&2
+  printf '%s' "$value"
+}
+
+install_cmd() {
+  port="$DEFAULT_PORT"
+  target_version="$DEFAULT_VERSION"
+  admin_name="Administrador"
+  admin_login="admin"
+  admin_password=""
+  non_interactive=0
+
+  while [ "$#" -gt 0 ]; do
+    case "$1" in
+      --port)
+        port="${2:-}"; shift 2 ;;
+      --version)
+        target_version="${2:-}"; shift 2 ;;
+      --admin-name)
+        admin_name="${2:-}"; shift 2 ;;
+      --admin-login)
+        admin_login="${2:-}"; shift 2 ;;
+      --admin-password)
+        admin_password="${2:-}"; shift 2 ;;
+      --non-interactive)
+        non_interactive=1; shift ;;
+      *)
+        fail "Opcao desconhecida para install: $1"; return 2 ;;
+    esac
+  done
+
+  setup_log_init
+  trap 'say "Instalacao interrompida. Dados e arquivos existentes foram preservados."; exit 130' INT TERM
+
+  state="$(detect_installation_state)"
+  if [ "$state" != "NOT_INSTALLED" ]; then
+    say "TechDesk Pro ja possui sinais de instalacao: ${state}."
+    say "Use status, repair ou upgrade. INSTALL nao executa acao destrutiva."
+    return 1
+  fi
+
+  if [ "$non_interactive" -eq 0 ]; then
+    port="$(prompt_default "Porta de acesso do TechDesk Pro" "$port")"
+    admin_name="$(prompt_default "Nome do ADMIN inicial" "$admin_name")"
+    admin_login="$(prompt_default "Login do ADMIN inicial" "$admin_login")"
+    admin_password="$(prompt_password)"
+  fi
+
+  if [ -z "$admin_password" ] || [ "${#admin_password}" -lt 6 ]; then
+    fail "A senha do ADMIN precisa ter pelo menos 6 caracteres."
+    return 2
+  fi
+
+  preflight install "$port" || return 10
+
+  say "[2/8] Preparando configuracao..."
+  write_env_file "$port" "$admin_name" "$admin_login" "$admin_password" "$target_version" "$DEFAULT_PROJECT_NAME"
+  ensure_env_permissions
+  say "OK: configuracao criada. Secrets nao foram exibidos."
+
+  say "[3/8] Baixando imagens..."
+  run_logged "compose config" compose config || return 20
+  run_logged "compose pull" compose pull || return 20
+
+  say "[4/8] Iniciando banco..."
+  run_logged "compose up postgres" compose up -d postgres || return 30
+
+  say "[5/8] Aplicando migrations e iniciando API..."
+  run_logged "compose up api" compose up -d api || return 40
+
+  say "[6/8] Iniciando frontend..."
+  run_logged "compose up frontend" compose up -d frontend || return 50
+
+  say "[7/8] Verificando health/ready/smoke..."
+  if ! wait_for_ready 120; then
+    compose ps >> "$SETUP_LOG_FILE" 2>&1 || true
+    compose logs --tail 120 api 2>&1 | redact >> "$SETUP_LOG_FILE" || true
+    fail "TechDesk Pro nao ficou healthy/ready dentro do timeout."
+    return 60
+  fi
+  run_logged "seed admin" compose exec -T api node /app/deploy/seed-admin.js || return 70
+  wait_for_ready 60 || return 60
+
+  say "[8/8] Finalizando..."
+  write_metadata "$target_version"
+  ensure_env_permissions
+  say "TechDesk Pro instalado com sucesso."
+  say "Versao: ${target_version}"
+  say "Status: Healthy"
+  show_urls
+  say "Proximo passo: abra a URL acima para configurar o TechDesk Pro."
+}
+
+status_cmd() {
+  setup_log_init
+  state="$(detect_installation_state)"
+  version="$(current_version)"
+  port="$(techdesk_port)"
+
+  echo "TechDesk Pro"
+  echo ""
+  echo "Version: ${version}"
+  echo "Installation: ${state}"
+  if docker_available; then
+    if docker_daemon_running; then
+      echo "Docker: running"
+    else
+      echo "Docker: installed but stopped"
+    fi
+  else
+    echo "Docker: not installed"
+  fi
+  if docker_available && compose_available; then
+    echo "Compose: available"
+  else
+    echo "Compose: unavailable"
+  fi
+
+  if [ -f "$ENV_FILE" ] && docker_available && docker_daemon_running; then
+    compose ps || true
+  fi
+
+  if frontend_responds; then
+    echo "Frontend: healthy"
+    echo "Health: OK"
+  else
+    echo "Frontend: unhealthy"
+    echo "Health: ERROR"
+  fi
+
+  if api_ready; then
+    echo "API: ready"
+    echo "Ready: OK"
+  else
+    echo "API: not ready"
+    echo "Ready: ERROR"
+  fi
+
+  echo ""
+  show_urls
+
+  if [ "$state" = "INSTALLED_HEALTHY" ]; then
+    return 0
+  fi
+  return 1
+}
+
+repair_cmd() {
+  setup_log_init
+  trap 'say "Repair interrompido. Nenhuma limpeza destrutiva foi executada."; exit 130' INT TERM
+  require_env
+  preflight repair "$(techdesk_port)" || return 10
+
+  state="$(detect_installation_state)"
+  if [ "$state" = "NOT_INSTALLED" ]; then
+    fail "Nada para reparar. Execute install."
+    return 1
+  fi
+
+  say "Repair nao destrutivo iniciado. Volumes e banco serao preservados."
+  run_logged "compose config" compose config || return 20
+  run_logged "compose pull" compose pull || return 20
+  run_logged "compose up" compose up -d || return 30
+  if ! wait_for_ready 120; then
+    compose ps >> "$SETUP_LOG_FILE" 2>&1 || true
+    compose logs --tail 120 api 2>&1 | redact >> "$SETUP_LOG_FILE" || true
+    fail "Repair executado, mas health/ready ainda falhou."
+    return 60
+  fi
+  run_logged "seed admin idempotent" compose exec -T api node /app/deploy/seed-admin.js || true
+  write_metadata "$(current_version)" "$(metadata_value lastUpgradeAt "")"
+  ensure_env_permissions
+  say "Repair concluido. TechDesk Pro healthy/ready."
+  show_urls
+}
+
+upgrade_cmd() {
+  target_version=""
+
+  while [ "$#" -gt 0 ]; do
+    case "$1" in
+      --version)
+        target_version="${2:-}"; shift 2 ;;
+      *)
+        fail "Opcao desconhecida para upgrade: $1"; return 2 ;;
+    esac
+  done
+
+  setup_log_init
+  trap 'say "Upgrade interrompido. Backup/env/banco existentes foram preservados; consulte logs antes de nova tentativa."; exit 130' INT TERM
+  require_env
+
+  if [ -z "$target_version" ]; then
+    fail "Informe --version X.Y.Z."
+    return 2
+  fi
+
+  state="$(detect_installation_state)"
+  if [ "$state" = "NOT_INSTALLED" ] || [ "$state" = "PARTIAL_INSTALLATION" ]; then
+    fail "Upgrade exige instalacao detectada e nao parcial. Estado atual: ${state}."
+    return 1
+  fi
+
+  current="$(current_version)"
+  cmp="$(semver_cmp "$target_version" "$current")"
+  if [ "$cmp" = "0" ]; then
+    fail "Versao alvo igual a atual (${current}); nao e upgrade."
+    return 2
+  fi
+  if [ "$cmp" = "-1" ]; then
+    fail "Downgrade automatico nao e suportado. Use disaster recovery/restore apropriado."
+    return 2
+  fi
+
+  preflight upgrade "$(techdesk_port)" || return 10
+
+  say "Upgrade ${current} -> ${target_version}"
+  say "Backup pre-upgrade obrigatorio..."
+  run_logged "backup pre-upgrade" "${DEPLOY_ROOT}/backup.sh" || {
+    fail "Backup/validacao falhou. Upgrade abortado antes de trocar imagens."
+    return 80
+  }
+
+  say "Baixando imagens alvo..."
+  run_logged "docker pull api target" docker pull "ghcr.io/welissonhrq21/techdesk-pro-api:${target_version}" || return 20
+  run_logged "docker pull frontend target" docker pull "ghcr.io/welissonhrq21/techdesk-pro-frontend:${target_version}" || return 20
+
+  say "Atualizando configuracao de imagens..."
+  apply_target_images "$target_version"
+  ensure_env_permissions
+
+  say "Aplicando upgrade via Compose..."
+  run_logged "compose up target" compose up -d || return 40
+
+  say "Verificando health/ready/smoke..."
+  if ! wait_for_ready 120; then
+    compose ps >> "$SETUP_LOG_FILE" 2>&1 || true
+    compose logs --tail 120 api 2>&1 | redact >> "$SETUP_LOG_FILE" || true
+    fail "Upgrade aplicado parcialmente, mas health/ready falhou. Backup foi preservado; downgrade automatico nao sera executado."
+    return 60
+  fi
+
+  write_metadata "$target_version" "$(setup_timestamp)"
+  ensure_env_permissions
+  say "Upgrade concluido com sucesso."
+  show_urls
+}
+
+self_test_cmd() {
+  setup_log_init
+  self_test_setup_core
+  echo "setup self-test: PASS"
+}
+
+command="${1:-}"
+if [ "$#" -gt 0 ]; then
+  shift
+fi
+
+case "$command" in
+  install) install_cmd "$@" ;;
+  status) status_cmd "$@" ;;
+  repair) repair_cmd "$@" ;;
+  upgrade) upgrade_cmd "$@" ;;
+  --self-test) self_test_cmd ;;
+  ""|-h|--help) usage ;;
+  *) usage; exit 2 ;;
+esac

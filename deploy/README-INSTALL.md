@@ -1,10 +1,52 @@
-# TechDesk Pro v1.0.0 - Instalacao
+# TechDesk Pro - Instalacao e Setup
 
 Este pacote instala o TechDesk Pro usando Docker. A maquina operacional nao precisa de Node.js, npm, TypeScript, Prisma CLI ou Vite.
 
-## Windows
+## Caminho recomendado
 
-Pre-requisito:
+A partir da v1.1.0, o ponto de entrada recomendado no Linux e:
+
+```sh
+cd deploy
+chmod +x *.sh techdesk
+./techdesk install
+```
+
+Depois da instalacao:
+
+```sh
+./techdesk status
+./techdesk repair
+./techdesk upgrade --version X.Y.Z
+```
+
+Producao oficial:
+
+- Ubuntu Server LTS suportado pelo Docker Engine.
+- Docker Engine.
+- Docker Compose Plugin.
+
+Windows continua best effort para desenvolvimento/laboratorio pelos scripts PowerShell.
+
+## Linux
+
+Pre-requisitos:
+
+- Docker Engine instalado.
+- Docker Compose Plugin instalado.
+- Porta de acesso livre, padrao `8080`.
+- Pelo menos 5 GB livres.
+
+Fluxo simples:
+
+1. Prepare Ubuntu/Docker.
+2. Baixe e extraia o pacote TechDesk Setup.
+3. Execute `./techdesk install`.
+4. Abra a URL exibida ao final.
+
+O setup executa preflight, gera secrets tecnicos, cria `.env`, baixa imagens versionadas, inicia containers, aplica migrations pelo startup da API, executa smoke `health/ready` e grava metadata local.
+
+## Windows
 
 - Docker Desktop instalado e iniciado.
 
@@ -21,19 +63,85 @@ Passos:
 4. Informe porta, nome/login do ADMIN e senha inicial quando solicitado.
 5. Acesse uma das URLs exibidas pelo instalador.
 
-## Linux
+Windows nao e plataforma oficial de producao nesta versao.
 
-Pre-requisito:
+## Scripts legados
 
-- Docker Engine com Docker Compose.
+Os scripts antigos continuam disponiveis por compatibilidade e manutencao:
 
-Passos:
+Linux:
 
 ```sh
-cd deploy
-chmod +x *.sh
 ./install.sh
+./start.sh
+./stop.sh
+./restart.sh
+./status.sh
+./backup.sh
+./restore-check.sh ./backups/arquivo.dump
 ```
+
+Windows:
+
+```powershell
+.\install.ps1
+.\start.ps1
+.\stop.ps1
+.\restart.ps1
+.\status.ps1
+.\backup.ps1
+.\restore-check.ps1 .\backups\arquivo.dump
+```
+
+`stop`, `repair` e scripts normais preservam volumes e dados. Nenhum script normal remove volume, apaga banco ou executa reset.
+
+## Comandos do setup
+
+### INSTALL
+
+```sh
+./techdesk install
+```
+
+Instalacao nova. Nao sobrescreve `.env` existente e nao continua se detectar instalacao existente, volume, containers ou estado ambiguo.
+
+Modo nao interativo para automacao futura:
+
+```sh
+./techdesk install --port 8080 --non-interactive --admin-password "senha-forte"
+```
+
+### STATUS
+
+```sh
+./techdesk status
+```
+
+Mostra versao, estado da instalacao, Docker, Compose, containers, health, ready e URLs. Nao mostra secrets.
+
+### REPAIR
+
+```sh
+./techdesk repair
+```
+
+Operacao nao destrutiva. Pode subir containers parados, baixar imagem conhecida ausente, revalidar health/ready e preservar banco, volumes e secrets.
+
+Nao executa:
+
+- `down -v`;
+- reset de banco;
+- downgrade;
+- troca de secrets;
+- restore automatico.
+
+### UPGRADE
+
+```sh
+./techdesk upgrade --version X.Y.Z
+```
+
+Exige backup pre-upgrade validado antes de trocar imagens. Bloqueia downgrade automatico e so atualiza metadata depois de health/ready/smoke passarem.
 
 ## Primeiro acesso
 
@@ -59,35 +167,26 @@ Acesso: http://192.168.1.50:8080
 
 Reserve IP fixo ou DHCP reservation para o servidor. Se o IP mudar, atualize `CORS_ORIGIN` no `.env` e reinicie com `restart`.
 
-## Scripts
+## Metadata, logs e secrets
 
-Windows:
+O setup pode criar:
 
-```powershell
-.\start.ps1
-.\stop.ps1
-.\restart.ps1
-.\status.ps1
-.\backup.ps1
-.\restore-check.ps1 .\backups\arquivo.dump
+```text
+techdesk-installation.json
+logs/setup-YYYY-MM-DD_HHMMSS.log
 ```
 
-Linux:
+Metadata nao guarda `POSTGRES_PASSWORD`, `JWT_SECRET`, `ADMIN_PASSWORD`, tokens ou dados funcionais da assistencia.
 
-```sh
-./start.sh
-./stop.sh
-./restart.sh
-./status.sh
-./backup.sh
-./restore-check.sh ./backups/arquivo.dump
-```
+Logs sao sanitizados para nao registrar secrets, connection strings com senha, Bearer token ou `publicToken`.
 
-`stop` preserva volumes e dados. Nenhum script normal remove volume, apaga banco ou executa reset.
+No Linux, `.env`, metadata, logs e backups recebem permissoes restritivas quando o sistema permite.
 
 ## Firewall
 
 O instalador nao altera firewall automaticamente.
+
+Se UFW estiver ativo e a porta nao parecer liberada, o setup emite WARNING e sugere o comando. Ele nao abre firewall sem consentimento.
 
 Se outras maquinas da LAN nao acessarem, libere a porta configurada em `TECHDESK_PORT` somente para a rede local. Por padrao, a API e o PostgreSQL nao sao publicados em portas externas.
 
@@ -157,3 +256,5 @@ IP da maquina mudou:
 ## Atualizacoes
 
 Producao nao deve seguir `main` automaticamente. Atualizacoes devem usar imagens versionadas, por exemplo `1.0.1`, precedidas de backup e smoke test.
+
+Como a v1.1.0 ainda esta em desenvolvimento, nao execute `upgrade --version 1.1.0` em producao ate existirem imagens publicadas e release aprovada.
