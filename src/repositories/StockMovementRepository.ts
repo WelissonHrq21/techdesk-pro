@@ -1,5 +1,6 @@
-import { StockMovementType } from "@prisma/client";
+import { ServiceOrderStatus, StockMovementType } from "@prisma/client";
 import { prisma } from "../config/prisma";
+import { AppError } from "../errors/AppError";
 import { publicUserSelect } from "./UserRepository";
 
 type CreateStockEntryData = {
@@ -11,6 +12,14 @@ type CreateStockEntryData = {
 
 type CreateStockExitData = CreateStockEntryData & {
   serviceOrderId?: string;
+};
+
+type ReverseStockMovementData = {
+  movementId: string;
+  quantity: number;
+  reason: string;
+  userId: string;
+  allowedStatuses: ServiceOrderStatus[];
 };
 
 class StockMovementRepository {
@@ -101,6 +110,147 @@ class StockMovementRepository {
       orderBy: {
         createdAt: "desc",
       },
+    });
+  }
+
+  async reverseExitMovement(data: ReverseStockMovementData) {
+    return prisma.$transaction(async (transaction) => {
+      await transaction.$queryRaw`
+        SELECT "id"
+        FROM "StockMovement"
+        WHERE "id" = ${data.movementId}
+        FOR UPDATE
+      `;
+
+      const originalMovement =
+        await transaction.stockMovement.findUnique({
+          where: {
+            id: data.movementId,
+          },
+          include: {
+            part: true,
+            serviceOrder: {
+              select: {
+                id: true,
+                number: true,
+                status: true,
+              },
+            },
+            user: {
+              select: publicUserSelect,
+            },
+          },
+        });
+
+      if (!originalMovement) {
+        throw new AppError("Stock movement not found", 404);
+      }
+
+      if (originalMovement.type !== StockMovementType.EXIT) {
+        throw new AppError(
+          "Only EXIT movements can be reversed",
+          400
+        );
+      }
+
+      if (
+        !originalMovement.serviceOrderId ||
+        !originalMovement.serviceOrder
+      ) {
+        throw new AppError(
+          "Only service order EXIT movements can be reversed",
+          400
+        );
+      }
+
+      if (
+        !data.allowedStatuses.includes(
+          originalMovement.serviceOrder.status
+        )
+      ) {
+        throw new AppError(
+          "Service order status does not allow stock reversal",
+          400
+        );
+      }
+
+      const reversedQuantityResult =
+        await transaction.stockMovement.aggregate({
+          where: {
+            type: StockMovementType.REVERSAL,
+            reversalOfMovementId: originalMovement.id,
+          },
+          _sum: {
+            quantity: true,
+          },
+        });
+
+      const reversedQuantity =
+        reversedQuantityResult._sum.quantity ?? 0;
+      const reversibleQuantity =
+        originalMovement.quantity - reversedQuantity;
+
+      if (data.quantity > reversibleQuantity) {
+        throw new AppError(
+          "Reversal quantity exceeds available reversible quantity",
+          409
+        );
+      }
+
+      const part = await transaction.part.update({
+        where: {
+          id: originalMovement.partId,
+        },
+        data: {
+          stock: {
+            increment: data.quantity,
+          },
+        },
+      });
+
+      const movement = await transaction.stockMovement.create({
+        data: {
+          type: StockMovementType.REVERSAL,
+          quantity: data.quantity,
+          reason: data.reason,
+          partId: originalMovement.partId,
+          serviceOrderId: originalMovement.serviceOrderId,
+          userId: data.userId,
+          reversalOfMovementId: originalMovement.id,
+        },
+        include: {
+          part: true,
+          user: {
+            select: publicUserSelect,
+          },
+          serviceOrder: {
+            select: {
+              id: true,
+              number: true,
+              status: true,
+            },
+          },
+          reversalOfMovement: {
+            select: {
+              id: true,
+              type: true,
+              quantity: true,
+              partId: true,
+              serviceOrderId: true,
+              userId: true,
+              createdAt: true,
+            },
+          },
+        },
+      });
+
+      return {
+        part,
+        movement,
+        originalMovement,
+        reversedQuantity: reversedQuantity + data.quantity,
+        reversibleQuantity: reversibleQuantity - data.quantity,
+      };
     });
   }
 

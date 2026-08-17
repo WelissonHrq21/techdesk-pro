@@ -150,10 +150,43 @@ export const openApiDocument = {
         type: "object",
         properties: {
           id: { type: "string", format: "uuid" },
-          type: { type: "string", enum: ["ENTRY", "EXIT", "ADJUSTMENT"] },
+          type: {
+            type: "string",
+            enum: ["ENTRY", "EXIT", "ADJUSTMENT", "REVERSAL"],
+          },
           quantity: { type: "integer" },
           reason: { type: "string", nullable: true },
+          partId: { type: "string", format: "uuid" },
+          serviceOrderId: {
+            type: "string",
+            format: "uuid",
+            nullable: true,
+          },
+          userId: { type: "string", format: "uuid", nullable: true },
+          reversalOfMovementId: {
+            type: "string",
+            format: "uuid",
+            nullable: true,
+          },
           createdAt: { type: "string", format: "date-time" },
+        },
+      },
+      ReverseStockMovementRequest: {
+        type: "object",
+        required: ["quantity", "reason"],
+        additionalProperties: false,
+        properties: {
+          quantity: {
+            type: "integer",
+            minimum: 1,
+            example: 1,
+          },
+          reason: {
+            type: "string",
+            minLength: 1,
+            maxLength: 500,
+            example: "Part will not be used",
+          },
         },
       },
     },
@@ -312,6 +345,28 @@ export const openApiDocument = {
     },
     "/parts/{id}/stock-movements": {
       get: { tags: ["Stock"], summary: "List stock movements. Roles: ADMIN, RECEPTION, TECHNICIAN", parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }], responses: { "200": { description: "Stock movements" } } },
+    },
+    "/stock-movements/{id}/reverse": {
+      post: {
+        tags: ["Stock"],
+        summary: "Reverse service-order stock consumption. Roles: ADMIN, TECHNICIAN",
+        parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" }, description: "Original EXIT stock movement ID" }],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/ReverseStockMovementRequest" },
+            },
+          },
+        },
+        responses: {
+          "201": { description: "Stock reversal created" },
+          "400": { description: "Invalid movement, status or request" },
+          "403": { description: "Forbidden" },
+          "404": { description: "Stock movement not found" },
+          "409": { description: "Reversal quantity exceeds available quantity" },
+        },
+      },
     },
     "/dashboard/summary": {
       get: { tags: ["Dashboard"], summary: "Get dashboard summary. Roles: ADMIN, RECEPTION, TECHNICIAN", responses: { "200": { description: "Dashboard summary" } } },

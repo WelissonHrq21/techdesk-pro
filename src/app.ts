@@ -46,6 +46,7 @@ const privateRoutePrefixes = [
   "/budgets",
   "/parts",
   "/settings",
+  "/stock-movements",
   "/users",
 ];
 

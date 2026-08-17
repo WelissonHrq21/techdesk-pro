@@ -3,6 +3,7 @@ import { UserRole } from "@prisma/client";
 import { CreateStockEntryController } from "../controllers/stock/CreateStockEntryController";
 import { CreateStockExitController } from "../controllers/stock/CreateStockExitController";
 import { FindPartStockMovementsController } from "../controllers/stock/FindPartStockMovementsController";
+import { ReverseStockMovementController } from "../controllers/stock/ReverseStockMovementController";
 import { authorizeRoles } from "../middlewares/authorizeRoles";
 
 const stockRouter = Router();
@@ -11,6 +12,8 @@ const createStockEntryController = new CreateStockEntryController();
 const createStockExitController = new CreateStockExitController();
 const findPartStockMovementsController =
   new FindPartStockMovementsController();
+const reverseStockMovementController =
+  new ReverseStockMovementController();
 
 const allRoles = authorizeRoles(
   UserRole.ADMIN,
@@ -18,6 +21,10 @@ const allRoles = authorizeRoles(
   UserRole.TECHNICIAN
 );
 const adminOnly = authorizeRoles(UserRole.ADMIN);
+const adminOrTechnician = authorizeRoles(
+  UserRole.ADMIN,
+  UserRole.TECHNICIAN
+);
 
 stockRouter.post(
   "/parts/:id/stock/entry",
@@ -40,6 +47,14 @@ stockRouter.get(
   allRoles,
   async (request, response) => {
     return findPartStockMovementsController.handle(request, response);
+  }
+);
+
+stockRouter.post(
+  "/stock-movements/:id/reverse",
+  adminOrTechnician,
+  async (request, response) => {
+    return reverseStockMovementController.handle(request, response);
   }
 );
 
