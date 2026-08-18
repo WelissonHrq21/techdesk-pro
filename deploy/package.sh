@@ -5,7 +5,7 @@ DEPLOY_ROOT="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
 REPO_ROOT="$(CDPATH= cd -- "${DEPLOY_ROOT}/.." && pwd)"
 VERSION="$(cat "${DEPLOY_ROOT}/VERSION")"
 OUT_DIR="${REPO_ROOT}/dist"
-PACKAGE_SUFFIX="${PACKAGE_SUFFIX:-stage5-experimental-r3}"
+PACKAGE_SUFFIX="${PACKAGE_SUFFIX:-rc}"
 PACKAGE_NAME="techdesk-pro-setup-${VERSION}-${PACKAGE_SUFFIX}"
 STAGING="${OUT_DIR}/${PACKAGE_NAME}"
 
@@ -51,7 +51,7 @@ mkdir -p "${STAGING}/deploy/nginx"
 copy_file "${DEPLOY_ROOT}/nginx/default.conf" "${STAGING}/deploy/nginx/default.conf"
 
 cat > "${STAGING}/README.txt" <<EOF
-TechDesk Pro Setup ${VERSION} - Stage 5 experimental package
+TechDesk Pro Setup ${VERSION} - Release Candidate package
 
 Official production target: Ubuntu Server LTS with Docker Engine and Docker Compose Plugin.
 

@@ -1,6 +1,6 @@
 {
   "name": "techdesk-pro",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "A simple tech support desk application",
   "main": "server.js",
   "directories": {
@@ -47,5 +47,8 @@
     "swagger-ui-express": "^5.0.1",
     "tsx": "^4.23.0",
     "zod": "^4.4.3"
+  },
+  "overrides": {
+    "deepmerge-ts": "8.0.1"
   }
 }

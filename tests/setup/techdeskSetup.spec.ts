@@ -193,9 +193,9 @@ describe("TechDesk setup bootstrapper", () => {
   it("keeps production compose on versioned images and private PostgreSQL", () => {
     const compose = readFileSync(composeFile, "utf8");
 
-    expect(compose).toContain("ghcr.io/welissonhrq21/techdesk-pro-api:1.0.0");
+    expect(compose).toContain("ghcr.io/welissonhrq21/techdesk-pro-api:1.1.0");
     expect(compose).toContain(
-      "ghcr.io/welissonhrq21/techdesk-pro-frontend:1.0.0"
+      "ghcr.io/welissonhrq21/techdesk-pro-frontend:1.1.0"
     );
     expect(compose).not.toMatch(/:latest\b/);
     const postgresBlock = compose.match(/postgres:[\s\S]*?\n  api:/)?.[0] ?? "";
@@ -343,7 +343,7 @@ describe("TechDesk setup bootstrapper", () => {
       const envContent = [
         "TECHDESK_PORT=18080",
         "TECHDESK_PROJECT_NAME=techdesk-stage501-test",
-        "TECHDESK_VERSION=1.0.0",
+        "TECHDESK_VERSION=1.1.0",
         "POSTGRES_DB=techdesk",
         "POSTGRES_USER=techdesk",
         `POSTGRES_PASSWORD=${postgresPassword}`,
@@ -356,8 +356,8 @@ describe("TechDesk setup bootstrapper", () => {
         "ADMIN_NAME=Administrador",
         "ADMIN_LOGIN=admin",
         `ADMIN_PASSWORD=${adminPassword}`,
-        "TECHDESK_API_IMAGE=ghcr.io/welissonhrq21/techdesk-pro-api:1.0.0",
-        "TECHDESK_FRONTEND_IMAGE=ghcr.io/welissonhrq21/techdesk-pro-frontend:1.0.0",
+        "TECHDESK_API_IMAGE=ghcr.io/welissonhrq21/techdesk-pro-api:1.1.0",
+        "TECHDESK_FRONTEND_IMAGE=ghcr.io/welissonhrq21/techdesk-pro-frontend:1.1.0",
       ].join("\n");
 
       writeFileSync(fakeEnvFile, envContent);

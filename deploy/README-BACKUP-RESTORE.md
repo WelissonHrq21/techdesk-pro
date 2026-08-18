@@ -1,4 +1,4 @@
-# TechDesk Pro v1.0.0 - Backup, Restore e Disaster Recovery
+# TechDesk Pro v1.1.0 - Backup, Restore e Disaster Recovery
 
 Este guia e o procedimento oficial para backup, verificacao, restore e recuperacao de desastre do TechDesk Pro instalado pelo pacote `deploy`.
 
@@ -6,7 +6,7 @@ Use este documento no servidor de operacao. Ele nao exige Node.js, npm, TypeScri
 
 ## 1. Visao geral
 
-O TechDesk Pro v1.0.0 armazena os dados operacionais no PostgreSQL do Docker Compose.
+O TechDesk Pro v1.1.0 armazena os dados operacionais no PostgreSQL do Docker Compose.
 
 O backup oficial e um dump PostgreSQL em formato custom archive:
 
@@ -47,7 +47,7 @@ Isso inclui usuarios, clientes, equipamentos, ordens de servico, orcamentos, pec
 
 O dump do PostgreSQL nao protege arquivos externos ao banco.
 
-Na v1.0.0, a aplicacao nao possui uploads de imagens/anexos persistidos fora do PostgreSQL. Se uma versao futura adicionar uploads, a pasta/volume desses arquivos devera ter backup separado.
+Na v1.1.0, a aplicacao nao possui uploads de imagens/anexos persistidos fora do PostgreSQL. Se uma versao futura adicionar uploads, a pasta/volume desses arquivos devera ter backup separado.
 
 O dump tambem nao protege:
 
@@ -303,7 +303,7 @@ Restore real conservador:
 3. valide contagens e relacoes;
 4. somente depois substitua o banco operacional em janela de manutencao.
 
-Politica recomendada para v1.0.0:
+Politica recomendada para v1.1.0:
 
 - nao restaurar diretamente com `--clean` sobre o banco em uso;
 - preferir novo volume/banco e troca controlada;
@@ -371,7 +371,7 @@ Cenario: o computador/SSD original morreu.
 Voce precisa ter:
 
 - Docker instalado;
-- installer TechDesk Pro v1.0.0 ou revisao de distribuicao aprovada;
+- installer TechDesk Pro v1.1.0 ou revisao de distribuicao aprovada;
 - arquivo `.dump` validado;
 - SHA256 registrado;
 - copia segura do `.env` ou das variaveis operacionais;
@@ -415,7 +415,7 @@ Cenario B - backup de versao anterior em instalacao mais nova:
 - faca backup novo desse ambiente restaurado;
 - entao aplique a atualizacao seguindo o procedimento da versao nova.
 
-Politica suportada para v1.0.0:
+Politica suportada para v1.1.0:
 
 - o caminho mais seguro e restaurar primeiro na mesma versao do backup;
 - atualizacao de versao vem depois do restore validado.

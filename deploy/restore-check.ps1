@@ -19,6 +19,9 @@ $backupItem = Get-Item -LiteralPath $resolvedBackup
 $postgresUser = Get-TechDeskEnvValue -Name "POSTGRES_USER" -Default "techdesk"
 $tempDb = "techdesk_restore_check_$((New-Guid).ToString('N').Substring(0, 12))"
 $containerBackupFile = "/tmp/$fileName"
+$validationFileName = "restore-check-validation-$((New-Guid).ToString('N').Substring(0, 12)).sql"
+$localValidationFile = Join-Path ([System.IO.Path]::GetTempPath()) $validationFileName
+$containerValidationFile = "/tmp/$validationFileName"
 $containerId = $null
 
 if ($backupItem.Length -le 0) {
@@ -74,11 +77,16 @@ try {
     'select count(*) as orphan_service_order_equipment from "ServiceOrder" s left join "Equipment" e on e.id = s."equipmentId" where e.id is null;'
   )
 
-  foreach ($sql in $validationSql) {
-    Invoke-TechDeskCompose exec -T postgres psql -U $postgresUser -d $tempDb -v ON_ERROR_STOP=1 -c $sql | Out-Null
-    if ($LASTEXITCODE -ne 0) {
-      throw "Validacao SQL falhou no banco temporario $tempDb."
-    }
+  $validationSql | Set-Content -LiteralPath $localValidationFile -Encoding UTF8
+
+  docker cp $localValidationFile "${containerId}:$containerValidationFile"
+  if ($LASTEXITCODE -ne 0) {
+    throw "docker cp falhou para arquivo SQL de validacao."
+  }
+
+  Invoke-TechDeskCompose exec -T postgres psql -U $postgresUser -d $tempDb -v ON_ERROR_STOP=1 -f $containerValidationFile | Out-Null
+  if ($LASTEXITCODE -ne 0) {
+    throw "Validacao SQL falhou no banco temporario $tempDb."
   }
 
   Write-Host "Dump valido para listagem pg_restore."
@@ -90,5 +98,10 @@ try {
   if ($containerId) {
     Invoke-TechDeskCompose exec -T postgres dropdb -U $postgresUser --if-exists $tempDb | Out-Null
     Invoke-TechDeskCompose exec -T postgres rm -f $containerBackupFile | Out-Null
+    Invoke-TechDeskCompose exec -T postgres rm -f $containerValidationFile | Out-Null
+  }
+
+  if (Test-Path -LiteralPath $localValidationFile) {
+    Remove-Item -LiteralPath $localValidationFile -Force
   }
 }
