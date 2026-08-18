@@ -75,10 +75,19 @@ function toShellPath(path: string) {
   }).replace(/\\/g, "/");
 }
 
-function fromShellPath(path: string) {
-  return path.replace(/^\/mnt\/([a-z])\//, (_match, drive: string) => {
-    return `${drive.toUpperCase()}:\\`;
-  }).replace(/\//g, "\\");
+function fromShellPath(
+  path: string,
+  shellMode: "native" | "wsl" = hasDirectShell() ? "native" : "wsl"
+) {
+  if (shellMode === "native") {
+    return path;
+  }
+
+  return path.replace(
+    /^\/mnt\/([a-z])\/(.*)$/,
+    (_match, drive: string, rest: string) =>
+      `${drive.toUpperCase()}:\\${rest.replace(/\//g, "\\")}`
+  );
 }
 
 function shellQuote(value: string) {
@@ -172,6 +181,15 @@ function createFakeInstallerSource() {
 }
 
 describe("TechDesk setup bootstrapper", () => {
+  it("keeps shell path conversion separated from native Node filesystem paths", () => {
+    expect(fromShellPath("/tmp/techdesk-setup/logs/setup.log", "native")).toBe(
+      "/tmp/techdesk-setup/logs/setup.log"
+    );
+    expect(
+      fromShellPath("/mnt/c/Users/welis/AppData/Local/Temp/setup.log", "wsl")
+    ).toBe("C:\\Users\\welis\\AppData\\Local\\Temp\\setup.log");
+  });
+
   it("keeps production compose on versioned images and private PostgreSQL", () => {
     const compose = readFileSync(composeFile, "utf8");
 
