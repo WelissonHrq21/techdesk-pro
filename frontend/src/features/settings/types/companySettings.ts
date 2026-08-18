@@ -6,6 +6,8 @@ export type CompanySettings = {
   email: string | null;
   address: string | null;
   zipCode: string | null;
+  setupCompleted: boolean;
+  setupCompletedAt: string | null;
   createdAt: string | null;
   updatedAt: string | null;
 };

@@ -21,6 +21,7 @@ export const openApiDocument = {
     { name: "Parts" },
     { name: "Stock" },
     { name: "Settings" },
+    { name: "Setup" },
     { name: "Public" },
     { name: "Dashboard" },
     { name: "Health" },
@@ -69,6 +70,97 @@ export const openApiDocument = {
           active: { type: "boolean" },
           createdAt: { type: "string", format: "date-time" },
           updatedAt: { type: "string", format: "date-time" },
+        },
+      },
+      AuthUser: {
+        allOf: [
+          { $ref: "#/components/schemas/User" },
+          {
+            type: "object",
+            properties: {
+              setupCompleted: { type: "boolean" },
+            },
+          },
+        ],
+      },
+      CompanySettings: {
+        type: "object",
+        properties: {
+          id: { type: "string", format: "uuid" },
+          name: { type: "string" },
+          document: { type: "string", nullable: true },
+          phone: { type: "string", nullable: true },
+          email: { type: "string", nullable: true },
+          address: { type: "string", nullable: true },
+          zipCode: { type: "string", nullable: true },
+          setupCompleted: { type: "boolean" },
+          setupCompletedAt: {
+            type: "string",
+            format: "date-time",
+            nullable: true,
+          },
+          createdAt: { type: "string", format: "date-time" },
+          updatedAt: { type: "string", format: "date-time" },
+        },
+      },
+      SetupStatus: {
+        type: "object",
+        properties: {
+          setupCompleted: { type: "boolean" },
+          setupCompletedAt: {
+            type: "string",
+            format: "date-time",
+            nullable: true,
+          },
+          companySettings: {
+            allOf: [{ $ref: "#/components/schemas/CompanySettings" }],
+            nullable: true,
+          },
+          initialUsers: {
+            type: "array",
+            items: { $ref: "#/components/schemas/User" },
+          },
+        },
+      },
+      SetupCompanyRequest: {
+        type: "object",
+        required: ["name"],
+        additionalProperties: false,
+        properties: {
+          name: { type: "string", minLength: 1 },
+          document: { type: "string", nullable: true },
+          phone: { type: "string", nullable: true },
+          email: { type: "string", nullable: true },
+          address: { type: "string", nullable: true },
+          zipCode: { type: "string", nullable: true },
+        },
+      },
+      SetupAdminRequest: {
+        type: "object",
+        required: ["name", "login"],
+        additionalProperties: false,
+        properties: {
+          name: { type: "string", minLength: 1, maxLength: 100 },
+          login: { type: "string", minLength: 3, maxLength: 50 },
+        },
+      },
+      SetupUserRequest: {
+        type: "object",
+        required: ["name", "login", "role", "password"],
+        additionalProperties: false,
+        properties: {
+          name: { type: "string", minLength: 1, maxLength: 100 },
+          login: { type: "string", minLength: 3, maxLength: 50 },
+          password: { type: "string", minLength: 6, maxLength: 100 },
+          role: { type: "string", enum: ["RECEPTION", "TECHNICIAN"] },
+        },
+      },
+      CompleteSetupRequest: {
+        type: "object",
+        required: ["backupAcknowledged"],
+        additionalProperties: false,
+        properties: {
+          backupAcknowledged: { type: "boolean", enum: [true] },
         },
       },
       Customer: {
@@ -249,7 +341,17 @@ export const openApiDocument = {
       get: {
         tags: ["Sessions"],
         summary: "Get authenticated profile",
-        responses: { "200": { description: "Profile" }, "401": { description: "Unauthorized" } },
+        responses: {
+          "200": {
+            description: "Profile",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/AuthUser" },
+              },
+            },
+          },
+          "401": { description: "Unauthorized" },
+        },
       },
     },
     "/me/password": {
@@ -269,6 +371,107 @@ export const openApiDocument = {
         tags: ["Settings"],
         summary: "Update company settings. Roles: ADMIN",
         responses: { "200": { description: "Company settings updated" }, "403": { description: "Forbidden" } },
+      },
+    },
+    "/setup/status": {
+      get: {
+        tags: ["Setup"],
+        summary: "Get first-run setup status. Roles: ADMIN",
+        responses: {
+          "200": {
+            description: "Setup status",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/SetupStatus" },
+              },
+            },
+          },
+          "401": { description: "Unauthorized" },
+          "403": { description: "Forbidden" },
+        },
+      },
+    },
+    "/setup/company": {
+      patch: {
+        tags: ["Setup"],
+        summary: "Save company data during first-run setup. Roles: ADMIN",
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/SetupCompanyRequest" },
+            },
+          },
+        },
+        responses: {
+          "200": { description: "Company setup saved" },
+          "400": { description: "Invalid request" },
+          "401": { description: "Unauthorized" },
+          "403": { description: "Forbidden" },
+          "409": { description: "Setup already completed" },
+        },
+      },
+    },
+    "/setup/admin": {
+      patch: {
+        tags: ["Setup"],
+        summary: "Update bootstrap admin name and login during first-run setup. Roles: ADMIN",
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/SetupAdminRequest" },
+            },
+          },
+        },
+        responses: {
+          "200": { description: "Admin updated" },
+          "400": { description: "Invalid request" },
+          "401": { description: "Unauthorized" },
+          "403": { description: "Forbidden" },
+          "409": { description: "Setup already completed or login conflict" },
+        },
+      },
+    },
+    "/setup/users": {
+      post: {
+        tags: ["Setup"],
+        summary: "Create optional initial reception or technician users. Roles: ADMIN",
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/SetupUserRequest" },
+            },
+          },
+        },
+        responses: {
+          "201": { description: "Initial user created" },
+          "400": { description: "Invalid request" },
+          "401": { description: "Unauthorized" },
+          "403": { description: "Forbidden" },
+          "409": { description: "Setup already completed or login conflict" },
+        },
+      },
+    },
+    "/setup/complete": {
+      post: {
+        tags: ["Setup"],
+        summary: "Complete first-run setup. Roles: ADMIN",
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/CompleteSetupRequest" },
+            },
+          },
+        },
+        responses: {
+          "200": { description: "Setup completed" },
+          "400": { description: "Missing company settings or backup acknowledgement" },
+          "401": { description: "Unauthorized" },
+          "403": { description: "Forbidden" },
+        },
       },
     },
     "/public/service-orders/{token}": {

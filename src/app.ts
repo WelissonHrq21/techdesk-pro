@@ -16,6 +16,7 @@ import { partRouter } from "./routes/part.routes";
 import { publicRouter } from "./routes/public.routes";
 import { sessionRouter } from "./routes/session.routes";
 import { settingsRouter } from "./routes/settings.routes";
+import { setupRouter } from "./routes/setup.routes";
 import { stockRouter } from "./routes/stock.routes";
 import { userRouter } from "./routes/user.routes";
 
@@ -46,6 +47,7 @@ const privateRoutePrefixes = [
   "/budgets",
   "/parts",
   "/settings",
+  "/setup",
   "/stock-movements",
   "/users",
 ];
@@ -71,6 +73,7 @@ app.use(serviceOrderRouter);
 app.use(budgetRouter);
 app.use(partRouter);
 app.use(settingsRouter);
+app.use(setupRouter);
 app.use(stockRouter);
 app.use(userRouter);
 

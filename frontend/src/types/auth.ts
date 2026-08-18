@@ -5,6 +5,7 @@ export type AuthUser = {
   name: string;
   login: string;
   role: UserRole;
+  setupCompleted: boolean;
 };
 
 export type SessionResponse = {

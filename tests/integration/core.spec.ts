@@ -75,7 +75,227 @@ describe("TechDesk Pro integration rules", () => {
     await request(app)
       .get("/me")
       .set("Authorization", `Bearer ${loginResponse.body.token}`)
+      .expect(200)
+      .expect((response) => {
+        expect(response.body.setupCompleted).toBe(false);
+      });
+  });
+
+  it("runs first-run setup securely and locks it after completion", async () => {
+    const admin = await authenticateTestUser(UserRole.ADMIN);
+    const reception = await authenticateTestUser(UserRole.RECEPTION);
+    const technician = await authenticateTestUser(UserRole.TECHNICIAN);
+
+    const initialProfile = await request(app)
+      .get("/me")
+      .set("Authorization", `Bearer ${admin.token}`)
       .expect(200);
+
+    expect(initialProfile.body.setupCompleted).toBe(false);
+
+    await request(app).get("/setup/status").expect(401);
+
+    await request(app)
+      .get("/setup/status")
+      .set("Authorization", `Bearer ${reception.token}`)
+      .expect(403);
+
+    await request(app)
+      .get("/setup/status")
+      .set("Authorization", `Bearer ${technician.token}`)
+      .expect(403);
+
+    const status = await request(app)
+      .get("/setup/status")
+      .set("Authorization", `Bearer ${admin.token}`)
+      .expect(200);
+
+    expect(status.body.setupCompleted).toBe(false);
+
+    const company = await request(app)
+      .patch("/setup/company")
+      .set("Authorization", `Bearer ${admin.token}`)
+      .send({
+        name: "Assistencia Onboarding",
+        phone: "85999990000",
+        email: "setup@techdesk.test",
+      })
+      .expect(200);
+
+    expect(company.body.name).toBe("Assistencia Onboarding");
+
+    const updatedAdmin = await request(app)
+      .patch("/setup/admin")
+      .set("Authorization", `Bearer ${admin.token}`)
+      .send({
+        name: "Admin Setup",
+        login: admin.user.login,
+      })
+      .expect(200);
+
+    expect(updatedAdmin.body.name).toBe("Admin Setup");
+
+    const setupReception = await request(app)
+      .post("/setup/users")
+      .set("Authorization", `Bearer ${admin.token}`)
+      .send({
+        name: "Recepcao Setup",
+        login: "recepcao-setup",
+        password: "senha123",
+        role: "RECEPTION",
+      })
+      .expect(201);
+
+    expect(setupReception.body.role).toBe("RECEPTION");
+    expect(setupReception.body.password).toBeUndefined();
+
+    await request(app)
+      .post("/setup/users")
+      .set("Authorization", `Bearer ${admin.token}`)
+      .send({
+        name: "Recepcao Duplicada",
+        login: "recepcao-setup",
+        password: "senha123",
+        role: "RECEPTION",
+      })
+      .expect(409);
+
+    const setupTechnician = await request(app)
+      .post("/setup/users")
+      .set("Authorization", `Bearer ${admin.token}`)
+      .send({
+        name: "Tecnico Setup",
+        login: "tecnico-setup",
+        password: "senha123",
+        role: "TECHNICIAN",
+      })
+      .expect(201);
+
+    expect(setupTechnician.body.role).toBe("TECHNICIAN");
+
+    await request(app)
+      .post("/setup/users")
+      .set("Authorization", `Bearer ${admin.token}`)
+      .send({
+        name: "Admin Extra",
+        login: "admin-extra",
+        password: "senha123",
+        role: "ADMIN",
+      })
+      .expect(400);
+
+    await request(app)
+      .post("/setup/complete")
+      .set("Authorization", `Bearer ${admin.token}`)
+      .send({ backupAcknowledged: false })
+      .expect(400);
+
+    const completed = await request(app)
+      .post("/setup/complete")
+      .set("Authorization", `Bearer ${admin.token}`)
+      .send({ backupAcknowledged: true })
+      .expect(200);
+
+    expect(completed.body.setupCompleted).toBe(true);
+    expect(completed.body.setupCompletedAt).toBeTruthy();
+
+    await request(app)
+      .post("/setup/complete")
+      .set("Authorization", `Bearer ${admin.token}`)
+      .send({ backupAcknowledged: true })
+      .expect(200);
+
+    const completedProfile = await request(app)
+      .get("/me")
+      .set("Authorization", `Bearer ${admin.token}`)
+      .expect(200);
+
+    expect(completedProfile.body.setupCompleted).toBe(true);
+
+    await request(app)
+      .patch("/setup/company")
+      .set("Authorization", `Bearer ${admin.token}`)
+      .send({ name: "Blocked" })
+      .expect(409);
+
+    await request(app)
+      .patch("/setup/admin")
+      .set("Authorization", `Bearer ${admin.token}`)
+      .send({
+        name: "Blocked Admin",
+        login: admin.user.login,
+      })
+      .expect(409);
+
+    await request(app)
+      .post("/setup/users")
+      .set("Authorization", `Bearer ${admin.token}`)
+      .send({
+        name: "Blocked User",
+        login: "blocked-user",
+        password: "senha123",
+        role: "TECHNICIAN",
+      })
+      .expect(409);
+  });
+
+  it("keeps setup completion idempotent under duplicate requests", async () => {
+    const admin = await authenticateTestUser(UserRole.ADMIN);
+
+    await request(app)
+      .patch("/setup/company")
+      .set("Authorization", `Bearer ${admin.token}`)
+      .send({
+        name: "Assistencia Concorrente",
+      })
+      .expect(200);
+
+    const responses = await Promise.all([
+      request(app)
+        .post("/setup/complete")
+        .set("Authorization", `Bearer ${admin.token}`)
+        .send({ backupAcknowledged: true }),
+      request(app)
+        .post("/setup/complete")
+        .set("Authorization", `Bearer ${admin.token}`)
+        .send({ backupAcknowledged: true }),
+    ]);
+
+    expect(responses.map((response) => response.status).sort()).toEqual([
+      200,
+      200,
+    ]);
+
+    const settings = await prisma.companySettings.findMany();
+    expect(settings).toHaveLength(1);
+    expect(settings[0].setupCompleted).toBe(true);
+    expect(settings[0].setupCompletedAt).toBeTruthy();
+  });
+
+  it("classifies existing operational databases as setup completed without forcing onboarding", async () => {
+    const admin = await authenticateTestUser(UserRole.ADMIN);
+    const customer = await createTestCustomer();
+    const equipment = await createTestEquipment(customer.id);
+
+    await prisma.serviceOrder.create({
+      data: {
+        customerId: customer.id,
+        equipmentId: equipment.id,
+        reportedIssue: "Legacy service order",
+        status: ServiceOrderStatus.RECEIVED,
+      },
+    });
+
+    const status = await request(app)
+      .get("/setup/status")
+      .set("Authorization", `Bearer ${admin.token}`)
+      .expect(200);
+
+    expect(status.body.setupCompleted).toBe(true);
+
+    const settings = await prisma.companySettings.findFirstOrThrow();
+    expect(settings.setupCompleted).toBe(true);
+    expect(settings.setupCompletedAt).toBeTruthy();
   });
 
   it("validates and normalizes optional customer CPF/CNPJ documents", async () => {

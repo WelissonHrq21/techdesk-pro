@@ -106,12 +106,15 @@ model ServiceOrder {
 model CompanySettings {
   id String @id @default(uuid())
 
-  name     String
-  document String?
-  phone    String?
-  email    String?
-  address  String?
-  zipCode  String?
+  singletonKey     String    @unique @default("default")
+  name             String
+  document         String?
+  phone            String?
+  email            String?
+  address          String?
+  zipCode          String?
+  setupCompleted   Boolean   @default(false)
+  setupCompletedAt DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

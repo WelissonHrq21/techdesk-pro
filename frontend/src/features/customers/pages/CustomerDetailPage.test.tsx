@@ -18,18 +18,21 @@ const roleUsers: Record<AuthUser["role"], AuthUser> = {
     name: "Admin",
     login: "admin",
     role: "ADMIN",
+    setupCompleted: true,
   },
   RECEPTION: {
     id: "reception-id",
     name: "Recepcao",
     login: "recepcao",
     role: "RECEPTION",
+    setupCompleted: true,
   },
   TECHNICIAN: {
     id: "technician-id",
     name: "Tecnico",
     login: "tecnico",
     role: "TECHNICIAN",
+    setupCompleted: true,
   },
 };
 

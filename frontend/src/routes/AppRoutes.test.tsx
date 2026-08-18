@@ -18,6 +18,7 @@ describe("protected and role routes", () => {
         name: "Técnico",
         login: "tecnico",
         role: "TECHNICIAN",
+        setupCompleted: true,
       },
     });
 

@@ -14,6 +14,8 @@ class FindCompanySettingsService {
         email: null,
         address: null,
         zipCode: null,
+        setupCompleted: false,
+        setupCompletedAt: null,
         createdAt: null,
         updatedAt: null,
       }

@@ -72,6 +72,7 @@ describe("CustomersPage", () => {
           name: "Admin",
           login: "admin",
           role: "ADMIN",
+          setupCompleted: true,
         },
       }
     );
@@ -391,6 +392,7 @@ function renderCustomersPage() {
         name: "Admin",
         login: "admin",
         role: "ADMIN",
+        setupCompleted: true,
       },
     }
   );

@@ -32,6 +32,7 @@ export function renderWithProviders(
           isLoadingSession: false,
           signIn: async () => undefined,
           signOut: () => undefined,
+          refreshProfile: async () => undefined,
         }}
       >
         <MemoryRouter initialEntries={[route]}>{ui}</MemoryRouter>

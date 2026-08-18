@@ -3,6 +3,7 @@ import { sign } from "jsonwebtoken";
 import { authConfig } from "../../config/auth";
 import { AppError } from "../../errors/AppError";
 import { UserRepository } from "../../repositories/UserRepository";
+import { GetSetupStatusService } from "../setup/GetSetupStatusService";
 
 type CreateSessionData = {
   login: string;
@@ -35,6 +36,7 @@ class CreateSessionService {
         expiresIn: authConfig.jwt.expiresIn,
       }
     );
+    const setupStatus = await new GetSetupStatusService().execute();
 
     return {
       token,
@@ -43,6 +45,7 @@ class CreateSessionService {
         name: user.name,
         login: user.login,
         role: user.role,
+        setupCompleted: setupStatus.setupCompleted,
       },
     };
   }

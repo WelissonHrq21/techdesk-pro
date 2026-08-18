@@ -41,6 +41,20 @@ export function AuthProvider({ children, queryClient }: AuthProviderProps) {
     navigate("/login", { replace: true });
   }, [clearSession, navigate]);
 
+  const refreshProfile = useCallback(async () => {
+    const storedToken = getStoredToken();
+
+    if (!storedToken) {
+      return;
+    }
+
+    const profile = await getProfileRequest();
+
+    setToken(storedToken);
+    setUser(profile);
+    storeSession(storedToken, profile);
+  }, []);
+
   useEffect(() => {
     return registerUnauthorizedHandler(() => {
       clearSession();
@@ -95,7 +109,12 @@ export function AuthProvider({ children, queryClient }: AuthProviderProps) {
       setToken(session.token);
       setUser(session.user);
       queryClient.clear();
-      navigate("/dashboard", { replace: true });
+      navigate(
+        session.user.role === "ADMIN" && !session.user.setupCompleted
+          ? "/setup"
+          : "/dashboard",
+        { replace: true }
+      );
     },
     [navigate, queryClient]
   );
@@ -108,8 +127,9 @@ export function AuthProvider({ children, queryClient }: AuthProviderProps) {
       isLoadingSession,
       signIn,
       signOut,
+      refreshProfile,
     }),
-    [isLoadingSession, signIn, signOut, token, user]
+    [isLoadingSession, refreshProfile, signIn, signOut, token, user]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

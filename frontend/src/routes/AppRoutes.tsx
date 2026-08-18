@@ -12,6 +12,7 @@ import { TrackServiceOrderPage } from "../features/public-tracking/pages/TrackSe
 import { NewServiceOrderPage } from "../features/service-orders/pages/NewServiceOrderPage";
 import { ServiceOrderDetailPage } from "../features/service-orders/pages/ServiceOrderDetailPage";
 import { ServiceOrdersPage } from "../features/service-orders/pages/ServiceOrdersPage";
+import { SetupPage } from "../features/setup/pages/SetupPage";
 import { SettingsPage } from "../features/settings/pages/SettingsPage";
 import { UsersPage } from "../features/users/pages/UsersPage";
 import { Dashboard } from "../pages/Dashboard";
@@ -31,6 +32,7 @@ export function AppRoutes() {
       <Route path="/track/:token" element={<TrackServiceOrderPage />} />
 
       <Route element={<ProtectedRoute />}>
+        <Route path="/setup" element={<SetupPage />} />
         <Route
           path="/service-orders/:id/print"
           element={<ServiceOrderReceiptPrintPage />}
