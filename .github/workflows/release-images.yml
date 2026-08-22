@@ -171,7 +171,15 @@ jobs:
             --arg apiDigest "$API_DIGEST" \
             --arg frontendImage "$FRONTEND_IMAGE" \
             --arg frontendDigest "$FRONTEND_DIGEST" \
-            '{commit, versionCandidate, immutableTag, apiImage, apiDigest, frontendImage, frontendDigest}' \
+            '{
+              commit: $commit,
+              versionCandidate: $versionCandidate,
+              immutableTag: $immutableTag,
+              apiImage: $apiImage,
+              apiDigest: $apiDigest,
+              frontendImage: $frontendImage,
+              frontendDigest: $frontendDigest
+            }' \
             > release-images.json
 
           {

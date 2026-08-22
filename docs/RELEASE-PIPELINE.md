@@ -61,6 +61,8 @@ Required inputs:
 - `api_digest`: exact `sha256:...` from the approved candidate;
 - `frontend_digest`: exact `sha256:...` from the approved candidate;
 - `dry_run`: validation-only mode, enabled by default.
+- `lab_mode`: permits only the strict laboratory namespace and remains disabled
+  for real releases.
 
 The workflow validates both source manifests before writing any target tag:
 
@@ -175,10 +177,12 @@ Use only versions matching:
 
 ```text
 0.0.0-pipeline-test-<commit-prefix>
+0.0.0-pipeline-remote-test-<commit-prefix>
 ```
 
-The lab mode exists only in `.github/scripts/promote-release-images.sh` and is
-not exposed by the production promotion workflow. A valid regression test is:
+The promotion workflow exposes an explicit `lab_mode` input. When enabled, only
+the two patterns above are accepted; digest, platform, source, revision, CI and
+overwrite validations remain mandatory. A valid regression test is:
 
 1. promote digest A to the lab version;
 2. repeat digest A and expect idempotent success;

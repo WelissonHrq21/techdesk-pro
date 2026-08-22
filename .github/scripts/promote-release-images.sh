@@ -4,7 +4,7 @@ set -Eeuo pipefail
 
 readonly DIGEST_PATTERN='^sha256:[0-9a-f]{64}$'
 readonly FINAL_VERSION_PATTERN='^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$'
-readonly LAB_VERSION_PATTERN='^0\.0\.0-pipeline-test-[0-9a-f]{7,40}$'
+readonly LAB_VERSION_PATTERN='^0\.0\.0-pipeline-(remote-)?test-[0-9a-f]{7,40}$'
 
 require_value() {
   local name="$1"
@@ -28,7 +28,7 @@ fi
 
 if [[ "$LAB_MODE" == "true" ]]; then
   if [[ ! "$VERSION" =~ $LAB_VERSION_PATTERN ]]; then
-    echo "LAB_MODE requires a 0.0.0-pipeline-test-<sha> version." >&2
+    echo "LAB_MODE requires a 0.0.0-pipeline-test-<sha> or 0.0.0-pipeline-remote-test-<sha> version." >&2
     exit 1
   fi
 elif [[ ! "$VERSION" =~ $FINAL_VERSION_PATTERN ]]; then
@@ -78,19 +78,17 @@ validate_source_manifest() {
     exit 1
   fi
 
-  if [[ "$LAB_MODE" != "true" ]]; then
-    revision="$(docker buildx imagetools inspect "$ref" --format '{{index .Image.Config.Labels "org.opencontainers.image.revision"}}')"
-    source="$(docker buildx imagetools inspect "$ref" --format '{{index .Image.Config.Labels "org.opencontainers.image.source"}}')"
+  revision="$(docker buildx imagetools inspect "$ref" --format '{{index .Image.Config.Labels "org.opencontainers.image.revision"}}')"
+  source="$(docker buildx imagetools inspect "$ref" --format '{{index .Image.Config.Labels "org.opencontainers.image.source"}}')"
 
-    if [[ "$revision" != "$RELEASE_COMMIT" ]]; then
-      echo "Image revision label does not match RELEASE_COMMIT: ${ref}" >&2
-      exit 1
-    fi
+  if [[ "$revision" != "$RELEASE_COMMIT" ]]; then
+    echo "Image revision label does not match RELEASE_COMMIT: ${ref}" >&2
+    exit 1
+  fi
 
-    if [[ "$source" != "$EXPECTED_SOURCE" ]]; then
-      echo "Image source label does not match the expected repository: ${ref}" >&2
-      exit 1
-    fi
+  if [[ "$source" != "$EXPECTED_SOURCE" ]]; then
+    echo "Image source label does not match the expected repository: ${ref}" >&2
+    exit 1
   fi
 }
 
