@@ -1,53 +1,90 @@
-# Release v1.1.0 - TechDesk Pro
+# TechDesk Pro v1.1.0
 
-Status: Release Candidate prepared.
+TechDesk Pro v1.1.0 is the first production update after v1.0.0. It expands
+stock traceability, customer identification, first-run setup and the Linux
+installation experience while preserving the validated v1.0.0 upgrade path.
 
 ## Highlights
 
-- Auditable stock reversal for service-order part consumption.
-- Optional customer CPF/CNPJ with support for valid alphanumeric CNPJ.
-- First-run web onboarding with company setup and initial team users.
-- Frontend route code splitting and production bundle reduction.
-- Installer/setup package updated for v1.1.0 RC.
-- Production frontend uses same-origin `/api` through Nginx proxy.
-- Backup/restore-check flow validated on clean install and v1.0.0 upgrade data.
+- Auditable reversal of service-order part consumption.
+- Net consumption after reversal, preserving approved budget limits.
+- Optional customer CPF/CNPJ with normalized uniqueness and role-aware display.
+- Numeric and alphanumeric CNPJ support.
+- First-run web onboarding for company, administrator and initial team setup.
+- New Linux bootstrapper and setup experience.
+- Persistent operational runtime in `/opt/techdesk-pro`.
+- Read-only `techdesk status` without `sudo` or privileged logging.
+- Clear privilege checks before install, repair, upgrade and protected backups.
+- Backup and restore-check improvements with secret-safe operational logs.
+- Frontend route code splitting and smaller initial application loading.
+- Production same-origin `/api` proxy through Nginx.
 
-## Compatibility
+## Installation
 
-Validated upgrade path:
+The supported production target is Ubuntu Server LTS with Docker Engine and the
+Docker Compose Plugin. Use the attached installer and checksum:
 
-- source: v1.0.0 images and populated database;
-- target: v1.1.0 RC images;
-- migrations applied: 12 -> 15;
-- existing operational data preserved;
-- existing installations are marked `setupCompleted=true` during upgrade, preventing onboarding from reopening in production.
+- `techdesk-pro-setup-1.1.0.tar.gz`
+- `techdesk-pro-setup-1.1.0.tar.gz.sha256`
 
-## RC Artifact
+After extracting the package:
 
-- File: `dist/techdesk-pro-setup-1.1.0-rc.tar.gz`
-- SHA256: `BD723DAA2DDF1EE52308052276EDEEF87B77DC4D3D4E50817971E0AF8E337CCB`
+```sh
+cd deploy
+chmod +x *.sh techdesk
+./techdesk install
+```
 
-## Validation Summary
+The installer uses the versioned API and frontend images published for v1.1.0.
+PostgreSQL is private to the Docker network and is not exposed on the host.
 
-- Backend typecheck, tests, build and audit: pass.
-- Frontend lint, tests, build and audit: pass.
-- Docker API image build: pass.
-- Docker frontend image build: pass.
-- Clean install: pass.
-- Upgrade v1.0.0 -> v1.1.0: pass.
+## Upgrade From v1.0.0
+
+Back up the existing installation and validate the backup before upgrading.
+Keep an external copy of the dump and the current `.env` in protected storage.
+
+From the extracted v1.1.0 package, run:
+
+```sh
+sudo ./techdesk upgrade --version 1.1.0
+```
+
+The upgrade performs another mandatory pre-upgrade backup before changing image
+references. Automatic downgrade is intentionally unsupported.
+
+The v1.0.0 -> v1.1.0 path was validated with a populated database. All 15
+migrations applied, operational data and secrets were preserved, and existing
+installations did not reopen first-run onboarding.
+
+## Validation
+
+- Clean installation on Ubuntu: pass.
+- Upgrade from v1.0.0 with existing data: pass.
+- Health and ready checks: pass.
 - Backup and restore-check: pass.
-- Restart persistence: pass.
-- CORS restricted without `*`: pass.
-- Swagger disabled in production flag: pass.
-- Log secret scan: pass.
+- Real reboot and container autostart: pass.
+- Data, PostgreSQL volume, JWT secret and PostgreSQL password persistence: pass.
+- Non-root status from different working directories: pass.
+- PostgreSQL host exposure check: pass, not exposed.
+- Backend and frontend automated regression: pass.
+- Setup security and non-root harnesses: pass.
+- Logs and distribution artifact secret scan: pass.
 
-## Known Operational Note
+No known P0, P1, P2 or P3 issue remains from the final release smoke.
 
-The Linux installer path should receive one final smoke test on the real target Linux host. In the local Windows/WSL validation, Docker Desktop was accessible from PowerShell but not from the WSL shell used by the Linux installer command.
+## Docker Images
 
-## Release Guardrails
+- `ghcr.io/welissonhrq21/techdesk-pro-api:1.1.0`
+- `ghcr.io/welissonhrq21/techdesk-pro-frontend:1.1.0`
 
-- Do not move or recreate `v1.0.0`.
-- Do not publish `latest` before final approval.
-- Do not create final tag `v1.1.0` until RC is explicitly approved.
-- Use versioned images for production deployment.
+The release uses explicit version tags. It does not require or publish `latest`.
+
+## Security Notes
+
+- `.env` remains private and is never included in the installer archive.
+- Installation metadata is readable for status but contains no secrets.
+- Setup logs redact passwords, tokens and credential-bearing URLs.
+- Backups, logs and runtime secrets retain restrictive permissions.
+
+See `deploy/README-INSTALL.md` and `deploy/README-BACKUP-RESTORE.md` for the full
+operational procedures.
