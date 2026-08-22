@@ -62,7 +62,7 @@ antes de gerar secrets, iniciar containers ou tocar no banco.
 
 Passos:
 
-1. Extraia o pacote `techdesk-pro-setup-1.1.1-rc.1.tar.gz`.
+1. Extraia o pacote `techdesk-pro-setup-1.1.1-rc.N.tar.gz` ou o pacote final aprovado.
 2. Abra o PowerShell na pasta extraida `deploy`.
 3. Execute:
 

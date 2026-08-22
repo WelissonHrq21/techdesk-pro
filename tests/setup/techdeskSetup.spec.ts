@@ -666,6 +666,8 @@ describe("TechDesk setup bootstrapper", () => {
       [
         'archive="$(PACKAGE_SUFFIX=rc.1 "$1")"',
         'tar -tvzf "$archive" | awk \'/deploy\\/techdesk$/ || /deploy\\/VERSION$/ || /deploy\\/README-INSTALL.md$/ || /deploy\\/nginx\\/default.conf$/ {print $1, $NF}\'',
+        'printf "VERSION_CONTENT="',
+        'tar -xOzf "$archive" techdesk-pro-setup-1.1.1-rc.1/deploy/VERSION',
       ].join("\n"),
       [packageScript]
     );
@@ -680,6 +682,7 @@ describe("TechDesk setup bootstrapper", () => {
     expect(result.stdout).toContain(
       "-rw-r--r-- techdesk-pro-setup-1.1.1-rc.1/deploy/nginx/default.conf"
     );
+    expect(result.stdout).toContain("VERSION_CONTENT=1.1.1-rc.1");
   });
 
   it.runIf(hasShell())(
@@ -700,6 +703,8 @@ describe("TechDesk setup bootstrapper", () => {
           'printf "\\n"',
           'semver_upgrade_classification 1.1.0 1.0.0',
           'printf "\\n"',
+          'semver_upgrade_classification 1.1.1-rc.1 1.1.0',
+          'printf "\\n"',
           'semver_upgrade_classification 1.10.0 1.0.0',
           'printf "\\n"',
           'semver_upgrade_classification 0.9.0 1.0.0',
@@ -715,6 +720,7 @@ describe("TechDesk setup bootstrapper", () => {
         "INVALID_VERSION",
         "INVALID_VERSION",
         "SAME_VERSION",
+        "UPGRADE",
         "UPGRADE",
         "UPGRADE",
         "DOWNGRADE",

@@ -101,7 +101,7 @@ install_cmd() {
   fi
 
   if ! semver_is_valid "$target_version"; then
-    fail "Versao alvo invalida ou desconhecida: ${target_version}. Use X.Y.Z, por exemplo 1.1.1." || true
+    fail "Versao alvo invalida ou desconhecida: ${target_version}. Use X.Y.Z ou X.Y.Z-rc.N, por exemplo 1.1.1." || true
     return 2
   fi
 

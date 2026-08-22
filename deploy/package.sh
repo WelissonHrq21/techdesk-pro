@@ -6,7 +6,9 @@ REPO_ROOT="$(CDPATH= cd -- "${DEPLOY_ROOT}/.." && pwd)"
 VERSION="$(cat "${DEPLOY_ROOT}/VERSION")"
 OUT_DIR="${REPO_ROOT}/dist"
 PACKAGE_SUFFIX="${PACKAGE_SUFFIX-rc}"
+PACKAGE_VERSION="$VERSION"
 if [ -n "$PACKAGE_SUFFIX" ]; then
+  PACKAGE_VERSION="${VERSION}-${PACKAGE_SUFFIX}"
   PACKAGE_NAME="techdesk-pro-setup-${VERSION}-${PACKAGE_SUFFIX}"
   PACKAGE_LABEL="Release Candidate package"
 else
@@ -53,11 +55,13 @@ for file in \
   copy_file "${DEPLOY_ROOT}/${file}" "${STAGING}/deploy/${file}"
 done
 
+printf '%s\n' "$PACKAGE_VERSION" > "${STAGING}/deploy/VERSION"
+
 mkdir -p "${STAGING}/deploy/nginx"
 copy_file "${DEPLOY_ROOT}/nginx/default.conf" "${STAGING}/deploy/nginx/default.conf"
 
 cat > "${STAGING}/README.txt" <<EOF
-TechDesk Pro Setup ${VERSION} - ${PACKAGE_LABEL}
+TechDesk Pro Setup ${PACKAGE_VERSION} - ${PACKAGE_LABEL}
 
 Official production target: Ubuntu Server LTS with Docker Engine and Docker Compose Plugin.
 

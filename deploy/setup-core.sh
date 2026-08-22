@@ -381,7 +381,7 @@ semver_normalize() {
 }
 
 semver_is_valid() {
-  printf '%s' "$1" | grep -Eq '^v?[0-9]+\.[0-9]+\.[0-9]+$'
+  printf '%s' "$1" | grep -Eq '^v?[0-9]+\.[0-9]+\.[0-9]+(-rc\.[1-9][0-9]*)?$'
 }
 
 semver_cmp() {
@@ -894,6 +894,7 @@ self_test_setup_core() {
   [ "$(semver_upgrade_classification abc 1.0.0)" = "INVALID_VERSION" ] || return 1
   [ "$(semver_upgrade_classification 1.0.0 1.0.0)" = "SAME_VERSION" ] || return 1
   [ "$(semver_upgrade_classification 1.1.0 1.0.0)" = "UPGRADE" ] || return 1
+  [ "$(semver_upgrade_classification 1.1.1-rc.1 1.1.0)" = "UPGRADE" ] || return 1
   [ "$(semver_upgrade_classification 1.10.0 1.0.0)" = "UPGRADE" ] || return 1
   [ "$(semver_upgrade_classification 0.9.0 1.0.0)" = "DOWNGRADE" ] || return 1
   validate_port 8080 || return 1
