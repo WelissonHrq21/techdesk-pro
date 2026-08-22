@@ -1,92 +1,194 @@
-name: Release Docker Images
+name: Build Release Candidate Images
 
 on:
-  push:
-    tags:
-      - "v*"
   workflow_dispatch:
     inputs:
-      version:
-        description: "Image version without v prefix"
+      candidate_version:
+        description: "RC version, for example 1.2.0-rc.1"
         required: true
-        default: "1.0.0"
-      source_ref:
-        description: "Git ref to build"
+        type: string
+      source_commit:
+        description: "Full 40-character commit SHA already approved by CI"
         required: true
-        default: "v1.0.0"
-      push_images:
-        description: "Push images to GHCR"
-        required: true
-        default: true
-        type: boolean
+        type: string
 
 permissions:
+  actions: read
   contents: read
   packages: write
 
+concurrency:
+  group: build-release-candidate-${{ inputs.candidate_version }}
+  cancel-in-progress: false
+
 jobs:
-  images:
+  build:
     runs-on: ubuntu-latest
+    env:
+      CANDIDATE_VERSION: ${{ inputs.candidate_version }}
+      SOURCE_COMMIT: ${{ inputs.source_commit }}
+      GH_TOKEN: ${{ github.token }}
 
     steps:
+      - name: Validate candidate inputs
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+
+          if [[ ! "$CANDIDATE_VERSION" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)-rc\.([1-9][0-9]*)$ ]]; then
+            echo "candidate_version must use SemVer RC format, for example 1.2.0-rc.1." >&2
+            exit 1
+          fi
+
+          if [[ ! "$SOURCE_COMMIT" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "source_commit must be a full lowercase 40-character commit SHA." >&2
+            exit 1
+          fi
+
+      - name: Checkout approved source
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.source_commit }}
+          fetch-depth: 0
+
+      - name: Validate source commit and CI
+        env:
+          RELEASE_COMMIT: ${{ inputs.source_commit }}
+        run: bash .github/scripts/validate-release-commit.sh
+
       - name: Resolve image metadata
         id: meta
         shell: bash
         run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            version="${{ inputs.version }}"
-            source_ref="${{ inputs.source_ref }}"
-            push_images="${{ inputs.push_images }}"
-          else
-            version="${GITHUB_REF_NAME#v}"
-            source_ref="${GITHUB_REF_NAME}"
-            push_images="true"
-          fi
+          set -Eeuo pipefail
 
-          owner="$(echo "${GITHUB_REPOSITORY_OWNER}" | tr '[:upper:]' '[:lower:]')"
+          owner="$(printf '%s' "$GITHUB_REPOSITORY_OWNER" | tr '[:upper:]' '[:lower:]')"
+          created="$(git show -s --format=%cI "$SOURCE_COMMIT")"
 
-          echo "version=${version}" >> "$GITHUB_OUTPUT"
-          echo "source_ref=${source_ref}" >> "$GITHUB_OUTPUT"
-          echo "push_images=${push_images}" >> "$GITHUB_OUTPUT"
           echo "api_image=ghcr.io/${owner}/techdesk-pro-api" >> "$GITHUB_OUTPUT"
           echo "frontend_image=ghcr.io/${owner}/techdesk-pro-frontend" >> "$GITHUB_OUTPUT"
-
-      - name: Checkout release source
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ steps.meta.outputs.source_ref }}
+          echo "sha_tag=sha-${SOURCE_COMMIT}" >> "$GITHUB_OUTPUT"
+          echo "created=${created}" >> "$GITHUB_OUTPUT"
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
 
       - name: Login to GHCR
-        if: steps.meta.outputs.push_images == 'true'
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build API image
-        uses: docker/build-push-action@v6
+      - name: Refuse existing candidate tags
+        shell: bash
+        env:
+          API_IMAGE: ${{ steps.meta.outputs.api_image }}
+          FRONTEND_IMAGE: ${{ steps.meta.outputs.frontend_image }}
+          SHA_TAG: ${{ steps.meta.outputs.sha_tag }}
+        run: |
+          set -Eeuo pipefail
+
+          inspect_absence() {
+            local ref="$1"
+            local output
+
+            if output="$(docker buildx imagetools inspect "$ref" 2>&1)"; then
+              echo "Candidate tag already exists and will not be overwritten: ${ref}" >&2
+              exit 1
+            fi
+
+            if ! grep -Eqi 'not found|manifest unknown' <<< "$output"; then
+              echo "Could not safely determine whether candidate tag exists: ${ref}" >&2
+              echo "$output" >&2
+              exit 1
+            fi
+          }
+
+          for image in "$API_IMAGE" "$FRONTEND_IMAGE"; do
+            inspect_absence "${image}:${CANDIDATE_VERSION}"
+            inspect_absence "${image}:${SHA_TAG}"
+          done
+
+      - name: Build and push API candidate
+        id: api
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: ./Dockerfile
           platforms: linux/amd64
-          push: ${{ steps.meta.outputs.push_images == 'true' }}
+          push: true
+          provenance: mode=max
+          cache-from: type=gha,scope=release-api
+          cache-to: type=gha,mode=max,scope=release-api
           tags: |
-            ${{ steps.meta.outputs.api_image }}:${{ steps.meta.outputs.version }}
-            ${{ steps.meta.outputs.api_image }}:v${{ steps.meta.outputs.version }}
+            ${{ steps.meta.outputs.api_image }}:${{ inputs.candidate_version }}
+            ${{ steps.meta.outputs.api_image }}:${{ steps.meta.outputs.sha_tag }}
+          labels: |
+            org.opencontainers.image.created=${{ steps.meta.outputs.created }}
+            org.opencontainers.image.revision=${{ inputs.source_commit }}
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.version=${{ inputs.candidate_version }}
 
-      - name: Build frontend image
-        uses: docker/build-push-action@v6
+      - name: Build and push frontend candidate
+        id: frontend
+        uses: docker/build-push-action@v7
         with:
           context: ./frontend
           file: ./frontend/Dockerfile
           platforms: linux/amd64
-          push: ${{ steps.meta.outputs.push_images == 'true' }}
+          push: true
+          provenance: mode=max
+          cache-from: type=gha,scope=release-frontend
+          cache-to: type=gha,mode=max,scope=release-frontend
           build-args: |
             VITE_API_URL=/api
           tags: |
-            ${{ steps.meta.outputs.frontend_image }}:${{ steps.meta.outputs.version }}
-            ${{ steps.meta.outputs.frontend_image }}:v${{ steps.meta.outputs.version }}
+            ${{ steps.meta.outputs.frontend_image }}:${{ inputs.candidate_version }}
+            ${{ steps.meta.outputs.frontend_image }}:${{ steps.meta.outputs.sha_tag }}
+          labels: |
+            org.opencontainers.image.created=${{ steps.meta.outputs.created }}
+            org.opencontainers.image.revision=${{ inputs.source_commit }}
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.version=${{ inputs.candidate_version }}
+
+      - name: Create release candidate metadata
+        shell: bash
+        env:
+          API_IMAGE: ${{ steps.meta.outputs.api_image }}
+          API_DIGEST: ${{ steps.api.outputs.digest }}
+          FRONTEND_IMAGE: ${{ steps.meta.outputs.frontend_image }}
+          FRONTEND_DIGEST: ${{ steps.frontend.outputs.digest }}
+          SHA_TAG: ${{ steps.meta.outputs.sha_tag }}
+        run: |
+          set -Eeuo pipefail
+
+          jq -n \
+            --arg commit "$SOURCE_COMMIT" \
+            --arg versionCandidate "$CANDIDATE_VERSION" \
+            --arg immutableTag "$SHA_TAG" \
+            --arg apiImage "$API_IMAGE" \
+            --arg apiDigest "$API_DIGEST" \
+            --arg frontendImage "$FRONTEND_IMAGE" \
+            --arg frontendDigest "$FRONTEND_DIGEST" \
+            '{commit, versionCandidate, immutableTag, apiImage, apiDigest, frontendImage, frontendDigest}' \
+            > release-images.json
+
+          {
+            echo "## Release candidate images"
+            echo
+            echo "- Commit: \`$SOURCE_COMMIT\`"
+            echo "- Candidate: \`$CANDIDATE_VERSION\`"
+            echo "- API: \`$API_IMAGE@$API_DIGEST\`"
+            echo "- Frontend: \`$FRONTEND_IMAGE@$FRONTEND_DIGEST\`"
+            echo
+            echo "Final version tags were not created."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload release candidate metadata
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-images-${{ inputs.candidate_version }}
+          path: release-images.json
+          if-no-files-found: error
+          retention-days: 90

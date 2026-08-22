@@ -18,7 +18,10 @@ Imagens planejadas:
 - Frontend: `ghcr.io/welissonhrq21/techdesk-pro-frontend:1.0.0`
 - Banco: `postgres:16`
 
-O workflow `.github/workflows/release-images.yml` prepara publicacao no GitHub Container Registry com `workflow_dispatch`, permitindo checkout da tag `v1.0.0` sem mover/recriar a tag existente.
+O fluxo atual de publicacao esta documentado em `docs/RELEASE-PIPELINE.md`.
+`.github/workflows/release-images.yml` publica apenas candidatos imutaveis, e
+`.github/workflows/promote-release-images.yml` promove os digests aprovados sem
+rebuild. Push de Git tag nao publica nem recompila imagens.
 
 ## Same-origin
 
@@ -130,6 +133,7 @@ O README orienta copia off-host.
 
 ## Limitacoes atuais
 
-- As imagens foram publicadas no GHCR via GitHub Actions; push direto local retornou `denied`, entao publicacao deve ser feita pelo workflow.
+- Imagens finais devem ser publicadas exclusivamente pelo workflow de promocao
+  por digest. Push direto e rebuild de tags finais nao fazem parte do processo.
 - O Docker daemon foi iniciado depois; smoke limpo por container passou com imagens locais buildadas da tag `v1.0.0`.
 - O pacote foi testado em diretorio limpo com imagens publicadas, incluindo smoke funcional e backup.

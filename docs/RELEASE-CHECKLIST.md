@@ -1,4 +1,4 @@
-# Release Checklist - TechDesk Pro v1.0.0 RC
+# Release Checklist - TechDesk Pro
 
 Use este checklist antes de promover uma build para operação real.
 
@@ -12,6 +12,11 @@ Use este checklist antes de promover uma build para operação real.
 - [ ] Frontend `npm test` passou.
 - [ ] Frontend `npm run build` passou.
 - [ ] Docker build validado.
+- [ ] CI verde no commit exato da release.
+- [ ] Build RC executado com nova identidade `X.Y.Z-rc.N`.
+- [ ] `release-images.json` arquivado.
+- [ ] Digests da API e frontend registrados e aprovados.
+- [ ] OCI revision/source correspondem ao commit e repositorio.
 - [ ] Migrations revisadas.
 - [ ] Nenhuma migration pendente.
 - [ ] Backup realizado.
@@ -24,6 +29,13 @@ Use este checklist antes de promover uma build para operação real.
 - [ ] Volumes persistentes confirmados.
 
 ## Deploy
+
+- [ ] Promotion dry run passou com os digests aprovados.
+- [ ] Tags Docker finais ainda nao existem ou apontam para os mesmos digests.
+- [ ] Promotion real passou sem rebuild.
+- [ ] `:<version>` e `:v<version>` resolvem para os digests aprovados.
+- [ ] Git tag criada somente depois da verificacao das imagens finais.
+- [ ] GitHub Release criada somente depois da Git tag.
 
 - [ ] PostgreSQL healthy.
 - [ ] Migrations aplicadas com `prisma migrate deploy`.
@@ -60,6 +72,7 @@ Use este checklist antes de promover uma build para operação real.
 - [ ] CORS validado no navegador.
 - [ ] RBAC validado por papéis.
 - [ ] Persistência validada após restart.
+- [ ] Integridade pos-publicacao confirmou Git tag, assets e RepoDigests.
 
 ## Rollback
 
@@ -69,3 +82,6 @@ Use este checklist antes de promover uma build para operação real.
 - [ ] Decisão explícita sobre rollback de aplicação.
 - [ ] Decisão explícita sobre restore de banco.
 - [ ] Nenhuma ação destrutiva executada sem backup validado.
+- [ ] Tags finais nao serao sobrescritas; correcao normal usa nova patch version.
+
+Procedimento completo: `docs/RELEASE-PIPELINE.md`.
