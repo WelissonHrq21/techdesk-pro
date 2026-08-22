@@ -100,6 +100,11 @@ install_cmd() {
     return 2
   fi
 
+  if ! semver_is_valid "$target_version"; then
+    fail "Versao alvo invalida ou desconhecida: ${target_version}. Use X.Y.Z, por exemplo 1.1.1." || true
+    return 2
+  fi
+
   preflight install "$port" || return 10
 
   say "[2/8] Preparando configuracao persistente..."
@@ -132,7 +137,10 @@ install_cmd() {
   wait_for_ready 60 || return 60
 
   say "[8/8] Finalizando..."
-  write_metadata "$target_version"
+  if ! write_metadata "$target_version"; then
+    fail "Metadata de instalacao nao foi persistida. Instalacao marcada como parcial; dados e containers foram preservados." || true
+    return 90
+  fi
   ensure_env_permissions
   say "TechDesk Pro instalado com sucesso."
   say "Versao: ${target_version}"
@@ -151,6 +159,7 @@ status_cmd() {
   echo "TechDesk Pro"
   echo ""
   echo "Version: ${version}"
+  version_diagnostics || true
   echo "Installation: ${state}"
   echo "Runtime: ${DEPLOY_ROOT}"
   echo "Env: ${ENV_FILE}"
@@ -202,6 +211,7 @@ status_cmd() {
   show_urls
 
   if [ "$state" = "INSTALLED_HEALTHY" ]; then
+    version_diagnostics >/dev/null 2>&1 || return 1
     return 0
   fi
   return 1
@@ -261,7 +271,20 @@ repair_cmd() {
     return 60
   fi
   run_logged "seed admin idempotent" compose exec -T api node /app/deploy/seed-admin.js || true
-  write_metadata "$(current_version)" "$(metadata_value lastUpgradeAt "")"
+
+  repair_version="$(current_version)"
+  if [ "$(metadata_value version "")" = "" ]; then
+    say "Metadata ausente; validando fontes de versao antes de reconstruir."
+    repair_version="$(coherent_recovery_version)" || return 90
+  fi
+  if [ "$repair_version" = "UNKNOWN" ]; then
+    fail "Unable to determine installed TechDesk version. Repair nao reconstruira metadata ambigua." || true
+    return 90
+  fi
+  if ! write_metadata "$repair_version" "$(metadata_value lastUpgradeAt "")"; then
+    fail "Metadata de instalacao nao foi persistida apos repair." || true
+    return 90
+  fi
   ensure_env_permissions
   say "Repair concluido. TechDesk Pro healthy/ready."
   show_urls
@@ -296,6 +319,10 @@ upgrade_cmd() {
   fi
 
   current="$(current_version)"
+  if [ "$current" = "UNKNOWN" ]; then
+    fail "Unable to determine installed TechDesk version. Upgrade bloqueado." || true
+    return 2
+  fi
   version_class="$(semver_upgrade_classification "$target_version" "$current")"
   if [ "$version_class" = "INVALID_VERSION" ]; then
     fail "invalid SemVer: ${target_version}. Use X.Y.Z, por exemplo 1.1.0."
@@ -343,7 +370,10 @@ upgrade_cmd() {
     return 60
   fi
 
-  write_metadata "$target_version" "$(setup_timestamp)"
+  if ! write_metadata "$target_version" "$(setup_timestamp)"; then
+    fail "Metadata de upgrade nao foi persistida. Upgrade aplicado parcialmente; backup foi preservado." || true
+    return 90
+  fi
   ensure_env_permissions
   say "Upgrade concluido com sucesso."
   show_urls

@@ -4,7 +4,7 @@ Este pacote instala o TechDesk Pro usando Docker. A maquina operacional nao prec
 
 ## Caminho recomendado
 
-A partir da v1.1.0, o ponto de entrada recomendado no Linux e:
+A partir da v1.1.x, o ponto de entrada recomendado no Linux e:
 
 ```sh
 cd deploy
@@ -62,7 +62,7 @@ antes de gerar secrets, iniciar containers ou tocar no banco.
 
 Passos:
 
-1. Extraia o pacote `techdesk-pro-setup-1.1.0.tar.gz`.
+1. Extraia o pacote `techdesk-pro-setup-1.1.1-rc.1.tar.gz`.
 2. Abra o PowerShell na pasta extraida `deploy`.
 3. Execute:
 
@@ -224,8 +224,9 @@ Metadata nao guarda `POSTGRES_PASSWORD`, `JWT_SECRET`, `ADMIN_PASSWORD`, tokens 
 Logs sao sanitizados para nao registrar secrets, connection strings com senha, Bearer token ou `publicToken`.
 
 No Linux, `.env` e logs individuais usam modo `600`; diretorios de logs e
-backups usam `700`. A metadata usa `644` para permitir o `status` read-only e
-nao contem secrets, senhas, tokens ou dados funcionais da assistencia.
+backups usam `700`. A metadata e o arquivo publico `VERSION` usam `644` para
+permitir o `status` read-only e nao contem secrets, senhas, tokens ou dados
+funcionais da assistencia.
 
 O `.env` nao e recriado em rerun, repair ou upgrade. `JWT_SECRET`,
 `POSTGRES_PASSWORD` e `ADMIN_PASSWORD` existentes sao preservados.
@@ -303,9 +304,11 @@ IP da maquina mudou:
 
 ## Atualizacoes
 
-Producao nao deve seguir `main` automaticamente. Atualizacoes devem usar imagens versionadas, por exemplo `1.0.1`, precedidas de backup e smoke test.
+Producao nao deve seguir `main` automaticamente. Atualizacoes devem usar imagens versionadas, por exemplo `1.1.1`, precedidas de backup validado e smoke test.
 
-Como a v1.1.0 ainda esta em desenvolvimento, nao execute `upgrade --version 1.1.0` em producao ate existirem imagens publicadas e release aprovada.
+A v1.1.0 ja foi publicada. Use uma versao de patch aprovada, como `1.1.1`,
+quando o objetivo for corrigir instalacoes v1.1.0 existentes sem entrar no
+escopo planejado para v1.2.0.
 
 ## Desinstalacao futura
 

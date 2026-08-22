@@ -11,8 +11,10 @@ METADATA_FILE="${METADATA_FILE:-${DEPLOY_ROOT}/techdesk-installation.json}"
 LOG_DIR="${LOG_DIR:-${DEPLOY_ROOT}/logs}"
 BACKUP_DIR="${BACKUP_DIR:-${DEPLOY_ROOT}/backups}"
 RUNTIME_ROOT="${TECHDESK_RUNTIME_ROOT:-/opt/techdesk-pro}"
-INSTALLER_VERSION="${INSTALLER_VERSION:-1.1.0}"
-DEFAULT_VERSION="$(cat "${DEPLOY_ROOT}/VERSION" 2>/dev/null || printf '1.0.0')"
+INSTALLER_VERSION="${INSTALLER_VERSION:-1.1.1}"
+UNKNOWN_VERSION="UNKNOWN"
+DEFAULT_VERSION="$(sed -n '1{s/[[:space:]]//g;p;q;}' "${DEPLOY_ROOT}/VERSION" 2>/dev/null || true)"
+DEFAULT_VERSION="${DEFAULT_VERSION:-$UNKNOWN_VERSION}"
 DEFAULT_PROJECT_NAME="${DEFAULT_PROJECT_NAME:-techdesk-prod}"
 DEFAULT_PORT="${DEFAULT_PORT:-8080}"
 SETUP_LOG_FILE="${SETUP_LOG_FILE:-}"
@@ -161,6 +163,17 @@ sync_runtime_from_source() {
   done
 
   chmod 755 "$staging/techdesk" "$staging"/*.sh 2>/dev/null || true
+  chmod 644 \
+    "$staging/VERSION" \
+    "$staging/.env.example" \
+    "$staging/README-INSTALL.md" \
+    "$staging/README-BACKUP-RESTORE.md" \
+    "$staging/docker-compose.yml" \
+    "$staging/seed-admin.js" \
+    "$staging/nginx/default.conf" || {
+      echo "Falha ao aplicar permissoes publicas no runtime staging." >&2
+      return 1
+    }
   chmod 700 "$staging/logs" "$staging/backups" 2>/dev/null || true
 
   runtime_file_list | while IFS= read -r file; do
@@ -178,6 +191,17 @@ sync_runtime_from_source() {
     cp "${staging}/${file}" "${RUNTIME_ROOT}/${file}"
   done
   chmod 755 "${RUNTIME_ROOT}/techdesk" "${RUNTIME_ROOT}"/*.sh 2>/dev/null || true
+  chmod 644 \
+    "${RUNTIME_ROOT}/VERSION" \
+    "${RUNTIME_ROOT}/.env.example" \
+    "${RUNTIME_ROOT}/README-INSTALL.md" \
+    "${RUNTIME_ROOT}/README-BACKUP-RESTORE.md" \
+    "${RUNTIME_ROOT}/docker-compose.yml" \
+    "${RUNTIME_ROOT}/seed-admin.js" \
+    "${RUNTIME_ROOT}/nginx/default.conf" || {
+      echo "Falha ao aplicar permissoes publicas no runtime permanente." >&2
+      return 1
+    }
   chmod 700 "${RUNTIME_ROOT}/logs" "${RUNTIME_ROOT}/backups" 2>/dev/null || true
   rm -rf "$staging"
 }
@@ -413,26 +437,98 @@ semver_upgrade_classification() {
 metadata_value() {
   name="$1"
   default="${2:-}"
-  if [ ! -f "$METADATA_FILE" ]; then
+  if [ ! -r "$METADATA_FILE" ]; then
     printf '%s' "$default"
     return
   fi
-  value="$(grep -E "\"${name}\"[[:space:]]*:" "$METADATA_FILE" | head -n 1 | sed -E "s/.*\"${name}\"[[:space:]]*:[[:space:]]*\"([^\"]*)\".*/\1/" || true)"
+  value="$(grep -E "\"${name}\"[[:space:]]*:" "$METADATA_FILE" 2>/dev/null | head -n 1 | sed -E "s/.*\"${name}\"[[:space:]]*:[[:space:]]*\"([^\"]*)\".*/\1/" || true)"
   [ -n "$value" ] && printf '%s' "$value" || printf '%s' "$default"
 }
 
+version_file_value() {
+  if [ ! -r "${DEPLOY_ROOT}/VERSION" ]; then
+    return 1
+  fi
+  value="$(sed -n '1{s/[[:space:]]//g;p;q;}' "${DEPLOY_ROOT}/VERSION" 2>/dev/null || true)"
+  [ -n "$value" ] || return 1
+  printf '%s' "$value"
+}
+
+image_tag_version() {
+  image="$1"
+  [ -n "$image" ] || return 1
+  case "$image" in
+    *:*) printf '%s' "${image##*:}" ;;
+    *) return 1 ;;
+  esac
+}
+
+coherent_recovery_version() {
+  candidate=""
+  for source in \
+    "VERSION:$(version_file_value 2>/dev/null || true)" \
+    "TECHDESK_VERSION:$(env_value TECHDESK_VERSION "")" \
+    "TECHDESK_API_IMAGE:$(image_tag_version "$(env_value TECHDESK_API_IMAGE "")" 2>/dev/null || true)" \
+    "TECHDESK_FRONTEND_IMAGE:$(image_tag_version "$(env_value TECHDESK_FRONTEND_IMAGE "")" 2>/dev/null || true)"; do
+    name="${source%%:*}"
+    value="${source#*:}"
+    [ -n "$value" ] || continue
+    if ! semver_is_valid "$value"; then
+      fail "Fonte de versao invalida em ${name}: ${value}." >&2
+      return 1
+    fi
+    if [ -z "$candidate" ]; then
+      candidate="$value"
+      continue
+    fi
+    if [ "$candidate" != "$value" ]; then
+      fail "Versoes divergentes detectadas (${candidate} != ${value}) em ${name}. Metadata nao sera reconstruida automaticamente." >&2
+      return 1
+    fi
+  done
+
+  if [ -z "$candidate" ]; then
+    fail "Unable to determine installed TechDesk version." >&2
+    return 1
+  fi
+
+  printf '%s' "$candidate"
+}
+
 current_version() {
-  version="$(metadata_value version "")"
-  if [ -n "$version" ]; then
-    printf '%s' "$version"
+  metadata_version="$(metadata_value version "")"
+  if [ -n "$metadata_version" ]; then
+    printf '%s' "$metadata_version"
     return
   fi
-  image="$(env_value TECHDESK_API_IMAGE "")"
-  if [ -n "$image" ]; then
-    printf '%s' "$image" | awk -F: '{print $NF}'
+  file_version="$(version_file_value 2>/dev/null || true)"
+  if [ -n "$file_version" ]; then
+    printf '%s' "$file_version"
     return
   fi
-  printf '%s' "$DEFAULT_VERSION"
+  printf '%s' "$UNKNOWN_VERSION"
+}
+
+version_diagnostics() {
+  metadata_version="$(metadata_value version "")"
+  file_version="$(version_file_value 2>/dev/null || true)"
+
+  if [ -n "$metadata_version" ] && [ -n "$file_version" ] && [ "$metadata_version" != "$file_version" ]; then
+    echo "WARNING: metadata version (${metadata_version}) differs from VERSION file (${file_version})."
+    return 1
+  fi
+
+  if [ -z "$metadata_version" ] && [ -n "$file_version" ]; then
+    echo "WARNING: metadata ausente; usando VERSION publico como fallback read-only."
+    return 1
+  fi
+
+  if [ "$(current_version)" = "$UNKNOWN_VERSION" ]; then
+    echo "WARNING: Unable to determine installed TechDesk version."
+    return 1
+  fi
+
+  return 0
 }
 
 write_metadata() {
@@ -462,9 +558,14 @@ write_metadata() {
     echo "  \"frontendPort\": \"${port}\","
     echo "  \"installerVersion\": \"${INSTALLER_VERSION}\""
     echo "}"
-  } > "$tmp"
-  chmod 644 "$tmp" 2>/dev/null || true
-  mv "$tmp" "$METADATA_FILE"
+  } > "$tmp" || return 1
+  chmod 644 "$tmp" || {
+    rm -f "$tmp"
+    return 1
+  }
+  mv "$tmp" "$METADATA_FILE" || return 1
+  chmod 644 "$METADATA_FILE" || return 1
+  [ "$(metadata_value version "")" = "$version" ] || return 1
 }
 
 docker_available() {
@@ -544,6 +645,11 @@ detect_installation_state() {
   fi
 
   if [ "$has_env" -eq 0 ] || [ "$has_compose" -eq 0 ]; then
+    printf 'PARTIAL_INSTALLATION'
+    return
+  fi
+
+  if [ "$has_env" -eq 1 ] && [ "$has_metadata" -eq 0 ]; then
     printf 'PARTIAL_INSTALLATION'
     return
   fi
@@ -773,6 +879,7 @@ apply_target_images() {
 ensure_env_permissions() {
   [ -f "$ENV_FILE" ] && chmod 600 "$ENV_FILE" 2>/dev/null || true
   [ -f "$METADATA_FILE" ] && chmod 644 "$METADATA_FILE" 2>/dev/null || true
+  [ -f "${DEPLOY_ROOT}/VERSION" ] && chmod 644 "${DEPLOY_ROOT}/VERSION" 2>/dev/null || true
   [ -d "$LOG_DIR" ] && chmod 700 "$LOG_DIR" 2>/dev/null || true
   [ -d "$BACKUP_DIR" ] && chmod 700 "$BACKUP_DIR" 2>/dev/null || true
 }
