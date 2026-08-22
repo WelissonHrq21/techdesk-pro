@@ -65,7 +65,15 @@ This package intentionally excludes .env, secrets, logs, backups, node_modules, 
 EOF
 
 if command -v tar >/dev/null 2>&1; then
-  tar -C "$OUT_DIR" -czf "${OUT_DIR}/${PACKAGE_NAME}.tar.gz" "$PACKAGE_NAME"
+  ARCHIVE_WORK_DIR="$(mktemp -d)"
+  trap 'rm -rf "$ARCHIVE_WORK_DIR"' EXIT INT TERM
+  cp -R "$STAGING" "${ARCHIVE_WORK_DIR}/${PACKAGE_NAME}"
+  find "${ARCHIVE_WORK_DIR}/${PACKAGE_NAME}" -type d -exec chmod 755 {} +
+  find "${ARCHIVE_WORK_DIR}/${PACKAGE_NAME}" -type f -exec chmod 644 {} +
+  chmod 755 \
+    "${ARCHIVE_WORK_DIR}/${PACKAGE_NAME}/deploy/techdesk" \
+    "${ARCHIVE_WORK_DIR}/${PACKAGE_NAME}/deploy/"*.sh
+  tar -C "$ARCHIVE_WORK_DIR" -czf "${OUT_DIR}/${PACKAGE_NAME}.tar.gz" "$PACKAGE_NAME"
   echo "${OUT_DIR}/${PACKAGE_NAME}.tar.gz"
 elif command -v zip >/dev/null 2>&1; then
   (cd "$OUT_DIR" && zip -qr "${PACKAGE_NAME}.zip" "$PACKAGE_NAME")

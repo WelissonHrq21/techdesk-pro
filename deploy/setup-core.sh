@@ -36,6 +36,38 @@ setup_log_init() {
   chmod 600 "$SETUP_LOG_FILE" 2>/dev/null || true
 }
 
+require_operation_access() {
+  operation="$1"
+  needs_env_write="${2:-0}"
+  access_ok=1
+
+  [ -d "$DEPLOY_ROOT" ] && [ -w "$DEPLOY_ROOT" ] || access_ok=0
+  [ -d "$LOG_DIR" ] && [ -w "$LOG_DIR" ] || access_ok=0
+
+  case "$operation" in
+    install)
+      ;;
+    repair)
+      [ -r "$ENV_FILE" ] || access_ok=0
+      if [ -f "$METADATA_FILE" ]; then
+        [ -w "$METADATA_FILE" ] || access_ok=0
+      fi
+      ;;
+    upgrade|backup|restore-check)
+      [ -r "$ENV_FILE" ] || access_ok=0
+      [ -d "$BACKUP_DIR" ] && [ -w "$BACKUP_DIR" ] || access_ok=0
+      ;;
+  esac
+
+  if [ "$needs_env_write" = "1" ]; then
+    [ -w "$ENV_FILE" ] || access_ok=0
+  fi
+
+  [ "$access_ok" -eq 1 ] && return 0
+
+  fail "Esta operacao requer privilegios administrativos. Execute novamente com sudo."
+}
+
 physical_path() {
   path="$1"
   if [ -d "$path" ]; then
@@ -88,17 +120,27 @@ ensure_runtime_privileges() {
   fi
 
   if ! command -v sudo >/dev/null 2>&1; then
-    fail "Permissao insuficiente para criar ${RUNTIME_ROOT}; execute com sudo ou defina TECHDESK_RUNTIME_ROOT para um caminho persistente gravavel."
+    fail "Esta operacao requer privilegios administrativos. Execute com sudo ou defina TECHDESK_RUNTIME_ROOT para um caminho persistente gravavel."
     return 1
   fi
 
-  if ! sudo -v; then
-    fail "Permissao sudo nao obtida; instalacao abortada antes de modificar o runtime permanente."
-    return 1
+  fail "Esta operacao requer privilegios administrativos. Execute novamente com sudo."
+}
+
+reexec_with_admin_privileges() {
+  command_name="$1"
+  shift
+
+  [ "$(id -u 2>/dev/null || printf 1)" != "0" ] || return 0
+  [ -d "$RUNTIME_ROOT" ] && [ -w "$RUNTIME_ROOT" ] && return 0
+
+  if ! command -v sudo >/dev/null 2>&1; then
+    fail "Esta operacao requer privilegios administrativos e sudo nao esta disponivel."
+    exit 1
   fi
 
-  sudo mkdir -p "$RUNTIME_ROOT"
-  sudo chown "$(id -u):$(id -g)" "$RUNTIME_ROOT"
+  echo "Esta operacao requer privilegios administrativos. Solicitando sudo antes de modificar o runtime."
+  exec sudo env TECHDESK_RUNTIME_ROOT="$RUNTIME_ROOT" "${DEPLOY_ROOT}/techdesk" "$command_name" "$@"
 }
 
 sync_runtime_from_source() {
@@ -152,6 +194,7 @@ ensure_or_delegate_runtime() {
 
   case "$command_name" in
     install)
+      reexec_with_admin_privileges "$command_name" "$@"
       sync_runtime_from_source || exit 1
       echo "Runtime permanente preparado em ${RUNTIME_ROOT}."
       echo "Continuando instalacao a partir do runtime permanente."
@@ -162,6 +205,7 @@ ensure_or_delegate_runtime() {
         fail "Instalacao persistente nao encontrada em ${RUNTIME_ROOT}. Execute install primeiro."
         exit 1
       fi
+      reexec_with_admin_privileges "$command_name" "$@"
       sync_runtime_from_source || exit 1
       echo "Runtime permanente atualizado a partir do pacote em ${RUNTIME_ROOT}."
       exec "${RUNTIME_ROOT}/techdesk" upgrade "$@"
@@ -254,11 +298,13 @@ env_value() {
 }
 
 project_name() {
-  env_value TECHDESK_PROJECT_NAME "$DEFAULT_PROJECT_NAME"
+  metadata_project="$(metadata_value projectName "")"
+  env_value TECHDESK_PROJECT_NAME "${metadata_project:-$DEFAULT_PROJECT_NAME}"
 }
 
 techdesk_port() {
-  env_value TECHDESK_PORT "$DEFAULT_PORT"
+  metadata_port="$(metadata_value frontendPort "")"
+  env_value TECHDESK_PORT "${metadata_port:-$DEFAULT_PORT}"
 }
 
 base_url() {
@@ -371,7 +417,7 @@ metadata_value() {
     printf '%s' "$default"
     return
   fi
-  value="$(grep -E "\"${name}\"[[:space:]]*:" "$METADATA_FILE" | head -n 1 | sed -E 's/.*:[[:space:]]*"([^"]*)".*/\1/' || true)"
+  value="$(grep -E "\"${name}\"[[:space:]]*:" "$METADATA_FILE" | head -n 1 | sed -E "s/.*\"${name}\"[[:space:]]*:[[:space:]]*\"([^\"]*)\".*/\1/" || true)"
   [ -n "$value" ] && printf '%s' "$value" || printf '%s' "$default"
 }
 
@@ -417,7 +463,7 @@ write_metadata() {
     echo "  \"installerVersion\": \"${INSTALLER_VERSION}\""
     echo "}"
   } > "$tmp"
-  chmod 600 "$tmp" 2>/dev/null || true
+  chmod 644 "$tmp" 2>/dev/null || true
   mv "$tmp" "$METADATA_FILE"
 }
 
@@ -425,8 +471,26 @@ docker_available() {
   command -v docker >/dev/null 2>&1
 }
 
+docker_access_state() {
+  if ! docker_available; then
+    printf 'NOT_INSTALLED'
+    return
+  fi
+
+  docker_info_output="$(docker info 2>&1)" && {
+    printf 'RUNNING'
+    return
+  }
+
+  if printf '%s' "$docker_info_output" | grep -Eqi 'permission denied|docker\.sock.*denied|access is denied'; then
+    printf 'PERMISSION_DENIED'
+  else
+    printf 'UNAVAILABLE'
+  fi
+}
+
 docker_daemon_running() {
-  docker info >/dev/null 2>&1
+  [ "$(docker_access_state)" = "RUNNING" ]
 }
 
 compose_available() {
@@ -447,6 +511,12 @@ volume_count() {
     return
   fi
   docker volume ls --filter "label=com.docker.compose.project=$(project_name)" --format '{{.Name}}' 2>/dev/null | wc -l | tr -d ' '
+}
+
+show_container_status() {
+  docker ps -a \
+    --filter "label=com.docker.compose.project=$(project_name)" \
+    --format 'table {{.Name}}\t{{.Status}}' 2>/dev/null || true
 }
 
 frontend_responds() {
@@ -702,7 +772,7 @@ apply_target_images() {
 
 ensure_env_permissions() {
   [ -f "$ENV_FILE" ] && chmod 600 "$ENV_FILE" 2>/dev/null || true
-  [ -f "$METADATA_FILE" ] && chmod 600 "$METADATA_FILE" 2>/dev/null || true
+  [ -f "$METADATA_FILE" ] && chmod 644 "$METADATA_FILE" 2>/dev/null || true
   [ -d "$LOG_DIR" ] && chmod 700 "$LOG_DIR" 2>/dev/null || true
   [ -d "$BACKUP_DIR" ] && chmod 700 "$BACKUP_DIR" 2>/dev/null || true
 }

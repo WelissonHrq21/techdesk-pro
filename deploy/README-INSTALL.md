@@ -16,9 +16,9 @@ Depois da instalacao:
 
 ```sh
 /opt/techdesk-pro/techdesk status
-/opt/techdesk-pro/techdesk repair
-/opt/techdesk-pro/techdesk backup
-/opt/techdesk-pro/techdesk upgrade --version X.Y.Z
+sudo /opt/techdesk-pro/techdesk repair
+sudo /opt/techdesk-pro/techdesk backup
+sudo /opt/techdesk-pro/techdesk upgrade --version X.Y.Z
 ```
 
 O diretorio extraido do installer pode ser removido depois de um `install`
@@ -62,7 +62,7 @@ antes de gerar secrets, iniciar containers ou tocar no banco.
 
 Passos:
 
-1. Extraia o pacote `techdesk-pro-setup-1.1.0-rc.tar.gz` ou a revisao de distribuicao aprovada mais recente.
+1. Extraia o pacote `techdesk-pro-setup-1.1.0-rc2.tar.gz` ou a revisao de distribuicao aprovada mais recente.
 2. Abra o PowerShell na pasta extraida `deploy`.
 3. Execute:
 
@@ -130,13 +130,21 @@ Modo nao interativo para automacao futura:
 Mostra versao, estado da instalacao, runtime, `.env`, metadata, logs, backups,
 Docker, Compose, containers, health, ready e URLs. Nao mostra secrets.
 
+`status` e read-only e nao cria log persistente. Ele pode ser executado sem
+`sudo`: usa a metadata publica para descobrir versao, projeto e porta sem ler
+o `.env`. Se o usuario nao tiver acesso ao Docker socket, o comando mostra um
+diagnostico especifico e ainda verifica `health` e `ready` por HTTP.
+
 ### REPAIR
 
 ```sh
-/opt/techdesk-pro/techdesk repair
+sudo /opt/techdesk-pro/techdesk repair
 ```
 
 Operacao nao destrutiva. Pode subir containers parados, baixar imagem conhecida ausente, revalidar health/ready e preservar banco, volumes e secrets.
+
+No runtime oficial em `/opt/techdesk-pro`, execute com `sudo`. O CLI valida a
+permissao antes de criar logs ou iniciar alteracoes.
 
 Nao executa:
 
@@ -149,10 +157,13 @@ Nao executa:
 ### UPGRADE
 
 ```sh
-/opt/techdesk-pro/techdesk upgrade --version X.Y.Z
+sudo /opt/techdesk-pro/techdesk upgrade --version X.Y.Z
 ```
 
 Exige backup pre-upgrade validado antes de trocar imagens. Bloqueia downgrade automatico e so atualiza metadata depois de health/ready/smoke passarem.
+
+No runtime oficial em `/opt/techdesk-pro`, execute com `sudo`. O CLI falha cedo
+com diagnostico de privilegio quando nao puder alterar `.env`, logs ou backups.
 
 Versoes invalidas, como `invalid`, `1`, `1.0` ou `abc`, falham como SemVer
 invalido antes da classificacao de downgrade.
@@ -160,7 +171,7 @@ invalido antes da classificacao de downgrade.
 ### BACKUP
 
 ```sh
-/opt/techdesk-pro/techdesk backup
+sudo /opt/techdesk-pro/techdesk backup
 ```
 
 Gera dump PostgreSQL em formato custom (`pg_dump -Fc`), valida com
@@ -212,7 +223,9 @@ Metadata nao guarda `POSTGRES_PASSWORD`, `JWT_SECRET`, `ADMIN_PASSWORD`, tokens 
 
 Logs sao sanitizados para nao registrar secrets, connection strings com senha, Bearer token ou `publicToken`.
 
-No Linux, `.env`, metadata, logs e backups recebem permissoes restritivas quando o sistema permite.
+No Linux, `.env` e logs individuais usam modo `600`; diretorios de logs e
+backups usam `700`. A metadata usa `644` para permitir o `status` read-only e
+nao contem secrets, senhas, tokens ou dados funcionais da assistencia.
 
 O `.env` nao e recriado em rerun, repair ou upgrade. `JWT_SECRET`,
 `POSTGRES_PASSWORD` e `ADMIN_PASSWORD` existentes sao preservados.

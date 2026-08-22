@@ -77,6 +77,7 @@ install_cmd() {
     esac
   done
 
+  require_operation_access install || return 1
   setup_log_init
   trap 'say "Instalacao interrompida. Dados e arquivos existentes foram preservados."; exit 130' INT TERM
 
@@ -142,10 +143,10 @@ install_cmd() {
 }
 
 status_cmd() {
-  setup_log_init
   state="$(detect_installation_state)"
   version="$(current_version)"
   port="$(techdesk_port)"
+  docker_state="$(docker_access_state)"
 
   echo "TechDesk Pro"
   echo ""
@@ -156,23 +157,29 @@ status_cmd() {
   echo "Metadata: ${METADATA_FILE}"
   echo "Logs: ${LOG_DIR}"
   echo "Backups: ${BACKUP_DIR}"
-  if docker_available; then
-    if docker_daemon_running; then
+  case "$docker_state" in
+    RUNNING)
       echo "Docker: running"
-    else
-      echo "Docker: installed but stopped"
-    fi
-  else
-    echo "Docker: not installed"
-  fi
+      ;;
+    PERMISSION_DENIED)
+      echo "Docker: permission denied"
+      echo "WARNING: sem acesso ao Docker socket; verifique o grupo docker ou use sudo para diagnosticos de containers."
+      ;;
+    UNAVAILABLE)
+      echo "Docker: installed but unavailable"
+      ;;
+    *)
+      echo "Docker: not installed"
+      ;;
+  esac
   if docker_available && compose_available; then
     echo "Compose: available"
   else
     echo "Compose: unavailable"
   fi
 
-  if [ -f "$ENV_FILE" ] && docker_available && docker_daemon_running; then
-    compose ps || true
+  if [ "$docker_state" = "RUNNING" ]; then
+    show_container_status
   fi
 
   if frontend_responds; then
@@ -201,6 +208,7 @@ status_cmd() {
 }
 
 backup_cmd() {
+  require_operation_access backup || return 1
   setup_log_init
   require_env
   tmp="${LOG_DIR}/backup-command-$$.tmp"
@@ -215,6 +223,7 @@ backup_cmd() {
 }
 
 restore_check_cmd() {
+  require_operation_access restore-check || return 1
   setup_log_init
   require_env
   tmp="${LOG_DIR}/restore-check-command-$$.tmp"
@@ -229,6 +238,7 @@ restore_check_cmd() {
 }
 
 repair_cmd() {
+  require_operation_access repair || return 1
   setup_log_init
   trap 'say "Repair interrompido. Nenhuma limpeza destrutiva foi executada."; exit 130' INT TERM
   require_env
@@ -269,6 +279,7 @@ upgrade_cmd() {
     esac
   done
 
+  require_operation_access upgrade 1 || return 1
   setup_log_init
   trap 'say "Upgrade interrompido. Backup/env/banco existentes foram preservados; consulte logs antes de nova tentativa."; exit 130' INT TERM
   require_env
