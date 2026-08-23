@@ -502,7 +502,7 @@ export const openApiDocument = {
               },
             },
           },
-          "401": { description: "Unauthorized" },
+          "401": { description: "Invalid, expired, legacy, or revoked session" },
         },
       },
     },
@@ -510,7 +510,8 @@ export const openApiDocument = {
       put: {
         tags: ["Sessions"],
         summary: "Change own password. Roles: authenticated users",
-        responses: { "200": { description: "Password changed" }, "400": { description: "Invalid current password or new password" } },
+        description: "Changes the password and immediately revokes every existing session, including the token used for this request. The user must authenticate again.",
+        responses: { "200": { description: "Password changed; reauthentication required" }, "400": { description: "Invalid current password or new password" }, "401": { description: "Invalid or revoked session" } },
       },
     },
     "/settings/company": {
@@ -641,8 +642,8 @@ export const openApiDocument = {
     },
     "/users/{id}": {
       get: { tags: ["Users"], summary: "Get user. Roles: ADMIN", parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }], responses: { "200": { description: "User" } } },
-      put: { tags: ["Users"], summary: "Update user. Roles: ADMIN", parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }], responses: { "200": { description: "User updated" } } },
-      delete: { tags: ["Users"], summary: "Deactivate user. Roles: ADMIN", parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }], responses: { "200": { description: "User deactivated" } } },
+      put: { tags: ["Users"], summary: "Update user. Roles: ADMIN", description: "Password resets and role changes revoke all sessions for the affected user. Name and login changes do not revoke sessions.", parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }], responses: { "200": { description: "User updated" } } },
+      delete: { tags: ["Users"], summary: "Deactivate user. Roles: ADMIN", description: "Deactivation revokes all sessions. Reactivation cannot restore previously issued tokens.", parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }], responses: { "200": { description: "User deactivated" } } },
     },
     "/customers": {
       get: { tags: ["Customers"], summary: "List customers. Roles: ADMIN, RECEPTION, TECHNICIAN", responses: { "200": { description: "Paginated customers" } } },
@@ -670,10 +671,10 @@ export const openApiDocument = {
       get: { tags: ["Service Orders"], summary: "Get service order detail", parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }], responses: { "200": { description: "Service order" } } },
     },
     "/service-orders/{id}/status": {
-      patch: { tags: ["Service Orders"], summary: "Change service order status. Roles depend on transition", parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }], responses: { "200": { description: "Status changed" } } },
+      patch: { tags: ["Service Orders"], summary: "Change service order status. Roles depend on transition", description: "Serializes transitions per service order. A concurrent incompatible or duplicate transition returns 409 and creates no duplicate history.", parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }], responses: { "200": { description: "Status changed" }, "409": { description: "Service order changed concurrently; reload and try again" } } },
     },
     "/service-orders/{id}/diagnosis": {
-      patch: { tags: ["Service Orders"], summary: "Update diagnosis. Roles: ADMIN, TECHNICIAN", parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }], responses: { "200": { description: "Diagnosis updated" } } },
+      patch: { tags: ["Service Orders"], summary: "Update diagnosis. Roles: ADMIN, TECHNICIAN", description: "Revalidates the service order status under lock. A concurrent status change returns 409 without overwriting the diagnosis.", parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }], responses: { "200": { description: "Diagnosis updated" }, "409": { description: "Service order changed concurrently; reload and try again" } } },
     },
     "/service-orders/{id}/budgets": {
       post: { tags: ["Budgets"], summary: "Create a PART, SERVICE, or mixed budget. Roles: ADMIN, TECHNICIAN", description: "SERVICE-only budgets are valid. Legacy items without type remain PART when partId is present. The server calculates the next version and snapshots descriptions and prices.", parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }], requestBody: { required: true, content: { "application/json": { schema: { $ref: "#/components/schemas/CreateBudgetRequest" } } } }, responses: { "201": { description: "Complete budget version created" }, "400": { description: "Invalid PART or SERVICE item, or service order status" }, "404": { description: "Service order or Part not found" }, "409": { description: "Budget version changed concurrently; reload and try again" } } },
@@ -682,13 +683,13 @@ export const openApiDocument = {
       post: { tags: ["Budgets"], summary: "Create an immutable mixed budget revision. Roles: ADMIN, TECHNICIAN", description: "Preserves all previous versions. Creation is atomic and serialized per service order; a concurrent same-version revision returns 409.", parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }], requestBody: { required: true, content: { "application/json": { schema: { $ref: "#/components/schemas/CreateBudgetRevisionRequest" } } } }, responses: { "201": { description: "Complete budget revision created" }, "400": { description: "Invalid PART or SERVICE item, or service order status" }, "404": { description: "Service order, previous budget, user, or Part not found" }, "409": { description: "Budget version changed concurrently or revision conflicts with consumed Parts" } } },
     },
     "/budgets/{id}/approve": {
-      post: { tags: ["Budgets"], summary: "Approve budget. Roles: ADMIN, RECEPTION", parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }], responses: { "200": { description: "Budget approved" } } },
+      post: { tags: ["Budgets"], summary: "Approve budget. Roles: ADMIN, RECEPTION", description: "The latest budget decision is serialized by service order. Duplicate, stale, or competing decisions return 409.", parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }], responses: { "200": { description: "Budget approved" }, "409": { description: "Budget already received a decision or changed concurrently" } } },
     },
     "/budgets/{id}/reject": {
-      post: { tags: ["Budgets"], summary: "Reject budget. Roles: ADMIN, RECEPTION", parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }], responses: { "200": { description: "Budget rejected" } } },
+      post: { tags: ["Budgets"], summary: "Reject budget. Roles: ADMIN, RECEPTION", description: "The latest budget decision is serialized by service order. Duplicate, stale, or competing decisions return 409.", parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }], responses: { "200": { description: "Budget rejected" }, "409": { description: "Budget already received a decision or changed concurrently" } } },
     },
     "/service-orders/{id}/parts/{partId}/consume": {
-      post: { tags: ["Stock"], summary: "Consume part in service order. Roles: ADMIN, TECHNICIAN", parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }, { name: "partId", in: "path", required: true, schema: { type: "string", format: "uuid" } }], responses: { "201": { description: "Part consumed" } } },
+      post: { tags: ["Stock"], summary: "Consume part in service order. Roles: ADMIN, TECHNICIAN", description: "Locks and revalidates the service order and latest budget before locking the Part. Concurrent status or budget changes return 409 without stock effects.", parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }, { name: "partId", in: "path", required: true, schema: { type: "string", format: "uuid" } }], responses: { "201": { description: "Part consumed" }, "409": { description: "Service order, budget, quantity, or stock changed concurrently" } } },
     },
     "/parts": {
       get: {

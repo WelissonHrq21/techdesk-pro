@@ -1,4 +1,9 @@
-import { Prisma, ServiceOrderStatus } from "@prisma/client";
+import {
+  BudgetItemType,
+  Prisma,
+  ServiceOrderStatus,
+  StockMovementType,
+} from "@prisma/client";
 import { prisma } from "../config/prisma";
 import { AppError } from "../errors/AppError";
 import { PreparedBudgetItem } from "../types/budget";
@@ -14,6 +19,15 @@ type CreateBudgetData = {
 
 type CreateBudgetRevisionData = CreateBudgetData & {
   previousStatus: ServiceOrderStatus;
+  userId?: string;
+  observation?: string;
+};
+
+type DecideBudgetData = {
+  budgetId: string;
+  serviceOrderId: string;
+  expectedStatus: ServiceOrderStatus;
+  newStatus: ServiceOrderStatus;
   userId?: string;
   observation?: string;
 };
@@ -80,6 +94,7 @@ class BudgetRepository {
     try {
       return await prisma.$transaction(async (transaction) => {
         await this.assertVersionBaseline(transaction, data);
+        await this.assertRevisionCoversConsumedParts(transaction, data);
 
         const budget = await this.createBudgetRecord(
           transaction,
@@ -113,6 +128,47 @@ class BudgetRepository {
     }
   }
 
+  async decide(data: DecideBudgetData) {
+    return prisma.$transaction(async (transaction) => {
+      const lockedOrder = await this.lockServiceOrder(
+        transaction,
+        data.serviceOrderId
+      );
+      const latestBudget = await transaction.budget.findFirst({
+        where: { serviceOrderId: data.serviceOrderId },
+        orderBy: { version: "desc" },
+        select: { id: true },
+      });
+
+      if (
+        lockedOrder.status !== data.expectedStatus ||
+        latestBudget?.id !== data.budgetId
+      ) {
+        throw new AppError(
+          "Budget decision conflict. Reload the service order and try again",
+          409
+        );
+      }
+
+      const serviceOrder = await transaction.serviceOrder.update({
+        where: { id: data.serviceOrderId },
+        data: { status: data.newStatus },
+      });
+
+      await transaction.serviceOrderHistory.create({
+        data: {
+          serviceOrderId: data.serviceOrderId,
+          previousStatus: data.expectedStatus,
+          newStatus: data.newStatus,
+          userId: data.userId,
+          observation: data.observation,
+        },
+      });
+
+      return serviceOrder;
+    });
+  }
+
   private async assertVersionBaseline(
     transaction: Prisma.TransactionClient,
     data: Pick<
@@ -120,20 +176,10 @@ class BudgetRepository {
       "serviceOrderId" | "expectedVersion" | "expectedStatus"
     >
   ) {
-    const lockedOrders = await transaction.$queryRaw<
-      Array<{ id: string; status: ServiceOrderStatus }>
-    >`
-      SELECT "id", "status"
-      FROM "ServiceOrder"
-      WHERE "id" = ${data.serviceOrderId}
-      FOR UPDATE
-    `;
-
-    const lockedOrder = lockedOrders[0];
-
-    if (!lockedOrder) {
-      throw new AppError("Service order not found", 404);
-    }
+    const lockedOrder = await this.lockServiceOrder(
+      transaction,
+      data.serviceOrderId
+    );
 
     const latestBudget = await transaction.budget.findFirst({
       where: {
@@ -153,6 +199,100 @@ class BudgetRepository {
     ) {
       throw this.versionConflictError();
     }
+  }
+
+  private async assertRevisionCoversConsumedParts(
+    transaction: Prisma.TransactionClient,
+    data: CreateBudgetRevisionData
+  ) {
+    const exits = await transaction.stockMovement.findMany({
+      where: {
+        serviceOrderId: data.serviceOrderId,
+        type: StockMovementType.EXIT,
+      },
+      select: { id: true, partId: true, quantity: true },
+    });
+
+    if (exits.length === 0) {
+      return;
+    }
+
+    const reversals = await transaction.stockMovement.groupBy({
+      by: ["reversalOfMovementId"],
+      where: {
+        type: StockMovementType.REVERSAL,
+        reversalOfMovementId: { in: exits.map((item) => item.id) },
+      },
+      _sum: { quantity: true },
+    });
+    const reversedByExitId = new Map(
+      reversals.map((item) => [
+        item.reversalOfMovementId,
+        item._sum.quantity ?? 0,
+      ])
+    );
+    const consumedByPartId = new Map<string, number>();
+
+    for (const exit of exits) {
+      const consumed =
+        exit.quantity - (reversedByExitId.get(exit.id) ?? 0);
+
+      if (consumed > 0) {
+        consumedByPartId.set(
+          exit.partId,
+          (consumedByPartId.get(exit.partId) ?? 0) + consumed
+        );
+      }
+    }
+
+    const revisionByPartId = new Map<string, number>();
+
+    for (const item of data.items) {
+      if (item.type === BudgetItemType.PART && item.partId) {
+        revisionByPartId.set(
+          item.partId,
+          (revisionByPartId.get(item.partId) ?? 0) + item.quantity
+        );
+      }
+    }
+
+    for (const [partId, consumed] of consumedByPartId) {
+      const revisionQuantity = revisionByPartId.get(partId);
+
+      if (revisionQuantity === undefined) {
+        throw new AppError(
+          "Revised budget cannot remove a part already consumed",
+          409
+        );
+      }
+
+      if (revisionQuantity < consumed) {
+        throw new AppError(
+          "Revised budget quantity cannot be lower than already consumed quantity",
+          409
+        );
+      }
+    }
+  }
+
+  private async lockServiceOrder(
+    transaction: Prisma.TransactionClient,
+    serviceOrderId: string
+  ) {
+    const orders = await transaction.$queryRaw<
+      Array<{ id: string; status: ServiceOrderStatus }>
+    >`
+      SELECT "id", "status"
+      FROM "ServiceOrder"
+      WHERE "id" = ${serviceOrderId}
+      FOR UPDATE
+    `;
+
+    if (!orders[0]) {
+      throw new AppError("Service order not found", 404);
+    }
+
+    return orders[0];
   }
 
   private createBudgetRecord(

@@ -243,8 +243,19 @@ export function ServiceOrderDetailPage() {
     setFormError(null);
   }
 
-  function handleError(error: unknown) {
-    setFormError(getFriendlyErrorMessage(error));
+  async function handleError(error: unknown) {
+    const status = getApiErrorStatus(error);
+    const message = getFriendlyErrorMessage(error);
+
+    setFormError(message);
+
+    if (status === 409) {
+      showToast(message, "error");
+      await serviceOrderQuery.refetch();
+      resetModalState();
+      return;
+    }
+
     void serviceOrderQuery.refetch();
   }
 
@@ -326,7 +337,7 @@ export function ServiceOrderDetailPage() {
       resetModalState();
       showToast(config.successMessage, "success");
     } catch (error) {
-      handleError(error);
+      await handleError(error);
     }
   }
 
@@ -336,7 +347,7 @@ export function ServiceOrderDetailPage() {
       resetModalState();
       showToast("Diagnóstico salvo.", "success");
     } catch (error) {
-      handleError(error);
+      await handleError(error);
     }
   }
 
@@ -346,7 +357,7 @@ export function ServiceOrderDetailPage() {
       resetModalState();
       showToast("Orçamento criado.", "success");
     } catch (error) {
-      handleError(error);
+      await handleError(error);
     }
   }
 
@@ -368,7 +379,7 @@ export function ServiceOrderDetailPage() {
         return;
       }
 
-      handleError(error);
+      await handleError(error);
     }
   }
 
@@ -394,7 +405,7 @@ export function ServiceOrderDetailPage() {
 
       resetModalState();
     } catch (error) {
-      handleError(error);
+      await handleError(error);
     }
   }
 
@@ -415,7 +426,7 @@ export function ServiceOrderDetailPage() {
       resetModalState();
       showToast("Peça consumida com sucesso.", "success");
     } catch (error) {
-      handleError(error);
+      await handleError(error);
     }
   }
 

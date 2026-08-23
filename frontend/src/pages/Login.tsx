@@ -2,12 +2,16 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { LockKeyhole, UserRound } from "lucide-react";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
+import { useLocation } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 import { type LoginFormData, loginSchema } from "../schemas/loginSchema";
 import { getApiErrorMessage } from "../utils/apiError";
 
 export function Login() {
   const { signIn } = useAuth();
+  const location = useLocation();
+  const sessionMessage = (location.state as { message?: string } | null)
+    ?.message;
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const {
     register,
@@ -81,6 +85,14 @@ export function Login() {
             </div>
 
             <form className="space-y-4" onSubmit={handleSubmit(onSubmit)}>
+              {sessionMessage && (
+                <div
+                  className="rounded-md border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-800"
+                  role="status"
+                >
+                  {sessionMessage}
+                </div>
+              )}
               <div>
                 <label
                   htmlFor="login"

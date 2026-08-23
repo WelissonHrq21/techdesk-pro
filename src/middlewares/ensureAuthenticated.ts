@@ -8,6 +8,7 @@ import { UserRepository } from "../repositories/UserRepository";
 type TokenPayload = {
   sub?: string;
   role?: UserRole;
+  tokenVersion?: number;
 };
 
 type VerifiedTokenPayload = TokenPayload & {
@@ -49,10 +50,17 @@ export async function ensureAuthenticated(
     }
 
     const userRepository = new UserRepository();
-    const user = await userRepository.findById(decoded.sub);
+    const user = await userRepository.findAuthenticationById(decoded.sub);
 
     if (!user || !user.active) {
       throw new AppError("Invalid authentication token", 401);
+    }
+
+    if (
+      !Number.isInteger(decoded.tokenVersion) ||
+      decoded.tokenVersion !== user.tokenVersion
+    ) {
+      throw new AppError("Session revoked", 401);
     }
 
     request.user = {

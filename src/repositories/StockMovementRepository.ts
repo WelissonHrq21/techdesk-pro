@@ -20,6 +20,8 @@ type CreateStockExitData = CreateStockEntryData & {
 
 type CreateServiceOrderStockExitData = CreateStockEntryData & {
   serviceOrderId: string;
+  budgetId: string;
+  expectedStatus: ServiceOrderStatus;
   approvedQuantity: number;
 };
 
@@ -156,6 +158,26 @@ class StockMovementRepository {
     return prisma.$transaction(async (transaction) => {
       await this.lockServiceOrder(transaction, data.serviceOrderId);
 
+      const lockedOrder = await transaction.serviceOrder.findUnique({
+        where: { id: data.serviceOrderId },
+        select: { status: true },
+      });
+      const latestBudget = await transaction.budget.findFirst({
+        where: { serviceOrderId: data.serviceOrderId },
+        orderBy: { version: "desc" },
+        select: { id: true },
+      });
+
+      if (
+        lockedOrder?.status !== data.expectedStatus ||
+        latestBudget?.id !== data.budgetId
+      ) {
+        throw new AppError(
+          "Service order changed concurrently. Reload and try again",
+          409
+        );
+      }
+
       const netConsumed =
         await this.sumNetConsumedQuantityByPartAndServiceOrder(
           data.partId,
@@ -260,6 +282,22 @@ class StockMovementRepository {
 
   async reverseExitMovement(data: ReverseStockMovementData) {
     return prisma.$transaction(async (transaction) => {
+      const movementReference = await transaction.stockMovement.findUnique({
+        where: { id: data.movementId },
+        select: { serviceOrderId: true },
+      });
+
+      if (!movementReference) {
+        throw new AppError("Stock movement not found", 404);
+      }
+
+      if (movementReference.serviceOrderId) {
+        await this.lockServiceOrder(
+          transaction,
+          movementReference.serviceOrderId
+        );
+      }
+
       await transaction.$queryRaw`
         SELECT "id"
         FROM "StockMovement"
@@ -318,11 +356,6 @@ class StockMovementRepository {
           400
         );
       }
-
-      await this.lockServiceOrder(
-        transaction,
-        originalMovement.serviceOrderId
-      );
 
       await this.lockPart(transaction, originalMovement.partId);
 

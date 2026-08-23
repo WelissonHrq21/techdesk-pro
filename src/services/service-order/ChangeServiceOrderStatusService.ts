@@ -99,6 +99,7 @@ class ChangeServiceOrderStatusService {
       newStatus: status,
       userId,
       observation,
+      requireBudget: status === ServiceOrderStatus.AWAITING_APPROVAL,
     });
   }
 }

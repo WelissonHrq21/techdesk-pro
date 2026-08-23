@@ -7,7 +7,7 @@ export type AuthContextValue = {
   isAuthenticated: boolean;
   isLoadingSession: boolean;
   signIn: (login: string, password: string) => Promise<void>;
-  signOut: () => void;
+  signOut: (message?: string) => void;
   refreshProfile: () => Promise<void>;
 };
 

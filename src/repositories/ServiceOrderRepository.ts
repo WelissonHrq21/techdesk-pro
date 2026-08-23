@@ -1,6 +1,7 @@
 import { Prisma, ServiceOrderStatus, UserRole } from "@prisma/client";
 import { prisma } from "../config/prisma";
 import { getCustomerSelectForRole } from "../serializers/customerSerializer";
+import { AppError } from "../errors/AppError";
 import { publicUserSelect } from "./UserRepository";
 
 type CreateServiceOrderData = {
@@ -22,6 +23,7 @@ type ChangeStatusData = {
   newStatus: ServiceOrderStatus;
   userId?: string;
   observation?: string;
+  requireBudget?: boolean;
 };
 
 type FindManyServiceOrdersData = {
@@ -295,19 +297,50 @@ class ServiceOrderRepository {
     });
   }
 
-  async updateDiagnosis(id: string, diagnosis: string) {
-    return prisma.serviceOrder.update({
-      where: {
-        id,
-      },
-      data: {
-        diagnosis,
-      },
+  async updateDiagnosisSafely(
+    id: string,
+    expectedStatus: ServiceOrderStatus,
+    diagnosis: string
+  ) {
+    return prisma.$transaction(async (transaction) => {
+      const currentStatus = await this.lockAndGetStatus(transaction, id);
+
+      if (currentStatus !== expectedStatus) {
+        throw this.concurrentChangeError();
+      }
+
+      return transaction.serviceOrder.update({
+        where: { id },
+        data: { diagnosis },
+      });
     });
   }
 
   async changeStatusWithHistory(data: ChangeStatusData) {
     return prisma.$transaction(async (transaction) => {
+      const currentStatus = await this.lockAndGetStatus(
+        transaction,
+        data.id
+      );
+
+      if (currentStatus !== data.previousStatus) {
+        throw this.concurrentChangeError();
+      }
+
+      if (data.requireBudget) {
+        const budget = await transaction.budget.findFirst({
+          where: { serviceOrderId: data.id },
+          select: { id: true },
+        });
+
+        if (!budget) {
+          throw new AppError(
+            "Service order must have a budget before awaiting approval",
+            400
+          );
+        }
+      }
+
       const serviceOrder = await transaction.serviceOrder.update({
         where: {
           id: data.id,
@@ -329,6 +362,33 @@ class ServiceOrderRepository {
 
       return serviceOrder;
     });
+  }
+
+  private async lockAndGetStatus(
+    transaction: Prisma.TransactionClient,
+    id: string
+  ) {
+    const rows = await transaction.$queryRaw<
+      Array<{ status: ServiceOrderStatus }>
+    >`
+      SELECT "status"
+      FROM "ServiceOrder"
+      WHERE "id" = ${id}
+      FOR UPDATE
+    `;
+
+    if (!rows[0]) {
+      throw new AppError("Service order not found", 404);
+    }
+
+    return rows[0].status;
+  }
+
+  private concurrentChangeError() {
+    return new AppError(
+      "Service order changed concurrently. Reload and try again",
+      409
+    );
   }
 }
 

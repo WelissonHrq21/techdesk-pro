@@ -61,7 +61,11 @@ class UpdateUserService {
         : undefined,
     };
 
-    return userRepository.update(id, updateData);
+    const revokeSessions = Boolean(
+      data.password || (data.role && data.role !== user.role)
+    );
+
+    return userRepository.update(id, updateData, revokeSessions);
   }
 }
 

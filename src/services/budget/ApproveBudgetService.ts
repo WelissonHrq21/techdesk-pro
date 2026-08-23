@@ -47,6 +47,16 @@ class ApproveBudgetService {
     }
 
     if (!statusesAwaitingBudgetApproval.includes(serviceOrder.status)) {
+      if (
+        serviceOrder.status === ServiceOrderStatus.BUDGET_APPROVED ||
+        serviceOrder.status === ServiceOrderStatus.BUDGET_REJECTED
+      ) {
+        throw new AppError(
+          "Budget decision conflict. Reload the service order and try again",
+          409
+        );
+      }
+
       throw new AppError(
         "Service order is not awaiting budget approval",
         400
@@ -66,9 +76,10 @@ class ApproveBudgetService {
       }
     }
 
-    return serviceOrderRepository.changeStatusWithHistory({
-      id: serviceOrder.id,
-      previousStatus: serviceOrder.status,
+    return budgetRepository.decide({
+      budgetId: budget.id,
+      serviceOrderId: serviceOrder.id,
+      expectedStatus: serviceOrder.status,
       newStatus: ServiceOrderStatus.BUDGET_APPROVED,
       userId,
       observation,

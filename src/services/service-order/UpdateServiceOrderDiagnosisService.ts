@@ -24,7 +24,11 @@ class UpdateServiceOrderDiagnosisService {
       );
     }
 
-    return serviceOrderRepository.updateDiagnosis(id, diagnosis);
+    return serviceOrderRepository.updateDiagnosisSafely(
+      id,
+      serviceOrder.status,
+      diagnosis
+    );
   }
 }
 

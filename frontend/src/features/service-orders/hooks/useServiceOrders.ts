@@ -157,6 +157,16 @@ export function useConsumePart(serviceOrderId: string) {
         queryKey: ["stock-movements", result.part.id],
       });
     },
+    onError: (_error, variables) => {
+      invalidateServiceOrderQueries(queryClient, serviceOrderId);
+      void queryClient.invalidateQueries({ queryKey: ["parts"] });
+      void queryClient.invalidateQueries({
+        queryKey: ["part", variables.partId],
+      });
+      void queryClient.invalidateQueries({
+        queryKey: ["stock-movements", variables.partId],
+      });
+    },
   });
 }
 

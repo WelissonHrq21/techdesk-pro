@@ -1,7 +1,7 @@
 import axios from "axios";
 import { clearStoredSession, getStoredToken } from "../utils/authStorage";
 
-let onUnauthorized: (() => void) | null = null;
+let onUnauthorized: ((message?: string) => void) | null = null;
 
 export const http = axios.create({
   baseURL: import.meta.env.VITE_API_URL,
@@ -28,15 +28,25 @@ http.interceptors.response.use(
       : undefined;
 
     if (status === 401 && requestUrl !== "/sessions") {
+      const responseMessage = axios.isAxiosError(error)
+        ? (error.response?.data as { message?: string } | undefined)?.message
+        : undefined;
+      const message =
+        responseMessage === "Session revoked"
+          ? "Sua sessão foi encerrada. Entre novamente."
+          : "Sua sessão expirou. Entre novamente.";
+
       clearStoredSession();
-      onUnauthorized?.();
+      onUnauthorized?.(message);
     }
 
     return Promise.reject(error);
   }
 );
 
-export function registerUnauthorizedHandler(handler: () => void) {
+export function registerUnauthorizedHandler(
+  handler: (message?: string) => void
+) {
   onUnauthorized = handler;
 
   return () => {

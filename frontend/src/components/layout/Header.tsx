@@ -53,7 +53,7 @@ export function Header({ onOpenSidebar }: HeaderProps) {
         <button
           type="button"
           className="inline-flex h-10 items-center gap-2 rounded-md border border-slate-200 px-3 text-sm font-medium text-slate-700 hover:bg-slate-50"
-          onClick={signOut}
+          onClick={() => signOut()}
           title="Sair"
         >
           <LogOut size={17} />

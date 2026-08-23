@@ -103,6 +103,8 @@ class ConsumePartService {
       partId,
       quantity,
       serviceOrderId,
+      budgetId: latestBudget.id,
+      expectedStatus: serviceOrder.status,
       approvedQuantity,
       userId,
       reason: observation ?? "Part consumed during service order",

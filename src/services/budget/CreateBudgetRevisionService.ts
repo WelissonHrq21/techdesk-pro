@@ -1,9 +1,8 @@
-import { BudgetItemType, ServiceOrderStatus } from "@prisma/client";
+import { ServiceOrderStatus } from "@prisma/client";
 import { AppError } from "../../errors/AppError";
 import { BudgetRepository } from "../../repositories/BudgetRepository";
 import { PartRepository } from "../../repositories/PartRepository";
 import { ServiceOrderRepository } from "../../repositories/ServiceOrderRepository";
-import { StockMovementRepository } from "../../repositories/StockMovementRepository";
 import { UserRepository } from "../../repositories/UserRepository";
 import { BudgetItemInput } from "../../types/budget";
 import { calculateBudgetTotal } from "./calculateBudgetTotal";
@@ -21,7 +20,6 @@ class CreateBudgetRevisionService {
     const budgetRepository = new BudgetRepository();
     const partRepository = new PartRepository();
     const serviceOrderRepository = new ServiceOrderRepository();
-    const stockMovementRepository = new StockMovementRepository();
 
     const serviceOrder = await serviceOrderRepository.findById(
       data.serviceOrderId
@@ -67,44 +65,6 @@ class CreateBudgetRevisionService {
       data.items,
       partRepository
     );
-
-    const revisionQuantityByPartId = new Map<string, number>();
-
-    for (const item of items) {
-      if (item.type !== BudgetItemType.PART || item.partId === null) {
-        continue;
-      }
-
-      revisionQuantityByPartId.set(
-        item.partId,
-        (revisionQuantityByPartId.get(item.partId) ?? 0) + item.quantity
-      );
-    }
-
-    const consumedParts =
-      await stockMovementRepository.findConsumedPartsByServiceOrder(
-        data.serviceOrderId
-      );
-
-    for (const consumedPart of consumedParts) {
-      const revisionQuantity = revisionQuantityByPartId.get(
-        consumedPart.partId
-      );
-
-      if (revisionQuantity === undefined) {
-        throw new AppError(
-          "Revised budget cannot remove a part already consumed",
-          409
-        );
-      }
-
-      if (revisionQuantity < consumedPart.consumed) {
-        throw new AppError(
-          "Revised budget quantity cannot be lower than already consumed quantity",
-          409
-        );
-      }
-    }
 
     const totalValue = calculateBudgetTotal(items);
 

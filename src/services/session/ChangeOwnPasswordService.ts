@@ -34,7 +34,10 @@ class ChangeOwnPasswordService {
       );
     }
 
-    return userRepository.updatePassword(userId, await hash(newPassword, 10));
+    return userRepository.updatePasswordAndRevokeSessions(
+      userId,
+      await hash(newPassword, 10)
+    );
   }
 }
 

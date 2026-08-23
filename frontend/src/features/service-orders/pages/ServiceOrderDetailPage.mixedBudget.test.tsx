@@ -366,4 +366,87 @@ describe("ServiceOrderDetailPage mixed budget flows", () => {
     await waitFor(() => expect(rejected).toBe(true));
     expect(await screen.findByText("Orçamento rejeitado.")).toBeInTheDocument();
   });
+
+  it("handles a stale approval 409, refetches and preserves the session", async () => {
+    const user = userEvent.setup();
+    let controls: ReturnType<typeof renderPage>;
+    controls = renderPage({
+      role: "RECEPTION",
+      serviceOrder: makeServiceOrder({ status: "AWAITING_APPROVAL" }),
+      approveHandler: () => {
+        controls.setServiceOrder(
+          makeServiceOrder({ status: "BUDGET_REJECTED" })
+        );
+        return HttpResponse.json(
+          {
+            message:
+              "Budget decision conflict. Reload the service order and try again",
+          },
+          { status: 409 }
+        );
+      },
+    });
+    await waitForPage();
+    const initialGetCount = controls.getCount();
+
+    await user.click(
+      screen.getByRole("button", { name: /aprovar orçamento/i })
+    );
+    await user.click(
+      within(
+        screen.getByRole("dialog", { name: /registrar aprovação/i })
+      ).getByRole("button", { name: /registrar aprovação/i })
+    );
+
+    expect(
+      await screen.findByText(/já recebeu uma decisão em outra sessão/i)
+    ).toBeInTheDocument();
+    await waitFor(() => expect(controls.getCount()).toBeGreaterThan(initialGetCount));
+    expect(
+      screen.getByRole("heading", { name: /os #24/i })
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("dialog", { name: /registrar aprovação/i })
+    ).not.toBeInTheDocument();
+  });
+
+  it("handles a stale rejection 409 and reloads the approved state", async () => {
+    const user = userEvent.setup();
+    let controls: ReturnType<typeof renderPage>;
+    controls = renderPage({
+      role: "RECEPTION",
+      serviceOrder: makeServiceOrder({ status: "AWAITING_APPROVAL" }),
+      rejectHandler: () => {
+        controls.setServiceOrder(
+          makeServiceOrder({ status: "BUDGET_APPROVED" })
+        );
+        return HttpResponse.json(
+          {
+            message:
+              "Budget decision conflict. Reload the service order and try again",
+          },
+          { status: 409 }
+        );
+      },
+    });
+    await waitForPage();
+    const initialGetCount = controls.getCount();
+
+    await user.click(
+      screen.getByRole("button", { name: /rejeitar orçamento/i })
+    );
+    await user.click(
+      within(
+        screen.getByRole("dialog", { name: /registrar rejeição/i })
+      ).getByRole("button", { name: /registrar rejeição/i })
+    );
+
+    expect(
+      await screen.findByText(/já recebeu uma decisão em outra sessão/i)
+    ).toBeInTheDocument();
+    await waitFor(() => expect(controls.getCount()).toBeGreaterThan(initialGetCount));
+    expect(
+      screen.getByRole("heading", { name: /os #24/i })
+    ).toBeInTheDocument();
+  });
 });

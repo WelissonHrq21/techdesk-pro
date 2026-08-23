@@ -36,9 +36,12 @@ export function AuthProvider({ children, queryClient }: AuthProviderProps) {
     queryClient.clear();
   }, [queryClient]);
 
-  const signOut = useCallback(() => {
+  const signOut = useCallback((message?: string) => {
     clearSession();
-    navigate("/login", { replace: true });
+    navigate("/login", {
+      replace: true,
+      state: message ? { message } : undefined,
+    });
   }, [clearSession, navigate]);
 
   const refreshProfile = useCallback(async () => {
@@ -56,9 +59,12 @@ export function AuthProvider({ children, queryClient }: AuthProviderProps) {
   }, []);
 
   useEffect(() => {
-    return registerUnauthorizedHandler(() => {
+    return registerUnauthorizedHandler((message) => {
       clearSession();
-      navigate("/login", { replace: true });
+      navigate("/login", {
+        replace: true,
+        state: message ? { message } : undefined,
+      });
     });
   }, [clearSession, navigate]);
 

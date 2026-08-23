@@ -40,6 +40,18 @@ class UserRepository {
     });
   }
 
+  async findAuthenticationById(id: string) {
+    return prisma.user.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        role: true,
+        active: true,
+        tokenVersion: true,
+      },
+    });
+  }
+
   async findByLogin(login: string) {
     return prisma.user.findUnique({
       where: {
@@ -65,23 +77,31 @@ class UserRepository {
     });
   }
 
-  async update(id: string, data: Prisma.UserUpdateInput) {
+  async update(
+    id: string,
+    data: Prisma.UserUpdateInput,
+    revokeSessions = false
+  ) {
     return prisma.user.update({
       where: {
         id,
       },
-      data,
+      data: {
+        ...data,
+        tokenVersion: revokeSessions ? { increment: 1 } : undefined,
+      },
       select: publicUserSelect,
     });
   }
 
-  async updatePassword(id: string, password: string) {
+  async updatePasswordAndRevokeSessions(id: string, password: string) {
     return prisma.user.update({
       where: {
         id,
       },
       data: {
         password,
+        tokenVersion: { increment: 1 },
       },
       select: publicUserSelect,
     });
@@ -94,6 +114,7 @@ class UserRepository {
       },
       data: {
         active: false,
+        tokenVersion: { increment: 1 },
       },
       select: publicUserSelect,
     });

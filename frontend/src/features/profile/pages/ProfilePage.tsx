@@ -2,7 +2,6 @@ import { useMutation } from "@tanstack/react-query";
 import { useState } from "react";
 import { PageHeader } from "../../../components/ui/PageHeader";
 import { useAuth } from "../../../hooks/useAuth";
-import { useToast } from "../../../hooks/useToast";
 import { changeOwnPasswordRequest } from "../../../services/authService";
 import { getFriendlyErrorMessage } from "../../../utils/errorMessages";
 import { roleLabels } from "../../../utils/labels";
@@ -10,8 +9,7 @@ import { ChangePasswordForm } from "../components/ChangePasswordForm";
 import type { ChangePasswordSchemaData } from "../schemas/changePasswordSchema";
 
 export function ProfilePage() {
-  const { user } = useAuth();
-  const { showToast } = useToast();
+  const { signOut, user } = useAuth();
   const [formError, setFormError] = useState<string | null>(null);
   const changePasswordMutation = useMutation({
     mutationFn: changeOwnPasswordRequest,
@@ -25,7 +23,7 @@ export function ProfilePage() {
         currentPassword: data.currentPassword,
         newPassword: data.newPassword,
       });
-      showToast("Senha alterada com sucesso.", "success");
+      signOut("Senha alterada. Entre novamente.");
     } catch (error) {
       setFormError(getFriendlyErrorMessage(error));
     }
@@ -64,8 +62,7 @@ export function ProfilePage() {
             Alterar senha
           </h2>
           <p className="mt-1 text-sm text-slate-500">
-            A troca de senha nao encerra automaticamente a sessao atual neste
-            MVP.
+            Ao alterar a senha, todas as sessões abertas serão encerradas.
           </p>
           <div className="mt-5">
             <ChangePasswordForm
