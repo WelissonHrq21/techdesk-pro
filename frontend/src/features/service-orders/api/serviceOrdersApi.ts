@@ -3,6 +3,7 @@ import type { PaginatedResponse } from "../../../types/pagination";
 import type {
   BudgetDecisionData,
   BudgetFormData,
+  BudgetItemFormData,
   BudgetRevisionRequestData,
   ChangeServiceOrderStatusData,
   ConsumePartData,
@@ -92,7 +93,9 @@ export async function updateServiceOrderDiagnosis(
 }
 
 export async function createBudget(id: string, data: BudgetFormData) {
-  const response = await http.post(`/service-orders/${id}/budgets`, data);
+  const response = await http.post(`/service-orders/${id}/budgets`, {
+    items: cleanBudgetItems(data.items),
+  });
 
   return response.data;
 }
@@ -102,7 +105,7 @@ export async function createBudgetRevision(
   data: BudgetRevisionRequestData
 ) {
   const response = await http.post(`/service-orders/${id}/budgets/revision`, {
-    items: data.items,
+    items: cleanBudgetItems(data.items),
     observation: data.observation?.trim() || undefined,
   });
 
@@ -135,6 +138,26 @@ export async function consumePart(data: ConsumePartData) {
   );
 
   return response.data;
+}
+
+function cleanBudgetItems(items: BudgetItemFormData[]) {
+  return items.map((item) => {
+    if (item.type === "PART") {
+      return {
+        type: "PART" as const,
+        partId: item.partId,
+        quantity: Number(item.quantity),
+        unitPrice: Number(item.unitPrice),
+      };
+    }
+
+    return {
+      type: "SERVICE" as const,
+      description: item.description.trim(),
+      quantity: Number(item.quantity),
+      unitPrice: Number(item.unitPrice),
+    };
+  });
 }
 
 export async function reverseStockMovement(data: ReverseStockMovementData) {

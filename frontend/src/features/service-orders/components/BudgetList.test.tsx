@@ -16,11 +16,14 @@ describe("BudgetList Stage 1 compatibility", () => {
       budgetItems: [
         {
           id: "part-item",
+          type: "PART",
+          description: "Snapshot SSD",
+          partId: "part-1",
           quantity: 1,
           unitPrice: "250",
           part: {
             id: "part-1",
-            name: "Legacy SSD",
+            name: "Renamed SSD",
           },
         },
         {
@@ -41,7 +44,10 @@ describe("BudgetList Stage 1 compatibility", () => {
       </MemoryRouter>
     );
 
-    expect(screen.getByText("Legacy SSD")).toBeInTheDocument();
+    expect(screen.getByText("Snapshot SSD")).toBeInTheDocument();
+    expect(screen.queryByText("Renamed SSD")).not.toBeInTheDocument();
     expect(screen.getByText("Technical labor")).toBeInTheDocument();
+    expect(screen.getByText("Peça")).toBeInTheDocument();
+    expect(screen.getByText("Serviço")).toBeInTheDocument();
   });
 });

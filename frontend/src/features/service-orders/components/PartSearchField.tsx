@@ -9,12 +9,14 @@ type PartSearchFieldProps = {
   selectedPart?: Pick<Part, "id" | "name" | "brand" | "currentPrice" | "stock">;
   onSelect: (part: Part) => void;
   error?: string;
+  disabled?: boolean;
 };
 
 export function PartSearchField({
   selectedPart,
   onSelect,
   error,
+  disabled = false,
 }: PartSearchFieldProps) {
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebouncedValue(search, 300);
@@ -34,6 +36,7 @@ export function PartSearchField({
         <input
           type="search"
           value={search}
+          disabled={disabled}
           onChange={(event) => setSearch(event.target.value)}
           placeholder={
             selectedPart
@@ -69,7 +72,8 @@ export function PartSearchField({
                   onSelect(part);
                   setSearch("");
                 }}
-                className="block w-full border-b border-slate-100 px-3 py-2 text-left text-sm hover:bg-slate-50"
+                disabled={!part.active || disabled}
+                className="block w-full border-b border-slate-100 px-3 py-2 text-left text-sm hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
               >
                 <span className="font-medium text-slate-950">
                   {part.name} - {part.brand}

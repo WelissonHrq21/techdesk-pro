@@ -35,7 +35,6 @@ import {
 } from "../hooks/useServiceOrders";
 import {
   isPartBudgetItem,
-  isServiceBudgetItem,
   type BudgetFormData,
   type BudgetPartItem,
   type BudgetRevisionFormData,
@@ -143,9 +142,9 @@ function buildInitialParts(currentBudget: BudgetSummary | null) {
 
     accumulator[item.part.id] = {
       id: item.part.id,
-      name: item.part.name,
+      name: item.description ?? item.part.name,
       brand: item.part.brand ?? "Sem marca",
-      currentPrice: item.part.currentPrice ?? item.unitPrice,
+      currentPrice: item.unitPrice,
       stock: item.part.stock ?? 0,
     };
 
@@ -353,23 +352,22 @@ export function ServiceOrderDetailPage() {
 
   async function handleCreateRevision(data: BudgetRevisionFormData) {
     try {
-      const serviceItems =
-        currentBudget?.budgetItems
-          .filter(isServiceBudgetItem)
-          .map((item) => ({
-            type: "SERVICE" as const,
-            description: item.description,
-            quantity: item.quantity,
-            unitPrice: Number(item.unitPrice),
-          })) ?? [];
-
-      await createRevisionMutation.mutateAsync({
-        ...data,
-        items: [...data.items, ...serviceItems],
-      });
+      await createRevisionMutation.mutateAsync(data);
       resetModalState();
       showToast("Revisão enviada para aprovação.", "success");
     } catch (error) {
+      if (getApiErrorStatus(error) === 409) {
+        const message =
+          "O orçamento foi alterado em outra sessão. Atualizamos os dados para você.";
+
+        setFormError(message);
+        showToast(message, "error");
+        await serviceOrderQuery.refetch();
+        setIsRevisionOpen(false);
+        setFormError(null);
+        return;
+      }
+
       handleError(error);
     }
   }
@@ -478,13 +476,23 @@ export function ServiceOrderDetailPage() {
     (serviceOrder.status === "IN_MAINTENANCE" ||
       serviceOrder.status === "FINISHED");
   const revisionDefaultItems =
-    currentBudget?.budgetItems
-      .filter(isPartBudgetItem)
-      .map((item) => ({
-        partId: item.part.id,
+    currentBudget?.budgetItems.map((item) => {
+      if (isPartBudgetItem(item)) {
+        return {
+          type: "PART" as const,
+          partId: item.partId ?? item.part.id,
+          quantity: item.quantity,
+          unitPrice: Number(item.unitPrice),
+        };
+      }
+
+      return {
+        type: "SERVICE" as const,
+        description: item.description,
         quantity: item.quantity,
         unitPrice: Number(item.unitPrice),
-      })) ?? [];
+      };
+    }) ?? [];
   const statusConfig = activeStatusAction
     ? statusActionConfig[activeStatusAction]
     : undefined;
@@ -887,7 +895,7 @@ export function ServiceOrderDetailPage() {
           isSubmitting={createBudgetMutation.isPending}
           errorMessage={formError}
           onCancel={resetModalState}
-          onSubmit={(data) => void handleCreateBudget(data as BudgetFormData)}
+          onSubmit={(data) => void handleCreateBudget(data)}
         />
       </Modal>
 
@@ -905,9 +913,7 @@ export function ServiceOrderDetailPage() {
           isSubmitting={createRevisionMutation.isPending}
           errorMessage={formError}
           onCancel={resetModalState}
-          onSubmit={(data) =>
-            void handleCreateRevision(data as BudgetRevisionFormData)
-          }
+          onSubmit={(data) => void handleCreateRevision(data)}
         />
       </Modal>
 

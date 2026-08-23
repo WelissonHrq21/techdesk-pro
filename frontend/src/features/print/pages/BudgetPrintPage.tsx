@@ -7,6 +7,7 @@ import { useServiceOrder } from "../../service-orders/hooks/useServiceOrders";
 import { useCompanySettings } from "../../settings/hooks/useCompanySettings";
 import { PrintLayout } from "../components/PrintLayout";
 import { PrintSection } from "../components/PrintSection";
+import { BudgetItemsPrintTable } from "../components/BudgetItemsPrintTable";
 
 export function BudgetPrintPage() {
   const { id, budgetId } = useParams<{ id: string; budgetId: string }>();
@@ -76,32 +77,7 @@ export function BudgetPrintPage() {
       </PrintSection>
 
       <PrintSection title="Itens">
-        <table className="w-full text-left text-sm">
-          <thead>
-            <tr className="border-b border-slate-300">
-              <th className="py-2 font-semibold">Item</th>
-              <th className="py-2 text-right font-semibold">Qtd.</th>
-              <th className="py-2 text-right font-semibold">Valor unit.</th>
-              <th className="py-2 text-right font-semibold">Subtotal</th>
-            </tr>
-          </thead>
-          <tbody>
-            {budget.budgetItems.map((item) => (
-              <tr key={item.id} className="border-b border-slate-100">
-                <td className="py-2">
-                  {item.description ?? item.part?.name}
-                </td>
-                <td className="py-2 text-right">{item.quantity}</td>
-                <td className="py-2 text-right">
-                  {formatCurrency(item.unitPrice)}
-                </td>
-                <td className="py-2 text-right">
-                  {formatCurrency(Number(item.quantity) * Number(item.unitPrice))}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <BudgetItemsPrintTable items={budget.budgetItems} />
 
         <div className="mt-4 flex justify-end">
           <div className="w-72 border-t border-slate-300 pt-3 text-right">

@@ -1,9 +1,12 @@
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, Package, Wrench } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { EmptyState } from "../../../components/ui/EmptyState";
 import { formatCurrency, formatDateTime } from "../../../utils/formatters";
-import type { BudgetSummary } from "../types/serviceOrder";
+import {
+  isServiceBudgetItem,
+  type BudgetSummary,
+} from "../types/serviceOrder";
 
 type BudgetListProps = {
   budgets: BudgetSummary[];
@@ -69,6 +72,20 @@ export function BudgetList({ budgets, currentBudgetId }: BudgetListProps) {
                         className="grid gap-2 text-sm sm:grid-cols-[1fr_auto]"
                       >
                         <div>
+                          <span
+                            className={`mb-1 inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-medium ${
+                              isServiceBudgetItem(item)
+                                ? "bg-emerald-50 text-emerald-700"
+                                : "bg-sky-50 text-sky-700"
+                            }`}
+                          >
+                            {isServiceBudgetItem(item) ? (
+                              <Wrench size={12} />
+                            ) : (
+                              <Package size={12} />
+                            )}
+                            {isServiceBudgetItem(item) ? "Serviço" : "Peça"}
+                          </span>
                           <p className="font-medium text-slate-950">
                             {item.description ?? item.part?.name}
                           </p>

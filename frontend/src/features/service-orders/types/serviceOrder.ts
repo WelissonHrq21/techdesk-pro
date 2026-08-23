@@ -48,6 +48,8 @@ export type BudgetServiceItem = BudgetItemBase & {
 
 export type BudgetItem = BudgetPartItem | BudgetServiceItem;
 
+export type BudgetItemType = "PART" | "SERVICE";
+
 export function isPartBudgetItem(
   item: BudgetItem
 ): item is BudgetPartItem {
@@ -138,11 +140,24 @@ export type FindServiceOrdersParams = {
   sortOrder?: "asc" | "desc";
 };
 
-export type BudgetItemFormData = {
-  partId: string;
+type BudgetItemFormDataBase = {
   quantity: number;
   unitPrice: number;
 };
+
+export type BudgetPartItemFormData = BudgetItemFormDataBase & {
+  type: "PART";
+  partId: string;
+};
+
+export type BudgetServiceItemFormData = BudgetItemFormDataBase & {
+  type: "SERVICE";
+  description: string;
+};
+
+export type BudgetItemFormData =
+  | BudgetPartItemFormData
+  | BudgetServiceItemFormData;
 
 export type BudgetFormData = {
   items: BudgetItemFormData[];
@@ -152,18 +167,7 @@ export type BudgetRevisionFormData = BudgetFormData & {
   observation?: string;
 };
 
-export type BudgetRevisionRequestData = {
-  items: Array<
-    | BudgetItemFormData
-    | {
-        type: "SERVICE";
-        description: string;
-        quantity: number;
-        unitPrice: number;
-      }
-  >;
-  observation?: string;
-};
+export type BudgetRevisionRequestData = BudgetRevisionFormData;
 
 export type ChangeServiceOrderStatusData = {
   status: ServiceOrderStatus;

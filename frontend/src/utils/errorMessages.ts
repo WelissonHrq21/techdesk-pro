@@ -62,6 +62,8 @@ export function getFriendlyErrorMessage(error: unknown) {
       "O status atual da OS não permite estorno.",
     "Reversal quantity exceeds available reversible quantity":
       "Esse consumo já foi estornado total ou parcialmente por outra operação. Os dados foram atualizados.",
+    "Budget version conflict. Reload the service order and try again":
+      "O orçamento foi alterado em outra sessão. Atualizamos os dados para você.",
   };
 
   const partialMessage = Object.entries(knownMessages).find(([key]) =>

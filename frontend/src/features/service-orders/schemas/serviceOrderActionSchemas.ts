@@ -1,7 +1,6 @@
 import { z } from "zod";
 
-const budgetItemSchema = z.object({
-  partId: z.string().uuid("Selecione uma peça válida."),
+const budgetItemValuesSchema = {
   quantity: z
     .number()
     .int("A quantidade deve ser um número inteiro.")
@@ -9,7 +8,28 @@ const budgetItemSchema = z.object({
   unitPrice: z
     .number()
     .positive("O valor unitario deve ser positivo."),
+};
+
+const budgetPartItemSchema = z.object({
+  type: z.literal("PART"),
+  partId: z.string().uuid("Selecione uma peça válida."),
+  ...budgetItemValuesSchema,
 });
+
+const budgetServiceItemSchema = z.object({
+  type: z.literal("SERVICE"),
+  description: z
+    .string()
+    .trim()
+    .min(1, "Informe a descrição do serviço.")
+    .max(200, "A descrição deve ter no máximo 200 caracteres."),
+  ...budgetItemValuesSchema,
+});
+
+export const budgetItemSchema = z.discriminatedUnion("type", [
+  budgetPartItemSchema,
+  budgetServiceItemSchema,
+]);
 
 export const observationSchema = z.object({
   observation: z
@@ -30,7 +50,7 @@ export const diagnosisSchema = z.object({
 export const budgetFormSchema = z.object({
   items: z
     .array(budgetItemSchema)
-    .min(1, "Inclua pelo menos uma peça no orçamento."),
+    .min(1, "Inclua pelo menos um item no orçamento."),
 });
 
 export const budgetRevisionFormSchema = budgetFormSchema.extend({
