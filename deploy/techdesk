@@ -4,6 +4,10 @@ set -eu
 DEPLOY_ROOT="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
 . "${DEPLOY_ROOT}/setup-core.sh"
 
+load_observability() {
+  . "${DEPLOY_ROOT}/observability.sh"
+}
+
 usage() {
   cat <<EOF
 TechDesk Pro Setup
@@ -11,6 +15,9 @@ TechDesk Pro Setup
 Uso:
   ./techdesk install [--port 8080] [--version X.Y.Z] [--non-interactive --admin-password SENHA]
   ./techdesk status
+  ./techdesk status --json
+  ./techdesk diagnostics --json
+  ./techdesk backup-list --json
   ./techdesk repair
   ./techdesk backup
   ./techdesk restore-check caminho/do/backup.dump [sha256-esperado]
@@ -151,6 +158,15 @@ install_cmd() {
 }
 
 status_cmd() {
+  if [ "$#" -eq 1 ] && [ "$1" = "--json" ]; then
+    load_observability
+    contract_status_cmd
+    return
+  fi
+  if [ "$#" -ne 0 ]; then
+    fail "Opcao desconhecida para status: $1"
+    return 2
+  fi
   state="$(detect_installation_state)"
   version="$(current_version)"
   port="$(techdesk_port)"
@@ -215,6 +231,24 @@ status_cmd() {
     return 0
   fi
   return 1
+}
+
+diagnostics_cmd() {
+  if [ "$#" -ne 1 ] || [ "$1" != "--json" ]; then
+    fail "Use diagnostics --json. Diagnostics estruturado e somente leitura."
+    return 2
+  fi
+  load_observability
+  contract_diagnostics_cmd
+}
+
+backup_list_cmd() {
+  if [ "$#" -ne 1 ] || [ "$1" != "--json" ]; then
+    fail "Use backup-list --json. A listagem e somente leitura."
+    return 2
+  fi
+  load_observability
+  contract_backup_list_cmd
 }
 
 backup_cmd() {
@@ -391,7 +425,7 @@ if [ "$#" -gt 0 ]; then
 fi
 
 case "$command" in
-  install|status|repair|backup|restore-check|upgrade)
+  install|status|diagnostics|backup-list|repair|backup|restore-check|upgrade)
     ensure_or_delegate_runtime "$command" "$@"
     ;;
 esac
@@ -399,6 +433,8 @@ esac
 case "$command" in
   install) install_cmd "$@" ;;
   status) status_cmd "$@" ;;
+  diagnostics) diagnostics_cmd "$@" ;;
+  backup-list) backup_list_cmd "$@" ;;
   repair) repair_cmd "$@" ;;
   backup) backup_cmd "$@" ;;
   restore-check) restore_check_cmd "$@" ;;

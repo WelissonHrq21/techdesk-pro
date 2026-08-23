@@ -18,6 +18,7 @@ const root = process.cwd();
 const deployDir = join(root, "deploy");
 const techdeskScript = join(deployDir, "techdesk");
 const setupCoreScript = join(deployDir, "setup-core.sh");
+const observabilityScript = join(deployDir, "observability.sh");
 const composeFile = join(deployDir, "docker-compose.yml");
 const developmentComposeFile = join(root, "docker-compose.yml");
 const packageScript = join(deployDir, "package.sh");
@@ -25,6 +26,7 @@ const packageScript = join(deployDir, "package.sh");
 const linuxRuntimeFiles = [
   "techdesk",
   "setup-core.sh",
+  "observability.sh",
   "install.sh",
   "start.sh",
   "stop.sh",
@@ -209,6 +211,71 @@ function createFakeInstallerSource() {
 
   return fakeRoot;
 }
+
+function runManagerContract(command: "status" | "diagnostics" | "backup-list", setup: string[]) {
+  return runShellCommand(
+    [
+      'runtime="$(mktemp -d)"',
+      'trap \'chmod -R u+rwX "$runtime" 2>/dev/null || true; rm -rf "$runtime"\' EXIT',
+      'mkdir -p "$runtime/bin" "$runtime/backups" "$runtime/nginx"',
+      'cp "$1" "$runtime/techdesk"',
+      'cp "$2" "$runtime/setup-core.sh"',
+      'cp "$3" "$runtime/observability.sh"',
+      'cp "$4" "$runtime/docker-compose.yml"',
+      'cp "$5" "$runtime/restore-check.sh"',
+      'printf "1.2.0\\n" > "$runtime/VERSION"',
+      'printf \'#!/bin/sh\\nexit 1\\n\' > "$runtime/bin/curl"',
+      'printf \'#!/bin/sh\\ncase "${1:-}" in --version) echo "Docker version 27.0.0"; exit 0;; info) echo "permission denied while trying to connect to docker.sock" >&2; exit 1;; compose) echo "Docker Compose version v2.30.0"; exit 0;; esac\\nexit 1\\n\' > "$runtime/bin/docker"',
+      'printf \'#!/bin/sh\\nexit 1\\n\' > "$runtime/bin/ip"',
+      'printf \'#!/bin/sh\\nexit 1\\n\' > "$runtime/bin/ss"',
+      'chmod 755 "$runtime/techdesk" "$runtime/setup-core.sh" "$runtime/observability.sh" "$runtime/restore-check.sh" "$runtime/bin"/*',
+      ...setup,
+      'PATH="$runtime/bin:$PATH" TECHDESK_RUNTIME_ROOT="$runtime" "$runtime/techdesk" "$6" --json',
+    ].join("\n"),
+    [
+      techdeskScript,
+      setupCoreScript,
+      observabilityScript,
+      composeFile,
+      join(deployDir, "restore-check.sh"),
+      command,
+    ]
+  );
+}
+
+interface TestContractEnvelope {
+  schemaVersion: string;
+  command: string;
+  requestId: string;
+  durationMs: number;
+  ok: boolean;
+  result: string;
+  code: string;
+  data: Record<string, unknown>;
+  warnings: Array<Record<string, unknown>>;
+  errors: Array<Record<string, unknown>>;
+}
+
+function parseManagerContract(result: SpawnSyncReturns<string>) {
+  expect(result.stderr).toBe("");
+  expect(result.status).toBe(0);
+  expect(result.stdout.trim().split(/\r?\n/)).toHaveLength(1);
+  return JSON.parse(result.stdout) as TestContractEnvelope;
+}
+
+const installedContractSetup = [
+  'printf \'%s\\n\' \'{"installationId":"public-id","version":"1.2.0","projectName":"techdesk-contract-test","frontendPort":"18080","installerVersion":"1.2.0"}\' > "$runtime/techdesk-installation.json"',
+  'printf "DATABASE_URL=SUPER_SECRET_DATABASE_URL\\nJWT_SECRET=SUPER_SECRET_JWT\\n" > "$runtime/.env"',
+  'chmod 600 "$runtime/.env"',
+];
+
+const healthyContractCommands = [
+  'printf \'#!/bin/sh\\nexit 0\\n\' > "$runtime/bin/curl"',
+  'printf \'#!/bin/sh\\ncase "${1:-}" in --version) echo "Docker version 27.0.0"; exit 0;; info) exit 0;; compose) echo "Docker Compose version v2.30.0"; exit 0;; ps) echo "Up 1 minute (healthy)"; exit 0;; esac\\nexit 1\\n\' > "$runtime/bin/docker"',
+  'printf \'#!/bin/sh\\nprintf "%%s\\n" "2: enp0s3 inet 10.20.30.40/24 brd 10.20.30.255 scope global enp0s3" "3: eth1 inet 172.20.1.10/16 brd 172.20.255.255 scope global eth1" "4: wlan0 inet 192.168.1.69/24 brd 192.168.1.255 scope global wlan0" "5: docker0 inet 172.17.0.1/16 brd 172.17.255.255 scope global docker0" "6: veth123 inet 169.254.1.2/16 brd 169.254.255.255 scope global veth123"\\n\' > "$runtime/bin/ip"',
+  'printf \'#!/bin/sh\\nprintf "%%s\\n" "LISTEN 0 4096 0.0.0.0:18080 0.0.0.0:*"\\n\' > "$runtime/bin/ss"',
+  'chmod 755 "$runtime/bin"/*',
+];
 
 describe("TechDesk setup bootstrapper", () => {
   it("keeps POSIX deploy executables LF-only with valid shebangs", () => {
@@ -957,3 +1024,200 @@ describe("TechDesk setup bootstrapper", () => {
     }
   );
 });
+
+describe.runIf(hasShell())("TechDesk Manager read-only CLI contracts", () => {
+  it("emits pure schema v1 status JSON for a healthy installation and safe networks", () => {
+    const result = runManagerContract("status", [
+      ...installedContractSetup,
+      ...healthyContractCommands,
+    ]);
+    const contract = parseManagerContract(result);
+    const techdesk = contract.data.techdesk as Record<string, unknown>;
+    const server = contract.data.server as Record<string, unknown>;
+    const addresses = server.addresses as Array<Record<string, unknown>>;
+
+    expect(contract).toMatchObject({
+      schemaVersion: "1.0",
+      command: "status",
+      ok: true,
+      result: "PASS",
+      code: "STATUS_COMPLETE",
+    });
+    expect(contract.requestId).toMatch(/^cli-[0-9]{13}-[0-9]+$/);
+    expect(contract.durationMs).toEqual(expect.any(Number));
+    expect(contract.durationMs).toBeGreaterThanOrEqual(0);
+    expect(contract.durationMs).toBeLessThan(10_000);
+    expect(techdesk).toMatchObject({
+      installed: true,
+      version: "1.2.0",
+      overall: "HEALTHY",
+      frontend: { state: "HEALTHY" },
+      api: { state: "READY" },
+      postgres: { state: "HEALTHY" },
+      url: "http://10.20.30.40:18080",
+    });
+    expect(addresses.map((entry) => entry.address)).toEqual([
+      "10.20.30.40",
+      "172.20.1.10",
+      "192.168.1.69",
+    ]);
+    expect(result.stdout).not.toContain("docker0");
+    expect(result.stdout).not.toContain("veth123");
+    expect(result.stdout).not.toContain("SUPER_SECRET");
+  });
+
+  it("keeps not-installed, partial, Docker-denied and full-down states non-healthy", () => {
+    const notInstalled = parseManagerContract(runManagerContract("status", []));
+    const notInstalledTechdesk = notInstalled.data.techdesk as Record<string, unknown>;
+    expect(notInstalledTechdesk).toMatchObject({
+      installed: false,
+      version: "UNKNOWN",
+      overall: "NOT_INSTALLED",
+    });
+
+    const partial = parseManagerContract(
+      runManagerContract("status", [
+        'printf "SECRET=PARTIAL_SECRET\\n" > "$runtime/.env"',
+        'chmod 600 "$runtime/.env"',
+      ])
+    );
+    expect(partial.data.techdesk).toMatchObject({ installed: true, overall: "PARTIAL" });
+    expect(partial.result).toBe("WARNING");
+
+    const denied = parseManagerContract(
+      runManagerContract("status", installedContractSetup)
+    );
+    const deniedServer = denied.data.server as Record<string, unknown>;
+    expect(denied.data.techdesk).toMatchObject({ overall: "UNHEALTHY" });
+    expect(deniedServer.docker).toMatchObject({ state: "PERMISSION_DENIED" });
+    expect(denied.result).toBe("FAIL");
+    expect(JSON.stringify(denied.warnings)).toContain("DOCKER_ACCESS_UNAVAILABLE");
+    expect(resultContainsSecret(denied)).toBe(false);
+  });
+
+  it("reports API, frontend and PostgreSQL failures independently", () => {
+    const apiDown = parseManagerContract(
+      runManagerContract("status", [
+        ...installedContractSetup,
+        ...healthyContractCommands,
+        'printf \'#!/bin/sh\\ncase "$*" in */api/ready*) exit 1;; *) exit 0;; esac\\n\' > "$runtime/bin/curl"',
+        'chmod 755 "$runtime/bin/curl"',
+      ])
+    );
+    expect(apiDown.data.techdesk).toMatchObject({
+      overall: "DEGRADED",
+      frontend: { state: "HEALTHY" },
+      api: { state: "DOWN" },
+      postgres: { state: "HEALTHY" },
+    });
+
+    const frontendDown = parseManagerContract(
+      runManagerContract("status", [
+        ...installedContractSetup,
+        ...healthyContractCommands,
+        'printf \'#!/bin/sh\\ncase "$*" in */health*) exit 1;; *) exit 0;; esac\\n\' > "$runtime/bin/curl"',
+        'chmod 755 "$runtime/bin/curl"',
+      ])
+    );
+    expect(frontendDown.data.techdesk).toMatchObject({
+      overall: "DEGRADED",
+      frontend: { state: "DOWN" },
+      api: { state: "READY" },
+      postgres: { state: "HEALTHY" },
+    });
+
+    const postgresDown = parseManagerContract(
+      runManagerContract("status", [
+        ...installedContractSetup,
+        ...healthyContractCommands,
+        'printf \'#!/bin/sh\\ncase "$*" in */api/ready*) exit 1;; *) exit 0;; esac\\n\' > "$runtime/bin/curl"',
+        'printf \'#!/bin/sh\\ncase "${1:-}" in --version) echo "Docker version 27.0.0"; exit 0;; info) exit 0;; compose) echo "Docker Compose version v2.30.0"; exit 0;; ps) echo "Up 1 minute (unhealthy)"; exit 0;; esac\\nexit 1\\n\' > "$runtime/bin/docker"',
+        'chmod 755 "$runtime/bin/curl" "$runtime/bin/docker"',
+      ])
+    );
+    expect(postgresDown.data.techdesk).toMatchObject({
+      overall: "DEGRADED",
+      api: { state: "DOWN" },
+      postgres: { state: "DOWN" },
+    });
+  });
+
+  it("uses UNKNOWN for corrupt version evidence and never leaks metadata content", () => {
+    const unknown = parseManagerContract(
+      runManagerContract("status", [
+        ...installedContractSetup,
+        ...healthyContractCommands,
+        'printf "not-a-version\\n" > "$runtime/VERSION"',
+        'printf \'%s\\n\' \'{"version":"not-valid","projectName":"techdesk-contract-test","frontendPort":"18080","secret":"METADATA_SECRET"}\' > "$runtime/techdesk-installation.json"',
+      ])
+    );
+    expect(unknown.data.techdesk).toMatchObject({
+      version: "UNKNOWN",
+      overall: "DEGRADED",
+    });
+    expect(unknown.result).toBe("WARNING");
+    expect(JSON.stringify(unknown.warnings)).toContain("VERSION_UNVERIFIED");
+    expect(resultContainsSecret(unknown)).toBe(false);
+  });
+
+  it("lists canonical backups by stable IDs without paths or symlinks", () => {
+    const result = runManagerContract("backup-list", [
+        'printf "first backup" > "$runtime/backups/backup-inicial-producao-2026-08-22_10-20-30.dump"',
+        'printf "second backup" > "$runtime/backups/backup-inicial-producao-2026-08-23_11-21-31.dump"',
+        'printf "malformed" > "$runtime/backups/backup-inicial-producao-malformed.dump"',
+        'ln -s "$runtime/VERSION" "$runtime/backups/backup-inicial-producao-2026-08-24_12-22-32.dump"',
+      ]);
+    const contract = parseManagerContract(result);
+    const backups = contract.data.backups as Array<Record<string, unknown>>;
+
+    expect(contract.command).toBe("backup-list");
+    expect(backups).toHaveLength(2);
+    expect(backups[0]?.backupId).toMatch(/^sha256:[a-f0-9]{64}$/);
+    expect(backups[0]).not.toHaveProperty("path");
+    expect(backups[0]).not.toHaveProperty("filename");
+    expect(backups.every((entry) => entry.validation !== undefined)).toBe(true);
+    expect(result.stdout).not.toContain("/tmp/");
+    expect(result.stdout).not.toContain("malformed");
+  });
+
+  it("returns an empty bounded backup list when no backups exist", () => {
+    const contract = parseManagerContract(runManagerContract("backup-list", []));
+    expect(contract).toMatchObject({ result: "PASS", code: "BACKUP_LIST_EMPTY" });
+    expect(contract.data).toMatchObject({ backups: [], returned: 0, limited: false });
+  });
+
+  it("emits allowlisted diagnostics without env contents or raw command output", () => {
+    const result = runManagerContract("diagnostics", [
+      ...installedContractSetup,
+      ...healthyContractCommands,
+      'printf "backup" > "$runtime/backups/backup-inicial-producao-2026-08-23_11-21-31.dump"',
+    ]);
+    const contract = parseManagerContract(result);
+    const checks = contract.data.checks as Array<Record<string, unknown>>;
+    const ids = checks.map((check) => check.id);
+
+    expect(contract.command).toBe("diagnostics");
+    expect(ids).toEqual(expect.arrayContaining([
+      "cli.schema",
+      "runtime.cli",
+      "metadata.file",
+      "version.file",
+      "env.mode",
+      "docker.access",
+      "compose.available",
+      "frontend.health",
+      "api.ready",
+      "postgres.health",
+      "network.listener",
+      "disk.capacity",
+      "backup.latest",
+      "backup.restore-check-capability",
+    ]));
+    expect(result.stdout).not.toMatch(/SUPER_SECRET|DATABASE_URL|JWT_SECRET|docker\.sock/);
+    expect(result.stdout.length).toBeLessThan(32_000);
+  });
+});
+
+function resultContainsSecret(contract: TestContractEnvelope): boolean {
+  return /SUPER_SECRET|DATABASE_URL|JWT_SECRET|METADATA_SECRET/.test(JSON.stringify(contract));
+}

@@ -31,6 +31,7 @@ copy_file() {
 for file in \
   techdesk \
   setup-core.sh \
+  observability.sh \
   install.sh \
   install.ps1 \
   start.sh \
