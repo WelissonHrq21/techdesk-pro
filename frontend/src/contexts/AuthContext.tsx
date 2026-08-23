@@ -6,7 +6,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { registerUnauthorizedHandler } from "../api/http";
 import { getProfileRequest, signInRequest } from "../services/authService";
 import type { AuthUser } from "../types/auth";
@@ -25,6 +25,7 @@ type AuthProviderProps = {
 
 export function AuthProvider({ children, queryClient }: AuthProviderProps) {
   const navigate = useNavigate();
+  const location = useLocation();
   const [token, setToken] = useState(() => getStoredToken());
   const [user, setUser] = useState<AuthUser | null>(() => getStoredUser());
   const [isLoadingSession, setIsLoadingSession] = useState(true);
@@ -61,12 +62,17 @@ export function AuthProvider({ children, queryClient }: AuthProviderProps) {
   useEffect(() => {
     return registerUnauthorizedHandler((message) => {
       clearSession();
+
+      if (location.pathname.startsWith("/track/")) {
+        return;
+      }
+
       navigate("/login", {
         replace: true,
         state: message ? { message } : undefined,
       });
     });
-  }, [clearSession, navigate]);
+  }, [clearSession, location.pathname, navigate]);
 
   useEffect(() => {
     let isMounted = true;

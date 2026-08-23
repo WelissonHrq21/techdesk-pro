@@ -2,6 +2,7 @@ import { useParams } from "react-router-dom";
 import { ErrorState } from "../../../components/ui/ErrorState";
 import { LoadingState } from "../../../components/ui/LoadingState";
 import { formatDateTime } from "../../../utils/formatters";
+import { PublicTrackingQr } from "../../public-tracking/components/PublicTrackingQr";
 import { useServiceOrder } from "../../service-orders/hooks/useServiceOrders";
 import { useCompanySettings } from "../../settings/hooks/useCompanySettings";
 import { PrintLayout } from "../components/PrintLayout";
@@ -101,6 +102,10 @@ export function ServiceOrderReceiptPrintPage() {
             ))}
           </ul>
         )}
+      </PrintSection>
+
+      <PrintSection title="Acompanhamento público">
+        <PublicTrackingQr publicToken={serviceOrder.publicToken} />
       </PrintSection>
 
       <PrintSection title="Observações">

@@ -1,4 +1,11 @@
-import { Copy, Eye, EyeOff, Printer, RotateCcw } from "lucide-react";
+import {
+  Copy,
+  ExternalLink,
+  Eye,
+  EyeOff,
+  Printer,
+  RotateCcw,
+} from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useParams } from "react-router-dom";
 import { EmptyState } from "../../../components/ui/EmptyState";
@@ -13,6 +20,7 @@ import type { ServiceOrderStatus } from "../../../types/dashboard";
 import { getApiErrorStatus } from "../../../utils/apiError";
 import { getFriendlyErrorMessage } from "../../../utils/errorMessages";
 import { formatDateTime } from "../../../utils/formatters";
+import { buildPublicTrackingUrl } from "../../public-tracking/utils/publicTrackingUrl";
 import { BudgetForm } from "../components/BudgetForm";
 import { BudgetList } from "../components/BudgetList";
 import { ConsumePartForm } from "../components/ConsumePartForm";
@@ -308,11 +316,15 @@ export function ServiceOrderDetailPage() {
   }
 
   async function handleCopyPublicLink() {
-    const url = `${window.location.origin}/track/${serviceOrder?.publicToken}`;
+    if (!serviceOrder) {
+      return;
+    }
+
+    const url = buildPublicTrackingUrl(serviceOrder.publicToken);
 
     try {
       await navigator.clipboard.writeText(url);
-      showToast("Link de consulta copiado.", "success");
+      showToast("Link copiado.", "success");
     } catch {
       showToast(url, "info");
     }
@@ -553,13 +565,22 @@ export function ServiceOrderDetailPage() {
               <Printer size={17} />
               Imprimir protocolo
             </Link>
+            <a
+              href={buildPublicTrackingUrl(serviceOrder.publicToken)}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex h-10 items-center gap-2 rounded-md border border-slate-200 px-4 text-sm font-medium text-slate-700 hover:bg-slate-50"
+            >
+              <ExternalLink size={17} />
+              Abrir tracking
+            </a>
             <button
               type="button"
               onClick={() => void handleCopyPublicLink()}
               className="inline-flex h-10 items-center gap-2 rounded-md border border-slate-200 px-4 text-sm font-medium text-slate-700 hover:bg-slate-50"
             >
               <Copy size={17} />
-              Copiar link do cliente
+              Copiar link
             </button>
           </div>
         </div>

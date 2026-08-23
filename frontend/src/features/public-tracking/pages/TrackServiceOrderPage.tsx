@@ -38,7 +38,7 @@ export function TrackServiceOrderPage() {
         ) : (
           <div className="mt-6 space-y-6">
             <div>
-              <span className="text-sm text-slate-500">Ordem de Servico</span>
+              <span className="text-sm text-slate-500">Ordem de Serviço</span>
               <h1 className="mt-1 text-2xl font-semibold text-slate-950">
                 OS #{serviceOrderQuery.data.number}
               </h1>

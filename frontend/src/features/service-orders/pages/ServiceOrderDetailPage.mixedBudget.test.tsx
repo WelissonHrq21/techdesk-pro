@@ -2,7 +2,7 @@ import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import { Route, Routes } from "react-router-dom";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { ToastProvider } from "../../../contexts/ToastContext";
 import { testApiUrl } from "../../../test/apiUrl";
 import { renderWithProviders } from "../../../test/helpers/renderWithProviders";
@@ -202,6 +202,24 @@ async function waitForPage() {
 }
 
 describe("ServiceOrderDetailPage mixed budget flows", () => {
+  it("opens and copies the public tracking URL from the current origin", async () => {
+    const user = userEvent.setup();
+    const writeText = vi
+      .spyOn(navigator.clipboard, "writeText")
+      .mockResolvedValue();
+    const expectedUrl = `${window.location.origin}/track/33333333-3333-4333-8333-333333333333`;
+
+    renderPage();
+    await waitForPage();
+
+    expect(screen.getByRole("link", { name: /abrir tracking/i }))
+      .toHaveAttribute("href", expectedUrl);
+    await user.click(screen.getByRole("button", { name: /copiar link/i }));
+
+    expect(writeText).toHaveBeenCalledWith(expectedUrl);
+    expect(await screen.findByText("Link copiado.")).toBeInTheDocument();
+  });
+
   it("loads PART and SERVICE into revision and serializes both types", async () => {
     const user = userEvent.setup();
     let submittedBody: unknown;
