@@ -4,6 +4,7 @@ export type Part = {
   brand: string;
   currentPrice: string;
   stock: number;
+  minimumStock?: number;
   supplier: string | null;
   active: boolean;
   createdAt: string;

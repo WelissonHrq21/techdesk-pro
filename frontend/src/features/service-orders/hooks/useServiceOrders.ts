@@ -15,7 +15,7 @@ import {
 import type {
   BudgetDecisionData,
   BudgetFormData,
-  BudgetRevisionFormData,
+  BudgetRevisionRequestData,
   ChangeServiceOrderStatusData,
   ConsumePartData,
   FindServiceOrdersParams,
@@ -99,7 +99,7 @@ export function useCreateBudgetRevision(id: string) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (data: BudgetRevisionFormData) =>
+    mutationFn: (data: BudgetRevisionRequestData) =>
       createBudgetRevision(id, data),
     onSuccess: () => {
       invalidateServiceOrderQueries(queryClient, id);

@@ -14,6 +14,11 @@ export const createPartSchema = z.object({
   currentPrice: z
     .number()
     .positive({ message: "Current price must be positive" }),
+  minimumStock: z
+    .number()
+    .int({ message: "Minimum stock must be an integer" })
+    .min(0, { message: "Minimum stock must be at least 0" })
+    .default(0),
   supplier: z
     .string()
     .trim()

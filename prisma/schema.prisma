@@ -39,6 +39,11 @@ enum UserRole {
   TECHNICIAN
 }
 
+enum BudgetItemType {
+  PART
+  SERVICE
+}
+
 model Customer {
   id            String         @id @default(uuid())
   name          String
@@ -178,7 +183,7 @@ model Budget {
 
   budgetItems BudgetItem[]
 
-  @@index([serviceOrderId])
+  @@unique([serviceOrderId, version])
 }
 
 model Part {
@@ -188,6 +193,7 @@ model Part {
   brand        String
   currentPrice Decimal
   stock        Int     @default(0)
+  minimumStock Int     @default(0)
   supplier     String?
 
   active Boolean @default(true)
@@ -220,7 +226,7 @@ model StockMovement {
   reversalOfMovement   StockMovement?  @relation("StockMovementReversals", fields: [reversalOfMovementId], references: [id])
   reversals            StockMovement[] @relation("StockMovementReversals")
 
-  @@index([partId])
+  @@index([partId, createdAt])
   @@index([serviceOrderId])
   @@index([reversalOfMovementId])
   @@index([createdAt])
@@ -229,8 +235,10 @@ model StockMovement {
 model BudgetItem {
   id String @id @default(uuid())
 
-  quantity  Int
-  unitPrice Decimal
+  type        BudgetItemType @default(PART)
+  description String
+  quantity    Int
+  unitPrice   Decimal
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -238,6 +246,6 @@ model BudgetItem {
   budgetId String
   budget   Budget @relation(fields: [budgetId], references: [id])
 
-  partId String
-  part   Part   @relation(fields: [partId], references: [id])
+  partId String?
+  part   Part?   @relation(fields: [partId], references: [id], onDelete: Restrict)
 }

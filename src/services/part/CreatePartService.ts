@@ -4,6 +4,7 @@ type CreatePartData = {
   name: string;
   brand: string;
   currentPrice: number;
+  minimumStock: number;
   supplier?: string;
 };
 
@@ -15,6 +16,7 @@ class CreatePartService {
       name: data.name,
       brand: data.brand,
       currentPrice: data.currentPrice,
+      minimumStock: data.minimumStock,
       supplier: data.supplier,
     });
   }

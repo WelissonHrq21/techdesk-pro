@@ -1,7 +1,11 @@
 import { PackageCheck } from "lucide-react";
 import { EmptyState } from "../../../components/ui/EmptyState";
 import { formatCurrency } from "../../../utils/formatters";
-import type { BudgetSummary } from "../types/serviceOrder";
+import {
+  isPartBudgetItem,
+  type BudgetPartItem,
+  type BudgetSummary,
+} from "../types/serviceOrder";
 import type { ConsumptionSummary } from "../utils/serviceOrderDerivedData";
 
 type MaintenancePartsProps = {
@@ -9,7 +13,7 @@ type MaintenancePartsProps = {
   consumedByPartId: Record<string, number>;
   consumptionSummaryByPartId: Record<string, ConsumptionSummary>;
   canConsume: boolean;
-  onConsume: (item: BudgetSummary["budgetItems"][number]) => void;
+  onConsume: (item: BudgetPartItem) => void;
 };
 
 export function MaintenanceParts({
@@ -23,9 +27,15 @@ export function MaintenanceParts({
     return <EmptyState title="Nenhum orçamento aprovado encontrado." />;
   }
 
+  const partItems = currentBudget.budgetItems.filter(isPartBudgetItem);
+
+  if (partItems.length === 0) {
+    return <EmptyState title="Nenhuma peça aprovada para consumo." />;
+  }
+
   return (
     <div className="space-y-3">
-      {currentBudget.budgetItems.map((item) => {
+      {partItems.map((item) => {
         const consumed = consumedByPartId[item.part.id] ?? 0;
         const summary = consumptionSummaryByPartId[item.part.id];
         const reversed = summary?.reversedQuantity ?? 0;

@@ -5,10 +5,10 @@ import {
   consumePartSchema,
   type ConsumePartFormValues,
 } from "../schemas/serviceOrderActionSchemas";
-import type { BudgetSummary } from "../types/serviceOrder";
+import type { BudgetPartItem } from "../types/serviceOrder";
 
 type ConsumePartFormProps = {
-  item: BudgetSummary["budgetItems"][number];
+  item: BudgetPartItem;
   consumed: number;
   isSubmitting: boolean;
   errorMessage?: string | null;

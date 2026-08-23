@@ -1,15 +1,12 @@
 import { Prisma, ServiceOrderStatus } from "@prisma/client";
 import { prisma } from "../config/prisma";
+import { PreparedBudgetItem } from "../types/budget";
 
 type CreateBudgetData = {
   serviceOrderId: string;
   version: number;
   totalValue: Prisma.Decimal.Value;
-  items: Array<{
-    partId: string;
-    quantity: number;
-    unitPrice: Prisma.Decimal.Value;
-  }>;
+  items: PreparedBudgetItem[];
 };
 
 type CreateBudgetRevisionData = CreateBudgetData & {
@@ -68,7 +65,9 @@ class BudgetRepository {
         totalValue: data.totalValue,
         budgetItems: {
           create: data.items.map((item) => ({
+            type: item.type,
             partId: item.partId,
+            description: item.description,
             quantity: item.quantity,
             unitPrice: item.unitPrice,
           })),
@@ -93,7 +92,9 @@ class BudgetRepository {
           totalValue: data.totalValue,
           budgetItems: {
             create: data.items.map((item) => ({
+              type: item.type,
               partId: item.partId,
+              description: item.description,
               quantity: item.quantity,
               unitPrice: item.unitPrice,
             })),

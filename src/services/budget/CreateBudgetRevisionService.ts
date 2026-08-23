@@ -1,18 +1,16 @@
-import { ServiceOrderStatus } from "@prisma/client";
+import { BudgetItemType, ServiceOrderStatus } from "@prisma/client";
 import { AppError } from "../../errors/AppError";
 import { BudgetRepository } from "../../repositories/BudgetRepository";
 import { PartRepository } from "../../repositories/PartRepository";
 import { ServiceOrderRepository } from "../../repositories/ServiceOrderRepository";
 import { StockMovementRepository } from "../../repositories/StockMovementRepository";
 import { UserRepository } from "../../repositories/UserRepository";
+import { BudgetItemInput } from "../../types/budget";
+import { prepareBudgetItems } from "./prepareBudgetItems";
 
 type CreateBudgetRevisionData = {
   serviceOrderId: string;
-  items: Array<{
-    partId: string;
-    quantity: number;
-    unitPrice: number;
-  }>;
+  items: BudgetItemInput[];
   observation?: string;
   userId?: string;
 };
@@ -64,28 +62,18 @@ class CreateBudgetRevisionService {
       }
     }
 
-    for (const item of data.items) {
-      if (item.quantity <= 0) {
-        throw new AppError("Quantity must be greater than zero", 400);
-      }
-
-      if (item.unitPrice <= 0) {
-        throw new AppError("Unit price must be greater than zero", 400);
-      }
-
-      const part = await partRepository.findById(item.partId);
-
-      if (!part) {
-        throw new AppError("Part not found", 404);
-      }
-
-      if (!part.active) {
-        throw new AppError("Part is inactive", 400);
-      }
-    }
+    const items = await prepareBudgetItems(
+      data.items,
+      partRepository
+    );
 
     const revisionItemsByPartId = new Map(
-      data.items.map((item) => [item.partId, item])
+      items
+        .filter(
+          (item) =>
+            item.type === BudgetItemType.PART && item.partId !== null
+        )
+        .map((item) => [item.partId as string, item])
     );
 
     const consumedParts =
@@ -113,7 +101,7 @@ class CreateBudgetRevisionService {
       }
     }
 
-    const totalValue = data.items.reduce((total, item) => {
+    const totalValue = items.reduce((total, item) => {
       return total + item.quantity * item.unitPrice;
     }, 0);
 
@@ -121,7 +109,7 @@ class CreateBudgetRevisionService {
       serviceOrderId: data.serviceOrderId,
       version: lastVersion.version + 1,
       totalValue,
-      items: data.items,
+      items,
       previousStatus: serviceOrder.status,
       userId: data.userId,
       observation: data.observation,

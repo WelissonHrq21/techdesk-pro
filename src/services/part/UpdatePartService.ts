@@ -5,6 +5,7 @@ type UpdatePartData = {
   name?: string;
   brand?: string;
   currentPrice?: number;
+  minimumStock?: number;
   supplier?: string;
 };
 

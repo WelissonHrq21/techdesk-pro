@@ -70,7 +70,7 @@ export function BudgetList({ budgets, currentBudgetId }: BudgetListProps) {
                       >
                         <div>
                           <p className="font-medium text-slate-950">
-                            {item.part.name}
+                            {item.description ?? item.part?.name}
                           </p>
                           <p className="text-slate-500">
                             {item.quantity} x {formatCurrency(item.unitPrice)}

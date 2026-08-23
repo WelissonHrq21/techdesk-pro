@@ -20,6 +20,46 @@ export type ServiceOrderFormData = {
   accessories?: Accessory[];
 };
 
+type BudgetItemBase = {
+  id: string;
+  description?: string;
+  quantity: number;
+  unitPrice: string;
+};
+
+export type BudgetPartItem = BudgetItemBase & {
+  type?: "PART";
+  partId?: string;
+  part: {
+    id: string;
+    name: string;
+    brand?: string;
+    currentPrice?: string;
+    stock?: number;
+  };
+};
+
+export type BudgetServiceItem = BudgetItemBase & {
+  type: "SERVICE";
+  description: string;
+  partId: null;
+  part: null;
+};
+
+export type BudgetItem = BudgetPartItem | BudgetServiceItem;
+
+export function isPartBudgetItem(
+  item: BudgetItem
+): item is BudgetPartItem {
+  return item.type !== "SERVICE" && item.part !== null;
+}
+
+export function isServiceBudgetItem(
+  item: BudgetItem
+): item is BudgetServiceItem {
+  return item.type === "SERVICE";
+}
+
 export type BudgetSummary = {
   id: string;
   version: number;
@@ -27,18 +67,7 @@ export type BudgetSummary = {
   createdAt: string;
   updatedAt: string;
   serviceOrderId: string;
-  budgetItems: Array<{
-    id: string;
-    quantity: number;
-    unitPrice: string;
-    part: {
-      id: string;
-      name: string;
-      brand?: string;
-      currentPrice?: string;
-      stock?: number;
-    };
-  }>;
+  budgetItems: BudgetItem[];
 };
 
 export type ServiceOrderHistory = {
@@ -120,6 +149,19 @@ export type BudgetFormData = {
 };
 
 export type BudgetRevisionFormData = BudgetFormData & {
+  observation?: string;
+};
+
+export type BudgetRevisionRequestData = {
+  items: Array<
+    | BudgetItemFormData
+    | {
+        type: "SERVICE";
+        description: string;
+        quantity: number;
+        unitPrice: number;
+      }
+  >;
   observation?: string;
 };
 

@@ -3,14 +3,12 @@ import { AppError } from "../../errors/AppError";
 import { BudgetRepository } from "../../repositories/BudgetRepository";
 import { PartRepository } from "../../repositories/PartRepository";
 import { ServiceOrderRepository } from "../../repositories/ServiceOrderRepository";
+import { BudgetItemInput } from "../../types/budget";
+import { prepareBudgetItems } from "./prepareBudgetItems";
 
 type CreateBudgetData = {
   serviceOrderId: string;
-  items: Array<{
-    partId: string;
-    quantity: number;
-    unitPrice: number;
-  }>;
+  items: BudgetItemInput[];
 };
 
 const allowedStatusesToCreateBudget: ServiceOrderStatus[] = [
@@ -42,27 +40,12 @@ class CreateBudgetService {
       );
     }
 
-    for (const item of data.items) {
-      if (item.quantity <= 0) {
-        throw new AppError("Quantity must be greater than zero", 400);
-      }
+    const items = await prepareBudgetItems(
+      data.items,
+      partRepository
+    );
 
-      if (item.unitPrice <= 0) {
-        throw new AppError("Unit price must be greater than zero", 400);
-      }
-
-      const part = await partRepository.findById(item.partId);
-
-      if (!part) {
-        throw new AppError("Part not found", 404);
-      }
-
-      if (!part.active) {
-        throw new AppError("Part is inactive", 400);
-      }
-    }
-
-    const totalValue = data.items.reduce((total, item) => {
+    const totalValue = items.reduce((total, item) => {
       return total + item.quantity * item.unitPrice;
     }, 0);
 
@@ -77,7 +60,7 @@ class CreateBudgetService {
       serviceOrderId: data.serviceOrderId,
       version: nextVersion,
       totalValue,
-      items: data.items,
+      items,
     });
   }
 }

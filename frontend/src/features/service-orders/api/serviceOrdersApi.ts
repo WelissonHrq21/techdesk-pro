@@ -3,7 +3,7 @@ import type { PaginatedResponse } from "../../../types/pagination";
 import type {
   BudgetDecisionData,
   BudgetFormData,
-  BudgetRevisionFormData,
+  BudgetRevisionRequestData,
   ChangeServiceOrderStatusData,
   ConsumePartData,
   FindServiceOrdersParams,
@@ -99,7 +99,7 @@ export async function createBudget(id: string, data: BudgetFormData) {
 
 export async function createBudgetRevision(
   id: string,
-  data: BudgetRevisionFormData
+  data: BudgetRevisionRequestData
 ) {
   const response = await http.post(`/service-orders/${id}/budgets/revision`, {
     items: data.items,

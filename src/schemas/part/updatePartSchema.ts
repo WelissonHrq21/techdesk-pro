@@ -17,6 +17,11 @@ export const updatePartSchema = z.object({
     .number()
     .positive({ message: "Current price must be positive" })
     .optional(),
+  minimumStock: z
+    .number()
+    .int({ message: "Minimum stock must be an integer" })
+    .min(0, { message: "Minimum stock must be at least 0" })
+    .optional(),
   supplier: z
     .string()
     .trim()

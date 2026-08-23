@@ -223,15 +223,98 @@ export const openApiDocument = {
           version: { type: "integer" },
           totalValue: { type: "string" },
           serviceOrderId: { type: "string", format: "uuid" },
+          budgetItems: {
+            type: "array",
+            items: { $ref: "#/components/schemas/BudgetItem" },
+          },
         },
       },
       BudgetItem: {
         type: "object",
+        required: [
+          "id",
+          "type",
+          "description",
+          "partId",
+          "quantity",
+          "unitPrice",
+        ],
         properties: {
           id: { type: "string", format: "uuid" },
-          partId: { type: "string", format: "uuid" },
+          type: { type: "string", enum: ["PART", "SERVICE"] },
+          description: {
+            type: "string",
+            description:
+              "Immutable item description. PART snapshots the Part name; SERVICE uses the submitted description.",
+          },
+          partId: {
+            type: "string",
+            format: "uuid",
+            nullable: true,
+            description:
+              "Required for PART and null/absent for SERVICE.",
+          },
           quantity: { type: "integer" },
           unitPrice: { type: "string" },
+        },
+      },
+      BudgetPartItemInput: {
+        type: "object",
+        required: ["partId", "quantity", "unitPrice"],
+        additionalProperties: false,
+        properties: {
+          type: { type: "string", enum: ["PART"], default: "PART" },
+          partId: { type: "string", format: "uuid" },
+          quantity: { type: "integer", minimum: 1 },
+          unitPrice: { type: "number", exclusiveMinimum: 0 },
+        },
+      },
+      BudgetServiceItemInput: {
+        type: "object",
+        required: ["type", "description", "quantity", "unitPrice"],
+        additionalProperties: false,
+        properties: {
+          type: { type: "string", enum: ["SERVICE"] },
+          partId: {
+            type: "string",
+            nullable: true,
+            enum: [null],
+            description: "May be omitted or null; a Part UUID is rejected.",
+          },
+          description: { type: "string", minLength: 1, maxLength: 200 },
+          quantity: { type: "integer", minimum: 1 },
+          unitPrice: { type: "number", exclusiveMinimum: 0 },
+        },
+      },
+      BudgetItemInput: {
+        oneOf: [
+          { $ref: "#/components/schemas/BudgetPartItemInput" },
+          { $ref: "#/components/schemas/BudgetServiceItemInput" },
+        ],
+      },
+      CreateBudgetRequest: {
+        type: "object",
+        required: ["items"],
+        additionalProperties: false,
+        properties: {
+          items: {
+            type: "array",
+            minItems: 1,
+            items: { $ref: "#/components/schemas/BudgetItemInput" },
+          },
+        },
+      },
+      CreateBudgetRevisionRequest: {
+        type: "object",
+        required: ["items"],
+        additionalProperties: false,
+        properties: {
+          items: {
+            type: "array",
+            minItems: 1,
+            items: { $ref: "#/components/schemas/BudgetItemInput" },
+          },
+          observation: { type: "string", maxLength: 500 },
         },
       },
       Part: {
@@ -242,7 +325,37 @@ export const openApiDocument = {
           brand: { type: "string" },
           currentPrice: { type: "string" },
           stock: { type: "integer" },
+          minimumStock: {
+            type: "integer",
+            minimum: 0,
+            default: 0,
+            description:
+              "Zero means no positive minimum stock is configured.",
+          },
           supplier: { type: "string", nullable: true },
+        },
+      },
+      CreatePartRequest: {
+        type: "object",
+        required: ["name", "brand", "currentPrice"],
+        additionalProperties: false,
+        properties: {
+          name: { type: "string", minLength: 1, maxLength: 100 },
+          brand: { type: "string", minLength: 1, maxLength: 100 },
+          currentPrice: { type: "number", exclusiveMinimum: 0 },
+          minimumStock: { type: "integer", minimum: 0, default: 0 },
+          supplier: { type: "string", maxLength: 150 },
+        },
+      },
+      UpdatePartRequest: {
+        type: "object",
+        additionalProperties: false,
+        properties: {
+          name: { type: "string", minLength: 1, maxLength: 100 },
+          brand: { type: "string", minLength: 1, maxLength: 100 },
+          currentPrice: { type: "number", exclusiveMinimum: 0 },
+          minimumStock: { type: "integer", minimum: 0 },
+          supplier: { type: "string", maxLength: 150 },
         },
       },
       StockMovement: {
@@ -524,10 +637,10 @@ export const openApiDocument = {
       patch: { tags: ["Service Orders"], summary: "Update diagnosis. Roles: ADMIN, TECHNICIAN", parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }], responses: { "200": { description: "Diagnosis updated" } } },
     },
     "/service-orders/{id}/budgets": {
-      post: { tags: ["Budgets"], summary: "Create budget. Roles: ADMIN, TECHNICIAN", parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }], responses: { "201": { description: "Budget created" } } },
+      post: { tags: ["Budgets"], summary: "Create budget. Roles: ADMIN, TECHNICIAN", parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }], requestBody: { required: true, content: { "application/json": { schema: { $ref: "#/components/schemas/CreateBudgetRequest" } } } }, responses: { "201": { description: "Budget created" }, "400": { description: "Invalid PART or SERVICE item" } } },
     },
     "/service-orders/{id}/budgets/revision": {
-      post: { tags: ["Budgets"], summary: "Create budget revision. Roles: ADMIN, TECHNICIAN", parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }], responses: { "201": { description: "Budget revision created" } } },
+      post: { tags: ["Budgets"], summary: "Create budget revision. Roles: ADMIN, TECHNICIAN", parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }], requestBody: { required: true, content: { "application/json": { schema: { $ref: "#/components/schemas/CreateBudgetRevisionRequest" } } } }, responses: { "201": { description: "Budget revision created" }, "400": { description: "Invalid PART or SERVICE item" } } },
     },
     "/budgets/{id}/approve": {
       post: { tags: ["Budgets"], summary: "Approve budget. Roles: ADMIN, RECEPTION", parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }], responses: { "200": { description: "Budget approved" } } },
@@ -540,11 +653,11 @@ export const openApiDocument = {
     },
     "/parts": {
       get: { tags: ["Parts"], summary: "List parts. Roles: ADMIN, RECEPTION, TECHNICIAN", responses: { "200": { description: "Paginated parts" } } },
-      post: { tags: ["Parts"], summary: "Create part. Roles: ADMIN", responses: { "201": { description: "Part created" } } },
+      post: { tags: ["Parts"], summary: "Create part. Roles: ADMIN", requestBody: { required: true, content: { "application/json": { schema: { $ref: "#/components/schemas/CreatePartRequest" } } } }, responses: { "201": { description: "Part created" } } },
     },
     "/parts/{id}": {
       get: { tags: ["Parts"], summary: "Get part", parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }], responses: { "200": { description: "Part" } } },
-      put: { tags: ["Parts"], summary: "Update part. Roles: ADMIN", parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }], responses: { "200": { description: "Part updated" } } },
+      put: { tags: ["Parts"], summary: "Update part. Roles: ADMIN", parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }], requestBody: { required: true, content: { "application/json": { schema: { $ref: "#/components/schemas/UpdatePartRequest" } } } }, responses: { "200": { description: "Part updated" } } },
       delete: { tags: ["Parts"], summary: "Deactivate part. Roles: ADMIN", parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }], responses: { "200": { description: "Part deactivated" } } },
     },
     "/parts/{id}/stock/entry": {

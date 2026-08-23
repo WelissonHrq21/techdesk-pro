@@ -79,7 +79,7 @@ export function BudgetPrintPage() {
         <table className="w-full text-left text-sm">
           <thead>
             <tr className="border-b border-slate-300">
-              <th className="py-2 font-semibold">Peça</th>
+              <th className="py-2 font-semibold">Item</th>
               <th className="py-2 text-right font-semibold">Qtd.</th>
               <th className="py-2 text-right font-semibold">Valor unit.</th>
               <th className="py-2 text-right font-semibold">Subtotal</th>
@@ -88,7 +88,9 @@ export function BudgetPrintPage() {
           <tbody>
             {budget.budgetItems.map((item) => (
               <tr key={item.id} className="border-b border-slate-100">
-                <td className="py-2">{item.part.name}</td>
+                <td className="py-2">
+                  {item.description ?? item.part?.name}
+                </td>
                 <td className="py-2 text-right">{item.quantity}</td>
                 <td className="py-2 text-right">
                   {formatCurrency(item.unitPrice)}

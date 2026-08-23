@@ -33,10 +33,13 @@ import {
   useServiceOrder,
   useUpdateDiagnosis,
 } from "../hooks/useServiceOrders";
-import type {
-  BudgetFormData,
-  BudgetRevisionFormData,
-  BudgetSummary,
+import {
+  isPartBudgetItem,
+  isServiceBudgetItem,
+  type BudgetFormData,
+  type BudgetPartItem,
+  type BudgetRevisionFormData,
+  type BudgetSummary,
 } from "../types/serviceOrder";
 import {
   getAvailableActions,
@@ -134,6 +137,10 @@ function buildInitialParts(currentBudget: BudgetSummary | null) {
       }
     >
   >((accumulator, item) => {
+    if (!isPartBudgetItem(item)) {
+      return accumulator;
+    }
+
     accumulator[item.part.id] = {
       id: item.part.id,
       name: item.part.name,
@@ -162,7 +169,7 @@ export function ServiceOrderDetailPage() {
     null
   );
   const [consumeItem, setConsumeItem] = useState<
-    BudgetSummary["budgetItems"][number] | null
+    BudgetPartItem | null
   >(null);
   const [reverseSummary, setReverseSummary] =
     useState<ConsumptionSummary | null>(null);
@@ -266,10 +273,12 @@ export function ServiceOrderDetailPage() {
     }
 
     if (action === "CONSUME_PART") {
-      const nextItem = currentBudget?.budgetItems.find((item) => {
-        const consumed = consumedByPartId[item.part.id] ?? 0;
-        return consumed < item.quantity;
-      });
+      const nextItem = currentBudget?.budgetItems
+        .filter(isPartBudgetItem)
+        .find((item) => {
+          const consumed = consumedByPartId[item.part.id] ?? 0;
+          return consumed < item.quantity;
+        });
 
       if (!nextItem) {
         showToast("Nenhuma quantidade aprovada pendente para consumo.", "info");
@@ -344,7 +353,20 @@ export function ServiceOrderDetailPage() {
 
   async function handleCreateRevision(data: BudgetRevisionFormData) {
     try {
-      await createRevisionMutation.mutateAsync(data);
+      const serviceItems =
+        currentBudget?.budgetItems
+          .filter(isServiceBudgetItem)
+          .map((item) => ({
+            type: "SERVICE" as const,
+            description: item.description,
+            quantity: item.quantity,
+            unitPrice: Number(item.unitPrice),
+          })) ?? [];
+
+      await createRevisionMutation.mutateAsync({
+        ...data,
+        items: [...data.items, ...serviceItems],
+      });
       resetModalState();
       showToast("Revisão enviada para aprovação.", "success");
     } catch (error) {
@@ -456,19 +478,23 @@ export function ServiceOrderDetailPage() {
     (serviceOrder.status === "IN_MAINTENANCE" ||
       serviceOrder.status === "FINISHED");
   const revisionDefaultItems =
-    currentBudget?.budgetItems.map((item) => ({
-      partId: item.part.id,
-      quantity: item.quantity,
-      unitPrice: Number(item.unitPrice),
-    })) ?? [];
+    currentBudget?.budgetItems
+      .filter(isPartBudgetItem)
+      .map((item) => ({
+        partId: item.part.id,
+        quantity: item.quantity,
+        unitPrice: Number(item.unitPrice),
+      })) ?? [];
   const statusConfig = activeStatusAction
     ? statusActionConfig[activeStatusAction]
     : undefined;
   const unconsumedItems =
-    currentBudget?.budgetItems.filter((item) => {
-      const consumed = consumedByPartId[item.part.id] ?? 0;
-      return consumed < item.quantity;
-    }) ?? [];
+    currentBudget?.budgetItems
+      .filter(isPartBudgetItem)
+      .filter((item) => {
+        const consumed = consumedByPartId[item.part.id] ?? 0;
+        return consumed < item.quantity;
+      }) ?? [];
 
   return (
     <section>
