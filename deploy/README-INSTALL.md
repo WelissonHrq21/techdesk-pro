@@ -62,7 +62,7 @@ antes de gerar secrets, iniciar containers ou tocar no banco.
 
 Passos:
 
-1. Extraia o pacote `techdesk-pro-setup-1.1.1-rc.N.tar.gz` ou o pacote final aprovado.
+1. Extraia o pacote `techdesk-pro-setup-1.2.0-rc.N.tar.gz` ou o pacote final aprovado.
 2. Abra o PowerShell na pasta extraida `deploy`.
 3. Execute:
 
@@ -304,11 +304,11 @@ IP da maquina mudou:
 
 ## Atualizacoes
 
-Producao nao deve seguir `main` automaticamente. Atualizacoes devem usar imagens versionadas, por exemplo `1.1.1`, precedidas de backup validado e smoke test.
+Producao nao deve seguir `main` automaticamente. Atualizacoes devem usar imagens versionadas, por exemplo `1.2.0`, precedidas de backup validado e smoke test.
 
-A v1.1.0 ja foi publicada. Use uma versao de patch aprovada, como `1.1.1`,
-quando o objetivo for corrigir instalacoes v1.1.0 existentes sem entrar no
-escopo planejado para v1.2.0.
+A v1.1.1 permanece como versao estavel. O upgrade para v1.2.0 deve usar uma
+candidate aprovada no smoke Linux antes da promocao das imagens e da
+publicacao final.
 
 ## Desinstalacao futura
 

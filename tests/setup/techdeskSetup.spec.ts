@@ -194,9 +194,9 @@ describe("TechDesk setup bootstrapper", () => {
   it("keeps production compose on versioned images and private PostgreSQL", () => {
     const compose = readFileSync(composeFile, "utf8");
 
-    expect(compose).toContain("ghcr.io/welissonhrq21/techdesk-pro-api:1.1.1");
+    expect(compose).toContain("ghcr.io/welissonhrq21/techdesk-pro-api:1.2.0");
     expect(compose).toContain(
-      "ghcr.io/welissonhrq21/techdesk-pro-frontend:1.1.1"
+      "ghcr.io/welissonhrq21/techdesk-pro-frontend:1.2.0"
     );
     expect(compose).not.toMatch(/:latest\b/);
     const postgresBlock = compose.match(/postgres:[\s\S]*?\n  api:/)?.[0] ?? "";
@@ -667,22 +667,22 @@ describe("TechDesk setup bootstrapper", () => {
         'archive="$(PACKAGE_SUFFIX=rc.1 "$1")"',
         'tar -tvzf "$archive" | awk \'/deploy\\/techdesk$/ || /deploy\\/VERSION$/ || /deploy\\/README-INSTALL.md$/ || /deploy\\/nginx\\/default.conf$/ {print $1, $NF}\'',
         'printf "VERSION_CONTENT="',
-        'tar -xOzf "$archive" techdesk-pro-setup-1.1.1-rc.1/deploy/VERSION',
+        'tar -xOzf "$archive" techdesk-pro-setup-1.2.0-rc.1/deploy/VERSION',
       ].join("\n"),
       [packageScript]
     );
 
     expect(result.stderr).toBe("");
     expect(result.status).toBe(0);
-    expect(result.stdout).toContain("-rwxr-xr-x techdesk-pro-setup-1.1.1-rc.1/deploy/techdesk");
-    expect(result.stdout).toContain("-rw-r--r-- techdesk-pro-setup-1.1.1-rc.1/deploy/VERSION");
+    expect(result.stdout).toContain("-rwxr-xr-x techdesk-pro-setup-1.2.0-rc.1/deploy/techdesk");
+    expect(result.stdout).toContain("-rw-r--r-- techdesk-pro-setup-1.2.0-rc.1/deploy/VERSION");
     expect(result.stdout).toContain(
-      "-rw-r--r-- techdesk-pro-setup-1.1.1-rc.1/deploy/README-INSTALL.md"
+      "-rw-r--r-- techdesk-pro-setup-1.2.0-rc.1/deploy/README-INSTALL.md"
     );
     expect(result.stdout).toContain(
-      "-rw-r--r-- techdesk-pro-setup-1.1.1-rc.1/deploy/nginx/default.conf"
+      "-rw-r--r-- techdesk-pro-setup-1.2.0-rc.1/deploy/nginx/default.conf"
     );
-    expect(result.stdout).toContain("VERSION_CONTENT=1.1.1-rc.1");
+    expect(result.stdout).toContain("VERSION_CONTENT=1.2.0-rc.1");
   });
 
   it.runIf(hasShell())(

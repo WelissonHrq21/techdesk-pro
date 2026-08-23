@@ -67,8 +67,8 @@ if (Test-Path -LiteralPath $Script:EnvPath) {
     "ADMIN_LOGIN=$adminLogin",
     "ADMIN_PASSWORD=$adminPassword",
     "",
-    "TECHDESK_API_IMAGE=ghcr.io/welissonhrq21/techdesk-pro-api:1.1.1",
-    "TECHDESK_FRONTEND_IMAGE=ghcr.io/welissonhrq21/techdesk-pro-frontend:1.1.1"
+    "TECHDESK_API_IMAGE=ghcr.io/welissonhrq21/techdesk-pro-api:1.2.0",
+    "TECHDESK_FRONTEND_IMAGE=ghcr.io/welissonhrq21/techdesk-pro-frontend:1.2.0"
   ) | Set-Content -LiteralPath $Script:EnvPath -Encoding UTF8
 
   Write-Host ".env criado. Secrets foram gravados localmente e nao serao exibidos."
