@@ -6,6 +6,7 @@ import { ServiceOrderRepository } from "../../repositories/ServiceOrderRepositor
 import { StockMovementRepository } from "../../repositories/StockMovementRepository";
 import { UserRepository } from "../../repositories/UserRepository";
 import { BudgetItemInput } from "../../types/budget";
+import { calculateBudgetTotal } from "./calculateBudgetTotal";
 import { prepareBudgetItems } from "./prepareBudgetItems";
 
 type CreateBudgetRevisionData = {
@@ -67,14 +68,18 @@ class CreateBudgetRevisionService {
       partRepository
     );
 
-    const revisionItemsByPartId = new Map(
-      items
-        .filter(
-          (item) =>
-            item.type === BudgetItemType.PART && item.partId !== null
-        )
-        .map((item) => [item.partId as string, item])
-    );
+    const revisionQuantityByPartId = new Map<string, number>();
+
+    for (const item of items) {
+      if (item.type !== BudgetItemType.PART || item.partId === null) {
+        continue;
+      }
+
+      revisionQuantityByPartId.set(
+        item.partId,
+        (revisionQuantityByPartId.get(item.partId) ?? 0) + item.quantity
+      );
+    }
 
     const consumedParts =
       await stockMovementRepository.findConsumedPartsByServiceOrder(
@@ -82,18 +87,18 @@ class CreateBudgetRevisionService {
       );
 
     for (const consumedPart of consumedParts) {
-      const revisionItem = revisionItemsByPartId.get(
+      const revisionQuantity = revisionQuantityByPartId.get(
         consumedPart.partId
       );
 
-      if (!revisionItem) {
+      if (revisionQuantity === undefined) {
         throw new AppError(
           "Revised budget cannot remove a part already consumed",
           409
         );
       }
 
-      if (revisionItem.quantity < consumedPart.consumed) {
+      if (revisionQuantity < consumedPart.consumed) {
         throw new AppError(
           "Revised budget quantity cannot be lower than already consumed quantity",
           409
@@ -101,13 +106,12 @@ class CreateBudgetRevisionService {
       }
     }
 
-    const totalValue = items.reduce((total, item) => {
-      return total + item.quantity * item.unitPrice;
-    }, 0);
+    const totalValue = calculateBudgetTotal(items);
 
     return budgetRepository.createRevision({
       serviceOrderId: data.serviceOrderId,
-      version: lastVersion.version + 1,
+      expectedVersion: lastVersion.version,
+      expectedStatus: serviceOrder.status,
       totalValue,
       items,
       previousStatus: serviceOrder.status,

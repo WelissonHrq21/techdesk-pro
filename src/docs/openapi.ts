@@ -262,6 +262,8 @@ export const openApiDocument = {
         type: "object",
         required: ["partId", "quantity", "unitPrice"],
         additionalProperties: false,
+        description:
+          "PART item. The type may be omitted for legacy clients and is then treated as PART. The response description snapshots the current Part name.",
         properties: {
           type: { type: "string", enum: ["PART"], default: "PART" },
           partId: { type: "string", format: "uuid" },
@@ -273,6 +275,8 @@ export const openApiDocument = {
         type: "object",
         required: ["type", "description", "quantity", "unitPrice"],
         additionalProperties: false,
+        description:
+          "SERVICE item. It never references a Part and never participates in stock consumption.",
         properties: {
           type: { type: "string", enum: ["SERVICE"] },
           partId: {
@@ -296,6 +300,22 @@ export const openApiDocument = {
         type: "object",
         required: ["items"],
         additionalProperties: false,
+        example: {
+          items: [
+            {
+              type: "PART",
+              partId: "7cb52e44-e0e8-4a72-884e-cb29ba1efdc9",
+              quantity: 1,
+              unitPrice: 250,
+            },
+            {
+              type: "SERVICE",
+              description: "Operating system installation",
+              quantity: 1,
+              unitPrice: 100,
+            },
+          ],
+        },
         properties: {
           items: {
             type: "array",
@@ -308,6 +328,8 @@ export const openApiDocument = {
         type: "object",
         required: ["items"],
         additionalProperties: false,
+        description:
+          "Creates a new immutable version. The version is calculated by the server and concurrent changes to the same service order return 409.",
         properties: {
           items: {
             type: "array",
@@ -637,10 +659,10 @@ export const openApiDocument = {
       patch: { tags: ["Service Orders"], summary: "Update diagnosis. Roles: ADMIN, TECHNICIAN", parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }], responses: { "200": { description: "Diagnosis updated" } } },
     },
     "/service-orders/{id}/budgets": {
-      post: { tags: ["Budgets"], summary: "Create budget. Roles: ADMIN, TECHNICIAN", parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }], requestBody: { required: true, content: { "application/json": { schema: { $ref: "#/components/schemas/CreateBudgetRequest" } } } }, responses: { "201": { description: "Budget created" }, "400": { description: "Invalid PART or SERVICE item" } } },
+      post: { tags: ["Budgets"], summary: "Create a PART, SERVICE, or mixed budget. Roles: ADMIN, TECHNICIAN", description: "SERVICE-only budgets are valid. Legacy items without type remain PART when partId is present. The server calculates the next version and snapshots descriptions and prices.", parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }], requestBody: { required: true, content: { "application/json": { schema: { $ref: "#/components/schemas/CreateBudgetRequest" } } } }, responses: { "201": { description: "Complete budget version created" }, "400": { description: "Invalid PART or SERVICE item, or service order status" }, "404": { description: "Service order or Part not found" }, "409": { description: "Budget version changed concurrently; reload and try again" } } },
     },
     "/service-orders/{id}/budgets/revision": {
-      post: { tags: ["Budgets"], summary: "Create budget revision. Roles: ADMIN, TECHNICIAN", parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }], requestBody: { required: true, content: { "application/json": { schema: { $ref: "#/components/schemas/CreateBudgetRevisionRequest" } } } }, responses: { "201": { description: "Budget revision created" }, "400": { description: "Invalid PART or SERVICE item" } } },
+      post: { tags: ["Budgets"], summary: "Create an immutable mixed budget revision. Roles: ADMIN, TECHNICIAN", description: "Preserves all previous versions. Creation is atomic and serialized per service order; a concurrent same-version revision returns 409.", parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }], requestBody: { required: true, content: { "application/json": { schema: { $ref: "#/components/schemas/CreateBudgetRevisionRequest" } } } }, responses: { "201": { description: "Complete budget revision created" }, "400": { description: "Invalid PART or SERVICE item, or service order status" }, "404": { description: "Service order, previous budget, user, or Part not found" }, "409": { description: "Budget version changed concurrently or revision conflicts with consumed Parts" } } },
     },
     "/budgets/{id}/approve": {
       post: { tags: ["Budgets"], summary: "Approve budget. Roles: ADMIN, RECEPTION", parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }], responses: { "200": { description: "Budget approved" } } },

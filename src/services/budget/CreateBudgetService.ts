@@ -4,6 +4,7 @@ import { BudgetRepository } from "../../repositories/BudgetRepository";
 import { PartRepository } from "../../repositories/PartRepository";
 import { ServiceOrderRepository } from "../../repositories/ServiceOrderRepository";
 import { BudgetItemInput } from "../../types/budget";
+import { calculateBudgetTotal } from "./calculateBudgetTotal";
 import { prepareBudgetItems } from "./prepareBudgetItems";
 
 type CreateBudgetData = {
@@ -40,25 +41,22 @@ class CreateBudgetService {
       );
     }
 
-    const items = await prepareBudgetItems(
-      data.items,
-      partRepository
-    );
-
-    const totalValue = items.reduce((total, item) => {
-      return total + item.quantity * item.unitPrice;
-    }, 0);
-
     const lastVersion =
       await budgetRepository.findLastVersionByServiceOrderId(
         data.serviceOrderId
       );
 
-    const nextVersion = lastVersion ? lastVersion.version + 1 : 1;
+    const items = await prepareBudgetItems(
+      data.items,
+      partRepository
+    );
+
+    const totalValue = calculateBudgetTotal(items);
 
     return budgetRepository.create({
       serviceOrderId: data.serviceOrderId,
-      version: nextVersion,
+      expectedVersion: lastVersion?.version ?? null,
+      expectedStatus: serviceOrder.status,
       totalValue,
       items,
     });

@@ -1,4 +1,4 @@
-import { ServiceOrderStatus } from "@prisma/client";
+import { BudgetItemType, ServiceOrderStatus } from "@prisma/client";
 import { AppError } from "../../errors/AppError";
 import { BudgetRepository } from "../../repositories/BudgetRepository";
 import { PartRepository } from "../../repositories/PartRepository";
@@ -77,11 +77,21 @@ class ConsumePartService {
       );
     }
 
-    const budgetItem = latestBudget.budgetItems.find((item) => {
-      return item.partId === partId;
-    });
+    const approvedQuantity = latestBudget.budgetItems.reduce(
+      (total, item) => {
+        if (
+          item.type !== BudgetItemType.PART ||
+          item.partId !== partId
+        ) {
+          return total;
+        }
 
-    if (!budgetItem) {
+        return total + item.quantity;
+      },
+      0
+    );
+
+    if (approvedQuantity === 0) {
       throw new AppError(
         "Part is not included in the approved budget",
         409
@@ -92,7 +102,7 @@ class ConsumePartService {
       partId,
       quantity,
       serviceOrderId,
-      approvedQuantity: budgetItem.quantity,
+      approvedQuantity,
       userId,
       reason: observation ?? "Part consumed during service order",
     });

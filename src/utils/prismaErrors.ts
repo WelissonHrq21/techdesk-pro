@@ -15,6 +15,7 @@ export function isUniqueConstraintError(
 
   return (
     (Array.isArray(target) && target.includes(field)) ||
-    target === field
+    target === field ||
+    (typeof target === "string" && target.includes(field))
   );
 }
