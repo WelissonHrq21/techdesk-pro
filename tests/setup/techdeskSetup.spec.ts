@@ -211,6 +211,30 @@ function createFakeInstallerSource() {
 }
 
 describe("TechDesk setup bootstrapper", () => {
+  it("keeps POSIX deploy executables LF-only with valid shebangs", () => {
+    const posixDeployFiles = readdirSync(deployDir)
+      .filter((name) => name === "techdesk" || name.endsWith(".sh"))
+      .sort();
+
+    expect(posixDeployFiles).toContain("techdesk");
+    expect(posixDeployFiles).toContain("setup-core.sh");
+
+    for (const name of posixDeployFiles) {
+      const contents = readFileSync(join(deployDir, name));
+      const firstLineEnd = contents.indexOf(0x0a);
+
+      expect(
+        firstLineEnd,
+        `${name} must contain a shebang line`
+      ).toBeGreaterThan(0);
+      expect(
+        contents.subarray(0, firstLineEnd).toString("utf8"),
+        `${name} must use a POSIX shebang without a carriage return`
+      ).toBe("#!/bin/sh");
+      expect(contents.includes(0x0d), `${name} must be LF-only`).toBe(false);
+    }
+  });
+
   it("keeps shell path conversion separated from native Node filesystem paths", () => {
     expect(fromShellPath("/tmp/techdesk-setup/logs/setup.log", "native")).toBe(
       "/tmp/techdesk-setup/logs/setup.log"
@@ -714,6 +738,14 @@ describe("TechDesk setup bootstrapper", () => {
         'tar -tvzf "$archive" | awk \'/deploy\\/techdesk$/ || /deploy\\/VERSION$/ || /deploy\\/README-INSTALL.md$/ || /deploy\\/nginx\\/default.conf$/ {print $1, $NF}\'',
         'printf "VERSION_CONTENT="',
         'tar -xOzf "$archive" techdesk-pro-setup-1.2.0-rc.3/deploy/VERSION',
+        'printf "\\n"',
+        'members="$(tar -tzf "$archive" | grep -E \'/deploy/(techdesk|[^/]+\\.sh)$\')"',
+        'test -n "$members"',
+        'cr="$(printf \'\\r\')"',
+        'printf "%s\\n" "$members" | while IFS= read -r member; do',
+        '  if tar -xOzf "$archive" "$member" | grep "$cr" >/dev/null; then exit 1; fi',
+        'done',
+        'printf "PACKAGE_POSIX_LF=PASS\\n"',
       ].join("\n"),
       [packageScript, outputDir]
     );
@@ -730,6 +762,7 @@ describe("TechDesk setup bootstrapper", () => {
         "-rw-r--r-- techdesk-pro-setup-1.2.0-rc.3/deploy/nginx/default.conf"
       );
       expect(result.stdout).toContain("VERSION_CONTENT=1.2.0-rc.3");
+      expect(result.stdout).toContain("PACKAGE_POSIX_LF=PASS");
       expect(existsSync(realArchive)).toBe(realArchiveBefore !== null);
       if (realArchiveBefore) {
         expect(readFileSync(realArchive)).toEqual(realArchiveBefore);
