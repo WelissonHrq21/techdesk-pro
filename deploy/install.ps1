@@ -49,6 +49,7 @@ if (Test-Path -LiteralPath $Script:EnvPath) {
   @(
     "TECHDESK_PORT=$port",
     "TECHDESK_PROJECT_NAME=techdesk-prod",
+    "TECHDESK_VERSION=$Script:Version",
     "",
     "POSTGRES_DB=$dbName",
     "POSTGRES_USER=$dbUser",
