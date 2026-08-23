@@ -6,6 +6,7 @@ import { ErrorState } from "../../../components/ui/ErrorState";
 import { LoadingState } from "../../../components/ui/LoadingState";
 import { Modal } from "../../../components/ui/Modal";
 import { PageHeader } from "../../../components/ui/PageHeader";
+import { Pagination } from "../../../components/ui/Pagination";
 import { useAuth } from "../../../hooks/useAuth";
 import { useToast } from "../../../hooks/useToast";
 import { getFriendlyErrorMessage } from "../../../utils/errorMessages";
@@ -13,6 +14,7 @@ import { formatCurrency } from "../../../utils/formatters";
 import { PartForm } from "../components/PartForm";
 import { StockMovementForm } from "../components/StockMovementForm";
 import { StockMovementList } from "../components/StockMovementList";
+import { StockStatusBadge } from "../components/StockStatusBadge";
 import {
   useCreateStockEntry,
   useCreateStockExit,
@@ -21,7 +23,14 @@ import {
   usePartStockMovements,
   useUpdatePart,
 } from "../hooks/useParts";
-import type { PartFormData, StockEntryData, StockExitData } from "../types/part";
+import type {
+  PartFormData,
+  StockEntryData,
+  StockExitData,
+  StockMovementType,
+} from "../types/part";
+
+const movementPageSize = 20;
 
 export function PartDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -29,7 +38,17 @@ export function PartDetailPage() {
   const { user } = useAuth();
   const { showToast } = useToast();
   const partQuery = usePart(partId);
-  const movementsQuery = usePartStockMovements(partId);
+  const [movementPage, setMovementPage] = useState(1);
+  const [movementType, setMovementType] = useState<StockMovementType | "">("");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const movementsQuery = usePartStockMovements(partId, {
+    page: movementPage,
+    limit: movementPageSize,
+    type: movementType || undefined,
+    dateFrom: dateFrom || undefined,
+    dateTo: dateTo || undefined,
+  });
   const [modal, setModal] = useState<
     "edit" | "entry" | "exit" | "deactivate" | null
   >(null);
@@ -39,13 +58,7 @@ export function PartDetailPage() {
   const stockEntryMutation = useCreateStockEntry(partId);
   const stockExitMutation = useCreateStockExit(partId);
   const isAdmin = user?.role === "ADMIN";
-  const movements = movementsQuery.data ?? [];
-  const recentEntryCount = movements.filter(
-    (movement) => movement.type === "ENTRY"
-  ).length;
-  const recentExitCount = movements.filter(
-    (movement) => movement.type === "EXIT"
-  ).length;
+  const movements = movementsQuery.data?.data ?? [];
 
   function closeModal() {
     setModal(null);
@@ -56,6 +69,13 @@ export function PartDetailPage() {
     setFormError(getFriendlyErrorMessage(error));
     void partQuery.refetch();
     void movementsQuery.refetch();
+  }
+
+  function clearMovementFilters() {
+    setMovementType("");
+    setDateFrom("");
+    setDateTo("");
+    setMovementPage(1);
   }
 
   async function handleUpdatePart(data: PartFormData) {
@@ -147,16 +167,14 @@ export function PartDetailPage() {
                 </strong>
               </div>
               <div className="rounded-md bg-slate-50 p-4">
-                <span className="text-sm text-slate-500">Entradas recentes</span>
-                <strong className="mt-2 block text-xl text-slate-950">
-                  {recentEntryCount}
-                </strong>
+                <span className="text-sm text-slate-500">Estoque mínimo</span>
+                <strong className="mt-2 block text-xl text-slate-950">{part.minimumStock}</strong>
               </div>
               <div className="rounded-md bg-slate-50 p-4">
-                <span className="text-sm text-slate-500">Saídas recentes</span>
-                <strong className="mt-2 block text-xl text-slate-950">
-                  {recentExitCount}
-                </strong>
+                <span className="text-sm text-slate-500">Situação do estoque</span>
+                <div className="mt-2">
+                  <StockStatusBadge status={part.stockStatus} />
+                </div>
               </div>
             </div>
           </div>
@@ -166,6 +184,58 @@ export function PartDetailPage() {
               <h3 className="text-base font-semibold text-slate-950">
                 Histórico de estoque
               </h3>
+              <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-[180px_1fr_1fr_auto]">
+                <label className="text-sm text-slate-600">
+                  Tipo
+                  <select
+                    aria-label="Filtrar movimentos por tipo"
+                    value={movementType}
+                    onChange={(event) => {
+                      setMovementType(event.target.value as StockMovementType | "");
+                      setMovementPage(1);
+                    }}
+                    className="mt-1 h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-slate-950"
+                  >
+                    <option value="">Todos</option>
+                    <option value="ENTRY">Entrada</option>
+                    <option value="EXIT">Saída</option>
+                    <option value="REVERSAL">Estorno</option>
+                  </select>
+                </label>
+                <label className="text-sm text-slate-600">
+                  De
+                  <input
+                    aria-label="Data inicial dos movimentos"
+                    type="date"
+                    value={dateFrom}
+                    onChange={(event) => {
+                      setDateFrom(event.target.value);
+                      setMovementPage(1);
+                    }}
+                    className="mt-1 h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-slate-950"
+                  />
+                </label>
+                <label className="text-sm text-slate-600">
+                  Até
+                  <input
+                    aria-label="Data final dos movimentos"
+                    type="date"
+                    value={dateTo}
+                    onChange={(event) => {
+                      setDateTo(event.target.value);
+                      setMovementPage(1);
+                    }}
+                    className="mt-1 h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-slate-950"
+                  />
+                </label>
+                <button
+                  type="button"
+                  onClick={clearMovementFilters}
+                  className="h-10 self-end rounded-md border border-slate-200 px-3 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                >
+                  Limpar
+                </button>
+              </div>
             </div>
             <div className="p-5">
               {movementsQuery.isLoading ? (
@@ -177,7 +247,15 @@ export function PartDetailPage() {
                   isRetrying={movementsQuery.isFetching}
                 />
               ) : (
-                <StockMovementList movements={movements} />
+                <>
+                  <StockMovementList movements={movements} />
+                  {movementsQuery.data && (
+                    <Pagination
+                      meta={movementsQuery.data.meta}
+                      onPageChange={setMovementPage}
+                    />
+                  )}
+                </>
               )}
             </div>
           </div>

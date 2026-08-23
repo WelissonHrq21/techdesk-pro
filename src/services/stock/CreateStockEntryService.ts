@@ -2,6 +2,7 @@ import { AppError } from "../../errors/AppError";
 import { PartRepository } from "../../repositories/PartRepository";
 import { StockMovementRepository } from "../../repositories/StockMovementRepository";
 import { UserRepository } from "../../repositories/UserRepository";
+import { serializePart } from "../../utils/stockStatus";
 
 type CreateStockEntryData = {
   partId: string;
@@ -38,7 +39,12 @@ class CreateStockEntryService {
       }
     }
 
-    return stockMovementRepository.createEntry(data);
+    const result = await stockMovementRepository.createEntry(data);
+
+    return {
+      ...result,
+      part: serializePart(result.part),
+    };
   }
 }
 

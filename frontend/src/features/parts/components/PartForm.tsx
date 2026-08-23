@@ -36,6 +36,7 @@ export function PartForm({
       name: "",
       brand: "",
       currentPrice: 0,
+      minimumStock: 0,
       supplier: "",
     },
   });
@@ -45,6 +46,7 @@ export function PartForm({
       name: part?.name ?? "",
       brand: part?.brand ?? "",
       currentPrice: part ? Number(part.currentPrice) : 0,
+      minimumStock: part?.minimumStock ?? 0,
       supplier: part?.supplier ?? "",
     });
   }, [part, reset]);
@@ -71,6 +73,22 @@ export function PartForm({
 
       <FormField label="Fornecedor" error={errors.supplier?.message}>
         <input className={inputClass} {...register("supplier")} />
+      </FormField>
+
+      <FormField
+        label="Estoque mínimo"
+        error={errors.minimumStock?.message}
+      >
+        <input
+          className={inputClass}
+          type="number"
+          min={0}
+          step={1}
+          {...register("minimumStock", { valueAsNumber: true })}
+        />
+        <span className="mt-1 block text-xs text-slate-500">
+          Use 0 para não gerar alerta de estoque mínimo.
+        </span>
       </FormField>
 
       {mode === "create" && (

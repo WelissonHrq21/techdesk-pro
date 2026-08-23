@@ -4,11 +4,13 @@ import {
   pageQuerySchema,
   searchQuerySchema,
 } from "../shared/paginationQuerySchema";
+import { stockStatusValues } from "../../utils/stockStatus";
 
 export const findPartsSchema = z.object({
   page: pageQuerySchema,
   limit: limitQuerySchema,
   search: searchQuerySchema,
+  stockStatus: z.enum(stockStatusValues).optional(),
   maxStock: z.coerce
     .number()
     .int({ message: "Max stock must be an integer" })

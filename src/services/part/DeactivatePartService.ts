@@ -1,5 +1,6 @@
 import { AppError } from "../../errors/AppError";
 import { PartRepository } from "../../repositories/PartRepository";
+import { serializePart } from "../../utils/stockStatus";
 
 class DeactivatePartService {
   async execute(id: string) {
@@ -15,7 +16,7 @@ class DeactivatePartService {
       throw new AppError("Part is inactive", 400);
     }
 
-    return partRepository.deactivate(id);
+    return serializePart(await partRepository.deactivate(id));
   }
 }
 

@@ -1,11 +1,13 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "../config/prisma";
+import type { StockStatus } from "../utils/stockStatus";
 
 type FindManyPartsData = {
   skip: number;
   limit: number;
   search?: string;
   maxStock?: number;
+  stockStatus?: StockStatus;
 };
 
 class PartRepository {
@@ -24,8 +26,10 @@ class PartRepository {
   }
 
   async findMany(data: FindManyPartsData) {
+    const stockStatusWhere = this.buildStockStatusWhere(data.stockStatus);
     const where: Prisma.PartWhereInput = {
       active: true,
+      ...stockStatusWhere,
       ...(typeof data.maxStock === "number"
         ? {
             stock: {
@@ -105,6 +109,34 @@ class PartRepository {
         active: false,
       },
     });
+  }
+
+  private buildStockStatusWhere(
+    stockStatus?: StockStatus
+  ): Prisma.PartWhereInput {
+    if (stockStatus === "OUT_OF_STOCK") {
+      return { stock: 0 };
+    }
+
+    if (stockStatus === "LOW_STOCK") {
+      return {
+        stock: {
+          gt: 0,
+          lte: prisma.part.fields.minimumStock,
+        },
+        minimumStock: { gt: 0 },
+      };
+    }
+
+    if (stockStatus === "OK") {
+      return {
+        stock: {
+          gt: prisma.part.fields.minimumStock,
+        },
+      };
+    }
+
+    return {};
   }
 }
 

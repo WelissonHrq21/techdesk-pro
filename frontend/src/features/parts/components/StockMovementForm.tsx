@@ -66,6 +66,7 @@ export function StockMovementForm({
           className={inputClass}
           type="number"
           min={1}
+          disabled={isSubmitting}
           {...register("quantity", { valueAsNumber: true })}
         />
       </FormField>
@@ -73,6 +74,7 @@ export function StockMovementForm({
       <FormField label="Motivo" error={errors.reason?.message}>
         <textarea
           rows={3}
+          disabled={isSubmitting}
           {...register("reason")}
           className="w-full resize-none rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-950 outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-100"
         />
@@ -89,6 +91,7 @@ export function StockMovementForm({
               />
               <input
                 type="search"
+                disabled={isSubmitting}
                 value={serviceOrderSearch}
                 onChange={(event) => setServiceOrderSearch(event.target.value)}
                 placeholder={selectedServiceOrderLabel || "Buscar OS..."}
@@ -105,6 +108,7 @@ export function StockMovementForm({
                   <button
                     key={serviceOrder.id}
                     type="button"
+                    disabled={isSubmitting}
                     onClick={() => {
                       setValue("serviceOrderId", serviceOrder.id);
                       setSelectedServiceOrderLabel(
@@ -142,7 +146,8 @@ export function StockMovementForm({
         <button
           type="button"
           onClick={onCancel}
-          className="h-10 rounded-md border border-slate-200 px-4 text-sm font-medium text-slate-700 hover:bg-slate-50"
+          disabled={isSubmitting}
+          className="h-10 rounded-md border border-slate-200 px-4 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
         >
           Cancelar
         </button>

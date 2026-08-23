@@ -6,6 +6,8 @@ import type {
   StockEntryData,
   StockExitData,
   StockMovement,
+  StockMovementFilters,
+  StockStatus,
 } from "../types/part";
 
 type FindPartsParams = {
@@ -13,6 +15,7 @@ type FindPartsParams = {
   limit?: number;
   search?: string;
   maxStock?: number;
+  stockStatus?: StockStatus;
 };
 
 export async function findParts(params: FindPartsParams) {
@@ -34,6 +37,7 @@ function cleanPartPayload(data: PartFormData) {
     name: data.name.trim(),
     brand: data.brand.trim(),
     currentPrice: Number(data.currentPrice),
+    minimumStock: Number(data.minimumStock),
     supplier: data.supplier?.trim() || undefined,
   };
 }
@@ -75,9 +79,13 @@ export async function createStockExit(id: string, data: StockExitData) {
   return response.data;
 }
 
-export async function findPartStockMovements(id: string) {
-  const response = await http.get<StockMovement[]>(
-    `/parts/${id}/stock-movements`
+export async function findPartStockMovements(
+  id: string,
+  params: StockMovementFilters
+) {
+  const response = await http.get<PaginatedResponse<StockMovement>>(
+    `/parts/${id}/stock-movements`,
+    { params }
   );
 
   return response.data;

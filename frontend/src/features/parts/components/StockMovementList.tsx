@@ -15,7 +15,40 @@ export function StockMovementList({ movements }: StockMovementListProps) {
   }
 
   return (
-    <div className="overflow-x-auto">
+    <>
+      <div className="divide-y divide-slate-100 md:hidden">
+        {movements.map((movement) => (
+          <article key={movement.id} className="space-y-3 py-4 first:pt-0">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <StatusBadge type="stock-movement" value={movement.type} />
+                <p className="mt-2 text-sm text-slate-500">
+                  {formatDateTime(movement.createdAt)}
+                </p>
+              </div>
+              <strong className="text-slate-950">
+                {movement.type === "EXIT" ? "-" : "+"}
+                {movement.quantity}
+              </strong>
+            </div>
+            <p className="text-sm text-slate-700">
+              {movement.reason ?? stockMovementTypeLabels[movement.type]}
+            </p>
+            <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-slate-500">
+              <span>{movement.user?.name ?? "Sistema"}</span>
+              {movement.serviceOrder && (
+                <Link
+                  to={`/service-orders/${movement.serviceOrder.id}`}
+                  className="font-medium text-sky-700"
+                >
+                  OS #{movement.serviceOrder.number}
+                </Link>
+              )}
+            </div>
+          </article>
+        ))}
+      </div>
+      <div className="hidden overflow-x-auto md:block">
       <table className="w-full min-w-[860px] text-left text-sm">
         <thead className="bg-slate-50 text-xs uppercase text-slate-500">
           <tr>
@@ -62,6 +95,7 @@ export function StockMovementList({ movements }: StockMovementListProps) {
           ))}
         </tbody>
       </table>
-    </div>
+      </div>
+    </>
   );
 }

@@ -23,6 +23,15 @@ type CreateServiceOrderStockExitData = CreateStockEntryData & {
   approvedQuantity: number;
 };
 
+type FindPartStockMovementsData = {
+  partId: string;
+  skip: number;
+  limit: number;
+  type?: StockMovementType;
+  dateFrom?: Date;
+  dateTo?: Date;
+};
+
 type ReverseStockMovementData = {
   movementId: string;
   quantity: number;
@@ -36,6 +45,20 @@ type PrismaExecutor = typeof prisma | Prisma.TransactionClient;
 class StockMovementRepository {
   async createEntry(data: CreateStockEntryData) {
     return prisma.$transaction(async (transaction) => {
+      await this.lockPart(transaction, data.partId);
+
+      const existingPart = await transaction.part.findUnique({
+        where: { id: data.partId },
+      });
+
+      if (!existingPart) {
+        throw new AppError("Part not found", 404);
+      }
+
+      if (!existingPart.active) {
+        throw new AppError("Part is inactive", 400);
+      }
+
       const part = await transaction.part.update({
         where: {
           id: data.partId,
@@ -72,6 +95,28 @@ class StockMovementRepository {
 
   async createExit(data: CreateStockExitData) {
     return prisma.$transaction(async (transaction) => {
+      if (data.serviceOrderId) {
+        await this.lockServiceOrder(transaction, data.serviceOrderId);
+      }
+
+      await this.lockPart(transaction, data.partId);
+
+      const existingPart = await transaction.part.findUnique({
+        where: { id: data.partId },
+      });
+
+      if (!existingPart) {
+        throw new AppError("Part not found", 404);
+      }
+
+      if (!existingPart.active) {
+        throw new AppError("Part is inactive", 400);
+      }
+
+      if (existingPart.stock < data.quantity) {
+        throw new AppError("Insufficient stock", 409);
+      }
+
       const part = await transaction.part.update({
         where: {
           id: data.partId,
@@ -125,12 +170,7 @@ class StockMovementRepository {
         );
       }
 
-      await transaction.$queryRaw`
-        SELECT "id"
-        FROM "Part"
-        WHERE "id" = ${data.partId}
-        FOR UPDATE
-      `;
+      await this.lockPart(transaction, data.partId);
 
       const existingPart = await transaction.part.findUnique({
         where: {
@@ -142,8 +182,12 @@ class StockMovementRepository {
         throw new AppError("Part not found", 404);
       }
 
+      if (!existingPart.active) {
+        throw new AppError("Part is inactive", 400);
+      }
+
       if (existingPart.stock < data.quantity) {
-        throw new AppError("Insufficient stock", 400);
+        throw new AppError("Insufficient stock", 409);
       }
 
       const part = await transaction.part.update({
@@ -181,21 +225,37 @@ class StockMovementRepository {
     });
   }
 
-  async findByPartId(partId: string) {
-    return prisma.stockMovement.findMany({
-      where: {
-        partId,
-      },
-      include: {
-        user: {
-          select: publicUserSelect,
+  async findByPartId(data: FindPartStockMovementsData) {
+    const where: Prisma.StockMovementWhereInput = {
+      partId: data.partId,
+      type: data.type,
+      ...(data.dateFrom || data.dateTo
+        ? {
+            createdAt: {
+              gte: data.dateFrom,
+              lte: data.dateTo,
+            },
+          }
+        : {}),
+    };
+
+    const [movements, total] = await prisma.$transaction([
+      prisma.stockMovement.findMany({
+        where,
+        skip: data.skip,
+        take: data.limit,
+        include: {
+          user: {
+            select: publicUserSelect,
+          },
+          serviceOrder: true,
         },
-        serviceOrder: true,
-      },
-      orderBy: {
-        createdAt: "desc",
-      },
-    });
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      }),
+      prisma.stockMovement.count({ where }),
+    ]);
+
+    return { data: movements, total };
   }
 
   async reverseExitMovement(data: ReverseStockMovementData) {
@@ -263,6 +323,8 @@ class StockMovementRepository {
         transaction,
         originalMovement.serviceOrderId
       );
+
+      await this.lockPart(transaction, originalMovement.partId);
 
       const reversedQuantityResult =
         await transaction.stockMovement.aggregate({
@@ -484,6 +546,18 @@ class StockMovementRepository {
       SELECT "id"
       FROM "ServiceOrder"
       WHERE "id" = ${serviceOrderId}
+      FOR UPDATE
+    `;
+  }
+
+  private async lockPart(
+    transaction: Prisma.TransactionClient,
+    partId: string
+  ) {
+    await transaction.$queryRaw`
+      SELECT "id"
+      FROM "Part"
+      WHERE "id" = ${partId}
       FOR UPDATE
     `;
   }

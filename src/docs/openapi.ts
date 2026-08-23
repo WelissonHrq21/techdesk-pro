@@ -347,6 +347,12 @@ export const openApiDocument = {
           brand: { type: "string" },
           currentPrice: { type: "string" },
           stock: { type: "integer" },
+          stockStatus: {
+            type: "string",
+            enum: ["OK", "LOW_STOCK", "OUT_OF_STOCK"],
+            description:
+              "Derived from stock and minimumStock. Zero stock is always OUT_OF_STOCK; minimumStock 0 disables LOW_STOCK alerts.",
+          },
           minimumStock: {
             type: "integer",
             minimum: 0,
@@ -403,6 +409,17 @@ export const openApiDocument = {
             nullable: true,
           },
           createdAt: { type: "string", format: "date-time" },
+        },
+      },
+      PaginatedStockMovements: {
+        type: "object",
+        required: ["data", "meta"],
+        properties: {
+          data: {
+            type: "array",
+            items: { $ref: "#/components/schemas/StockMovement" },
+          },
+          meta: { $ref: "#/components/schemas/PaginationMeta" },
         },
       },
       ReverseStockMovementRequest: {
@@ -674,7 +691,21 @@ export const openApiDocument = {
       post: { tags: ["Stock"], summary: "Consume part in service order. Roles: ADMIN, TECHNICIAN", parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }, { name: "partId", in: "path", required: true, schema: { type: "string", format: "uuid" } }], responses: { "201": { description: "Part consumed" } } },
     },
     "/parts": {
-      get: { tags: ["Parts"], summary: "List parts. Roles: ADMIN, RECEPTION, TECHNICIAN", responses: { "200": { description: "Paginated parts" } } },
+      get: {
+        tags: ["Parts"],
+        summary: "List parts. Roles: ADMIN, RECEPTION, TECHNICIAN",
+        parameters: [
+          { name: "page", in: "query", schema: { type: "integer", minimum: 1, default: 1 } },
+          { name: "limit", in: "query", schema: { type: "integer", minimum: 1, maximum: 100, default: 20 } },
+          { name: "search", in: "query", schema: { type: "string" } },
+          {
+            name: "stockStatus",
+            in: "query",
+            schema: { type: "string", enum: ["OK", "LOW_STOCK", "OUT_OF_STOCK"] },
+          },
+        ],
+        responses: { "200": { description: "Paginated parts" } },
+      },
       post: { tags: ["Parts"], summary: "Create part. Roles: ADMIN", requestBody: { required: true, content: { "application/json": { schema: { $ref: "#/components/schemas/CreatePartRequest" } } } }, responses: { "201": { description: "Part created" } } },
     },
     "/parts/{id}": {
@@ -686,10 +717,34 @@ export const openApiDocument = {
       post: { tags: ["Stock"], summary: "Create stock entry. Roles: ADMIN", parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }], responses: { "201": { description: "Stock entry created" } } },
     },
     "/parts/{id}/stock/exit": {
-      post: { tags: ["Stock"], summary: "Create manual stock exit. Roles: ADMIN", parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }], responses: { "201": { description: "Stock exit created" } } },
+      post: { tags: ["Stock"], summary: "Create atomic manual stock exit. Roles: ADMIN", description: "Locks the Part row, validates the latest balance, decrements stock and creates the EXIT movement in one transaction.", parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }], responses: { "201": { description: "Stock exit created" }, "409": { description: "Insufficient stock after concurrent update" } } },
     },
     "/parts/{id}/stock-movements": {
-      get: { tags: ["Stock"], summary: "List stock movements. Roles: ADMIN, RECEPTION, TECHNICIAN", parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }], responses: { "200": { description: "Stock movements" } } },
+      get: {
+        tags: ["Stock"],
+        summary: "List paginated stock movements. Roles: ADMIN, RECEPTION, TECHNICIAN",
+        description: "Newest first with deterministic createdAt DESC, id DESC ordering. dateFrom and dateTo are inclusive UTC calendar days.",
+        parameters: [
+          { name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } },
+          { name: "page", in: "query", schema: { type: "integer", minimum: 1, default: 1 } },
+          { name: "limit", in: "query", schema: { type: "integer", minimum: 1, maximum: 100, default: 20 } },
+          { name: "type", in: "query", schema: { type: "string", enum: ["ENTRY", "EXIT", "ADJUSTMENT", "REVERSAL"] } },
+          { name: "dateFrom", in: "query", schema: { type: "string", format: "date" } },
+          { name: "dateTo", in: "query", schema: { type: "string", format: "date" } },
+        ],
+        responses: {
+          "200": {
+            description: "Paginated stock movements",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/PaginatedStockMovements" },
+              },
+            },
+          },
+          "400": { description: "Invalid pagination or filter" },
+          "404": { description: "Part not found" },
+        },
+      },
     },
     "/stock-movements/{id}/reverse": {
       post: {

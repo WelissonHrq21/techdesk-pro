@@ -147,9 +147,15 @@ export function useConsumePart(serviceOrderId: string) {
   return useMutation({
     mutationFn: (data: Omit<ConsumePartData, "serviceOrderId">) =>
       consumePart({ ...data, serviceOrderId }),
-    onSuccess: () => {
+    onSuccess: (result) => {
       invalidateServiceOrderQueries(queryClient, serviceOrderId);
       void queryClient.invalidateQueries({ queryKey: ["parts"] });
+      void queryClient.invalidateQueries({
+        queryKey: ["part", result.part.id],
+      });
+      void queryClient.invalidateQueries({
+        queryKey: ["stock-movements", result.part.id],
+      });
     },
   });
 }

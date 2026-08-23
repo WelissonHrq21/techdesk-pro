@@ -5,6 +5,7 @@ import { PartRepository } from "../../repositories/PartRepository";
 import { ServiceOrderRepository } from "../../repositories/ServiceOrderRepository";
 import { StockMovementRepository } from "../../repositories/StockMovementRepository";
 import { UserRepository } from "../../repositories/UserRepository";
+import { serializePart } from "../../utils/stockStatus";
 
 type ConsumePartData = {
   serviceOrderId: string;
@@ -98,7 +99,7 @@ class ConsumePartService {
       );
     }
 
-    return stockMovementRepository.createServiceOrderExit({
+    const result = await stockMovementRepository.createServiceOrderExit({
       partId,
       quantity,
       serviceOrderId,
@@ -106,6 +107,11 @@ class ConsumePartService {
       userId,
       reason: observation ?? "Part consumed during service order",
     });
+
+    return {
+      ...result,
+      part: serializePart(result.part),
+    };
   }
 }
 

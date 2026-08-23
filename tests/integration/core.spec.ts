@@ -901,7 +901,7 @@ describe("TechDesk Pro integration rules", () => {
       .post(`/parts/${part.id}/stock/exit`)
       .set("Authorization", `Bearer ${admin.token}`)
       .send({ quantity: 8 })
-      .expect(400);
+      .expect(409);
 
     const updatedPart = await prisma.part.findUnique({
       where: { id: part.id },

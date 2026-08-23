@@ -1,5 +1,6 @@
 import { AppError } from "../../errors/AppError";
 import { PartRepository } from "../../repositories/PartRepository";
+import { serializePart } from "../../utils/stockStatus";
 
 class FindPartService {
   async execute(id: string) {
@@ -11,7 +12,7 @@ class FindPartService {
       throw new AppError("Part not found", 404);
     }
 
-    return part;
+    return serializePart(part);
   }
 }
 

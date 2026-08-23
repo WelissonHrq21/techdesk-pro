@@ -32,7 +32,8 @@ export function getFriendlyErrorMessage(error: unknown) {
     "Service order not found": "Ordem de serviço não encontrada.",
     "Part not found": "Peca nao encontrada.",
     "Part is inactive": "Esta peça está inativa.",
-    "Insufficient stock": "Estoque insuficiente para esta saida.",
+    "Insufficient stock":
+      "Estoque insuficiente. O saldo foi atualizado; revise a quantidade e tente novamente.",
     "Only the latest budget version can be approved":
       "Apenas o orcamento mais recente pode ser aprovado.",
     "Only the latest budget version can be rejected":

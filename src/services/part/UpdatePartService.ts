@@ -1,5 +1,6 @@
 import { AppError } from "../../errors/AppError";
 import { PartRepository } from "../../repositories/PartRepository";
+import { serializePart } from "../../utils/stockStatus";
 
 type UpdatePartData = {
   name?: string;
@@ -23,7 +24,7 @@ class UpdatePartService {
       throw new AppError("Part is inactive", 400);
     }
 
-    return partRepository.update(id, data);
+    return serializePart(await partRepository.update(id, data));
   }
 }
 

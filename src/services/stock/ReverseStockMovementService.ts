@@ -1,5 +1,6 @@
 import { ServiceOrderStatus } from "@prisma/client";
 import { StockMovementRepository } from "../../repositories/StockMovementRepository";
+import { serializePart } from "../../utils/stockStatus";
 
 type ReverseStockMovementData = {
   movementId: string;
@@ -17,10 +18,15 @@ class ReverseStockMovementService {
   async execute(data: ReverseStockMovementData) {
     const stockMovementRepository = new StockMovementRepository();
 
-    return stockMovementRepository.reverseExitMovement({
+    const result = await stockMovementRepository.reverseExitMovement({
       ...data,
       allowedStatuses: reversalAllowedStatuses,
     });
+
+    return {
+      ...result,
+      part: serializePart(result.part),
+    };
   }
 }
 

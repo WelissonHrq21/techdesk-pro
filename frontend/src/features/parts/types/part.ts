@@ -1,10 +1,13 @@
+export type StockStatus = "OK" | "LOW_STOCK" | "OUT_OF_STOCK";
+
 export type Part = {
   id: string;
   name: string;
   brand: string;
   currentPrice: string;
   stock: number;
-  minimumStock?: number;
+  minimumStock: number;
+  stockStatus: StockStatus;
   supplier: string | null;
   active: boolean;
   createdAt: string;
@@ -15,6 +18,7 @@ export type PartFormData = {
   name: string;
   brand: string;
   currentPrice: number;
+  minimumStock: number;
   supplier?: string;
 };
 
@@ -44,4 +48,14 @@ export type StockEntryData = {
 
 export type StockExitData = StockEntryData & {
   serviceOrderId?: string;
+};
+
+export type StockMovementType = StockMovement["type"];
+
+export type StockMovementFilters = {
+  page: number;
+  limit: number;
+  type?: StockMovementType;
+  dateFrom?: string;
+  dateTo?: string;
 };

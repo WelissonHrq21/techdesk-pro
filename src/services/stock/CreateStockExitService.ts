@@ -1,8 +1,8 @@
 import { AppError } from "../../errors/AppError";
-import { PartRepository } from "../../repositories/PartRepository";
 import { ServiceOrderRepository } from "../../repositories/ServiceOrderRepository";
 import { StockMovementRepository } from "../../repositories/StockMovementRepository";
 import { UserRepository } from "../../repositories/UserRepository";
+import { serializePart } from "../../utils/stockStatus";
 
 type CreateStockExitData = {
   partId: string;
@@ -14,22 +14,7 @@ type CreateStockExitData = {
 
 class CreateStockExitService {
   async execute(data: CreateStockExitData) {
-    const partRepository = new PartRepository();
     const stockMovementRepository = new StockMovementRepository();
-
-    const part = await partRepository.findById(data.partId);
-
-    if (!part) {
-      throw new AppError("Part not found", 404);
-    }
-
-    if (!part.active) {
-      throw new AppError("Part is inactive", 400);
-    }
-
-    if (part.stock < data.quantity) {
-      throw new AppError("Insufficient stock", 400);
-    }
 
     if (data.serviceOrderId) {
       const serviceOrderRepository = new ServiceOrderRepository();
@@ -55,7 +40,12 @@ class CreateStockExitService {
       }
     }
 
-    return stockMovementRepository.createExit(data);
+    const result = await stockMovementRepository.createExit(data);
+
+    return {
+      ...result,
+      part: serializePart(result.part),
+    };
   }
 }
 

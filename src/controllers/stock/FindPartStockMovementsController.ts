@@ -1,9 +1,6 @@
 import { Request, Response } from "express";
 import { FindPartStockMovementsService } from "../../services/stock/FindPartStockMovementsService";
-
-type StockMovementParams = {
-  id: string;
-};
+import { findPartStockMovementsSchema } from "../../schemas/stock/findPartStockMovementsSchema";
 
 class FindPartStockMovementsController {
   async handle(
@@ -11,11 +8,15 @@ class FindPartStockMovementsController {
     response: Response
   ) {
     const { id } = request.params as { id: string };
+    const query = findPartStockMovementsSchema.parse(request.query);
 
     const findPartStockMovementsService =
       new FindPartStockMovementsService();
 
-    const movements = await findPartStockMovementsService.execute(id);
+    const movements = await findPartStockMovementsService.execute(
+      id,
+      query
+    );
 
     return response.status(200).json(movements);
   }

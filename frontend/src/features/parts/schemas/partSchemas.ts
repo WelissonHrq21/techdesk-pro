@@ -6,6 +6,10 @@ export const partSchema = z.object({
   currentPrice: z
     .number()
     .positive("Informe um preco atual positivo."),
+  minimumStock: z
+    .number()
+    .int("O estoque mínimo deve ser inteiro.")
+    .min(0, "O estoque mínimo não pode ser negativo."),
   supplier: z.string().trim().max(150).optional(),
 });
 

@@ -9,13 +9,20 @@ import {
   findPartStockMovements,
   updatePart,
 } from "../api/partsApi";
-import type { PartFormData, StockEntryData, StockExitData } from "../types/part";
+import type {
+  PartFormData,
+  StockEntryData,
+  StockExitData,
+  StockMovementFilters,
+  StockStatus,
+} from "../types/part";
 
 type UsePartsParams = {
   page?: number;
   limit?: number;
   search?: string;
   maxStock?: number;
+  stockStatus?: StockStatus;
   enabled?: boolean;
 };
 
@@ -24,11 +31,13 @@ export function useParts({
   limit = 10,
   search,
   maxStock,
+  stockStatus,
   enabled = true,
 }: UsePartsParams) {
   return useQuery({
-    queryKey: ["parts", { page, limit, search, maxStock }],
-    queryFn: () => findParts({ page, limit, search, maxStock }),
+    queryKey: ["parts", { page, limit, search, maxStock, stockStatus }],
+    queryFn: () =>
+      findParts({ page, limit, search, maxStock, stockStatus }),
     enabled,
   });
 }
@@ -41,10 +50,13 @@ export function usePart(id?: string) {
   });
 }
 
-export function usePartStockMovements(id?: string) {
+export function usePartStockMovements(
+  id: string | undefined,
+  filters: StockMovementFilters
+) {
   return useQuery({
-    queryKey: ["stock-movements", id],
-    queryFn: () => findPartStockMovements(id ?? ""),
+    queryKey: ["stock-movements", id, filters],
+    queryFn: () => findPartStockMovements(id ?? "", filters),
     enabled: Boolean(id),
   });
 }

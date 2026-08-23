@@ -257,7 +257,7 @@ describe("Auditable stock reversal", () => {
       .expect(200);
 
     expect(
-      partMovementsResponse.body.some(
+      partMovementsResponse.body.data.some(
         (item: { type: string; reversalOfMovementId?: string }) =>
           item.type === "REVERSAL" &&
           item.reversalOfMovementId === movement.id

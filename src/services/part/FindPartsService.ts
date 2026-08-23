@@ -3,12 +3,14 @@ import {
   getPagination,
   getPaginationMeta,
 } from "../../utils/pagination";
+import { serializePart, type StockStatus } from "../../utils/stockStatus";
 
 type FindPartsData = {
   page: number;
   limit: number;
   search?: string;
   maxStock?: number;
+  stockStatus?: StockStatus;
 };
 
 class FindPartsService {
@@ -20,10 +22,11 @@ class FindPartsService {
       ...pagination,
       search: data.search,
       maxStock: data.maxStock,
+      stockStatus: data.stockStatus,
     });
 
     return {
-      data: result.data,
+      data: result.data.map(serializePart),
       meta: getPaginationMeta({
         page: data.page,
         limit: data.limit,
