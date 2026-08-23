@@ -33,13 +33,17 @@ function setupStatusResponse(overrides = {}) {
   };
 }
 
+function useSetupStatusHandler(overrides = {}) {
+  server.use(
+    http.get(`${testApiUrl}/setup/status`, () => {
+      return HttpResponse.json(setupStatusResponse(overrides));
+    })
+  );
+}
+
 describe("SetupPage", () => {
   it("redirects incomplete admins from normal private routes to setup", async () => {
-    server.use(
-      http.get(`${testApiUrl}/setup/status`, () => {
-        return HttpResponse.json(setupStatusResponse());
-      })
-    );
+    useSetupStatusHandler();
 
     renderWithProviders(<AppRoutes />, {
       route: "/dashboard",
@@ -52,6 +56,8 @@ describe("SetupPage", () => {
   });
 
   it("blocks non-admin users from the first-run setup", async () => {
+    useSetupStatusHandler();
+
     renderWithProviders(<AppRoutes />, {
       route: "/setup",
       user: {
@@ -67,6 +73,8 @@ describe("SetupPage", () => {
   });
 
   it("blocks reception users from the first-run setup", async () => {
+    useSetupStatusHandler();
+
     renderWithProviders(<AppRoutes />, {
       route: "/setup",
       user: {
@@ -82,6 +90,11 @@ describe("SetupPage", () => {
   });
 
   it("redirects completed admins away from setup", async () => {
+    useSetupStatusHandler({
+      setupCompleted: true,
+      setupCompletedAt: "2026-08-18T00:00:00.000Z",
+    });
+
     server.use(
       http.get(`${testApiUrl}/dashboard/summary`, () => {
         return HttpResponse.json({
@@ -103,6 +116,35 @@ describe("SetupPage", () => {
     });
 
     expect(await screen.findByRole("heading", { name: /dashboard/i })).toBeInTheDocument();
+  });
+
+  it("resolves setup status loading and renders the wizard", async () => {
+    let releaseSetupStatus!: () => void;
+    const setupStatusReady = new Promise<void>((resolve) => {
+      releaseSetupStatus = resolve;
+    });
+
+    server.use(
+      http.get(`${testApiUrl}/setup/status`, async () => {
+        await setupStatusReady;
+
+        return HttpResponse.json(setupStatusResponse());
+      })
+    );
+
+    renderWithProviders(<SetupPage />, {
+      route: "/setup",
+      user: adminUser,
+    });
+
+    expect(screen.getByRole("status")).toHaveTextContent(/carregando/i);
+
+    releaseSetupStatus();
+
+    expect(
+      await screen.findByRole("heading", { name: /configuração inicial/i })
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
   });
 
   it("shows setup API errors without leaving the wizard", async () => {
