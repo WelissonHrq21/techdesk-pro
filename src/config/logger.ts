@@ -8,9 +8,13 @@ export const logger = pino({
   redact: {
     paths: [
       "req.headers.authorization",
+      'req.headers["x-forwarded-for"]',
+      'req.headers["x-real-ip"]',
       "req.body.password",
       "req.body.document",
       "request.headers.authorization",
+      'request.headers["x-forwarded-for"]',
+      'request.headers["x-real-ip"]',
       "request.body.password",
       "request.body.document",
       "password",

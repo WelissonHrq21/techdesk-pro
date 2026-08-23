@@ -1,9 +1,9 @@
 import { Router } from "express";
-import rateLimit from "express-rate-limit";
 import { CreateSessionController } from "../controllers/session/CreateSessionController";
 import { GetProfileController } from "../controllers/session/GetProfileController";
 import { ChangeOwnPasswordController } from "../controllers/session/ChangeOwnPasswordController";
 import { ensureAuthenticated } from "../middlewares/ensureAuthenticated";
+import { createClientRateLimiter } from "../middlewares/createClientRateLimiter";
 
 const sessionRouter = Router();
 
@@ -11,11 +11,9 @@ const createSessionController = new CreateSessionController();
 const getProfileController = new GetProfileController();
 const changeOwnPasswordController = new ChangeOwnPasswordController();
 
-const sessionRateLimiter = rateLimit({
+const sessionRateLimiter = createClientRateLimiter({
   windowMs: 15 * 60 * 1000,
   limit: process.env.NODE_ENV === "test" ? 1000 : 20,
-  standardHeaders: true,
-  legacyHeaders: false,
 });
 
 sessionRouter.post(

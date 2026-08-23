@@ -19,6 +19,7 @@ const deployDir = join(root, "deploy");
 const techdeskScript = join(deployDir, "techdesk");
 const setupCoreScript = join(deployDir, "setup-core.sh");
 const composeFile = join(deployDir, "docker-compose.yml");
+const developmentComposeFile = join(root, "docker-compose.yml");
 const packageScript = join(deployDir, "package.sh");
 
 const linuxRuntimeFiles = [
@@ -229,6 +230,15 @@ describe("TechDesk setup bootstrapper", () => {
     expect(compose).not.toMatch(/:latest\b/);
     const postgresBlock = compose.match(/postgres:[\s\S]*?\n  api:/)?.[0] ?? "";
     expect(postgresBlock).not.toContain("ports:");
+    const apiBlock = compose.match(/\n  api:[\s\S]*?\n  frontend:/)?.[0] ?? "";
+    expect(apiBlock).not.toContain("ports:");
+  });
+
+  it("keeps direct API access private in the development Compose stack", () => {
+    const compose = readFileSync(developmentComposeFile, "utf8");
+    const apiBlock = compose.match(/\n  api:[\s\S]*?\n  frontend:/)?.[0] ?? "";
+
+    expect(apiBlock).not.toContain("ports:");
   });
 
   it("does not include destructive production operations in setup scripts", () => {
@@ -691,8 +701,8 @@ describe("TechDesk setup bootstrapper", () => {
 
   it.runIf(hasShell())("packages Linux runtime public files with stable modes", () => {
     const outputDir = mkdtempSync(join(tmpdir(), "techdesk-package-modes-"));
-    const realArchive = join(root, "dist", "techdesk-pro-setup-1.2.0-rc.2.tar.gz");
-    const realStaging = join(root, "dist", "techdesk-pro-setup-1.2.0-rc.2");
+    const realArchive = join(root, "dist", "techdesk-pro-setup-1.2.0-rc.3.tar.gz");
+    const realStaging = join(root, "dist", "techdesk-pro-setup-1.2.0-rc.3");
     const realArchiveBefore = existsSync(realArchive)
       ? readFileSync(realArchive)
       : null;
@@ -700,10 +710,10 @@ describe("TechDesk setup bootstrapper", () => {
 
     const result = runShellCommand(
       [
-        'archive="$(PACKAGE_OUT_DIR="$2" PACKAGE_SUFFIX=rc.2 "$1")"',
+        'archive="$(PACKAGE_OUT_DIR="$2" PACKAGE_SUFFIX=rc.3 "$1")"',
         'tar -tvzf "$archive" | awk \'/deploy\\/techdesk$/ || /deploy\\/VERSION$/ || /deploy\\/README-INSTALL.md$/ || /deploy\\/nginx\\/default.conf$/ {print $1, $NF}\'',
         'printf "VERSION_CONTENT="',
-        'tar -xOzf "$archive" techdesk-pro-setup-1.2.0-rc.2/deploy/VERSION',
+        'tar -xOzf "$archive" techdesk-pro-setup-1.2.0-rc.3/deploy/VERSION',
       ].join("\n"),
       [packageScript, outputDir]
     );
@@ -711,15 +721,15 @@ describe("TechDesk setup bootstrapper", () => {
     try {
       expect(result.stderr).toBe("");
       expect(result.status).toBe(0);
-      expect(result.stdout).toContain("-rwxr-xr-x techdesk-pro-setup-1.2.0-rc.2/deploy/techdesk");
-      expect(result.stdout).toContain("-rw-r--r-- techdesk-pro-setup-1.2.0-rc.2/deploy/VERSION");
+      expect(result.stdout).toContain("-rwxr-xr-x techdesk-pro-setup-1.2.0-rc.3/deploy/techdesk");
+      expect(result.stdout).toContain("-rw-r--r-- techdesk-pro-setup-1.2.0-rc.3/deploy/VERSION");
       expect(result.stdout).toContain(
-        "-rw-r--r-- techdesk-pro-setup-1.2.0-rc.2/deploy/README-INSTALL.md"
+        "-rw-r--r-- techdesk-pro-setup-1.2.0-rc.3/deploy/README-INSTALL.md"
       );
       expect(result.stdout).toContain(
-        "-rw-r--r-- techdesk-pro-setup-1.2.0-rc.2/deploy/nginx/default.conf"
+        "-rw-r--r-- techdesk-pro-setup-1.2.0-rc.3/deploy/nginx/default.conf"
       );
-      expect(result.stdout).toContain("VERSION_CONTENT=1.2.0-rc.2");
+      expect(result.stdout).toContain("VERSION_CONTENT=1.2.0-rc.3");
       expect(existsSync(realArchive)).toBe(realArchiveBefore !== null);
       if (realArchiveBefore) {
         expect(readFileSync(realArchive)).toEqual(realArchiveBefore);
@@ -734,9 +744,9 @@ describe("TechDesk setup bootstrapper", () => {
     const outputDir = mkdtempSync(join(tmpdir(), "techdesk-package-repro-"));
     const result = runShellCommand(
       [
-        'archive="$(PACKAGE_OUT_DIR="$2" PACKAGE_SUFFIX=rc.2 "$1")"',
+        'archive="$(PACKAGE_OUT_DIR="$2" PACKAGE_SUFFIX=rc.3 "$1")"',
         'first="$(sha256sum "$archive" | awk \'{print $1}\')"',
-        'archive="$(PACKAGE_OUT_DIR="$2" PACKAGE_SUFFIX=rc.2 "$1")"',
+        'archive="$(PACKAGE_OUT_DIR="$2" PACKAGE_SUFFIX=rc.3 "$1")"',
         'second="$(sha256sum "$archive" | awk \'{print $1}\')"',
         'printf "%s\\n%s\\n" "$first" "$second"',
         'test "$first" = "$second"',
@@ -755,21 +765,21 @@ describe("TechDesk setup bootstrapper", () => {
     }
   });
 
-  it.runIf(hasShell())("materializes RC2 across operational package defaults", () => {
+  it.runIf(hasShell())("materializes RC3 across operational package defaults", () => {
     const outputDir = mkdtempSync(join(tmpdir(), "techdesk-package-version-"));
     const result = runShellCommand(
       [
-        'archive="$(PACKAGE_OUT_DIR="$2" PACKAGE_SUFFIX=rc.2 "$1")"',
-        'root="techdesk-pro-setup-1.2.0-rc.2/deploy"',
-        'test "$(tar -xOzf "$archive" "$root/VERSION")" = "1.2.0-rc.2"',
+        'archive="$(PACKAGE_OUT_DIR="$2" PACKAGE_SUFFIX=rc.3 "$1")"',
+        'root="techdesk-pro-setup-1.2.0-rc.3/deploy"',
+        'test "$(tar -xOzf "$archive" "$root/VERSION")" = "1.2.0-rc.3"',
         'for member in .env.example docker-compose.yml install.ps1; do',
         '  content="$(tar -xOzf "$archive" "$root/$member")"',
-        '  printf "%s" "$content" | grep -F "ghcr.io/welissonhrq21/techdesk-pro-api:1.2.0-rc.2" >/dev/null',
-        '  printf "%s" "$content" | grep -F "ghcr.io/welissonhrq21/techdesk-pro-frontend:1.2.0-rc.2" >/dev/null',
+        '  printf "%s" "$content" | grep -F "ghcr.io/welissonhrq21/techdesk-pro-api:1.2.0-rc.3" >/dev/null',
+        '  printf "%s" "$content" | grep -F "ghcr.io/welissonhrq21/techdesk-pro-frontend:1.2.0-rc.3" >/dev/null',
         "  if printf \"%s\" \"$content\" | grep -E 'techdesk-pro-(api|frontend):1\\.2\\.0([\"}[:space:]]|$)' >/dev/null; then exit 1; fi",
         'done',
         'env_content="$(tar -xOzf "$archive" "$root/.env.example")"',
-        'printf "%s" "$env_content" | grep -F "TECHDESK_VERSION=1.2.0-rc.2" >/dev/null',
+        'printf "%s" "$env_content" | grep -F "TECHDESK_VERSION=1.2.0-rc.3" >/dev/null',
       ].join("\n"),
       [packageScript, outputDir]
     );

@@ -42,8 +42,6 @@ services:
       ADMIN_NAME: ${ADMIN_NAME}
       ADMIN_LOGIN: ${ADMIN_LOGIN}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD}
-    ports:
-      - "${API_PORT:-3333}:${PORT:-3333}"
     healthcheck:
       test:
         [

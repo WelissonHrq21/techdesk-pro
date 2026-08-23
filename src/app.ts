@@ -19,9 +19,11 @@ import { settingsRouter } from "./routes/settings.routes";
 import { setupRouter } from "./routes/setup.routes";
 import { stockRouter } from "./routes/stock.routes";
 import { userRouter } from "./routes/user.routes";
+import { configureTrustProxy } from "./config/trustProxy";
 
 
 const app = express();
+configureTrustProxy(app);
 app.use(helmet());
 app.use(cors({
   origin: env.CORS_ORIGIN,
