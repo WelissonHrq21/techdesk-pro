@@ -33,6 +33,7 @@ for file in \
   setup-core.sh \
   observability.sh \
   backup-contracts.sh \
+  operational-contracts.sh \
   install.sh \
   install.ps1 \
   start.sh \

@@ -5,6 +5,6 @@ set -eu
 
 require_env
 assert_docker
-compose restart
-wait_ready 120
+compose restart || exit 30
+wait_ready 120 || exit 60
 show_urls

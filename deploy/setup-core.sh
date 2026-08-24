@@ -43,19 +43,25 @@ require_operation_access() {
   needs_env_write="${2:-0}"
   access_ok=1
 
-  [ -d "$DEPLOY_ROOT" ] && [ -w "$DEPLOY_ROOT" ] || access_ok=0
+  [ -d "$DEPLOY_ROOT" ] || access_ok=0
   [ -d "$LOG_DIR" ] && [ -w "$LOG_DIR" ] || access_ok=0
 
   case "$operation" in
     install)
+      [ -w "$DEPLOY_ROOT" ] || access_ok=0
+      ;;
+    restart)
+      [ ! -e "$ENV_FILE" ] || [ -r "$ENV_FILE" ] || access_ok=0
       ;;
     repair)
-      [ -r "$ENV_FILE" ] || access_ok=0
+      [ ! -e "$ENV_FILE" ] || [ -r "$ENV_FILE" ] || access_ok=0
+      [ -w "$DEPLOY_ROOT" ] || access_ok=0
       if [ -f "$METADATA_FILE" ]; then
         [ -w "$METADATA_FILE" ] || access_ok=0
       fi
       ;;
     upgrade|backup|restore-check)
+      [ "$operation" != "upgrade" ] || [ -w "$DEPLOY_ROOT" ] || access_ok=0
       [ -r "$ENV_FILE" ] || access_ok=0
       [ -d "$BACKUP_DIR" ] && [ -w "$BACKUP_DIR" ] || access_ok=0
       ;;
@@ -95,6 +101,7 @@ techdesk
 setup-core.sh
 observability.sh
 backup-contracts.sh
+operational-contracts.sh
 install.sh
 start.sh
 stop.sh
@@ -236,7 +243,7 @@ ensure_or_delegate_runtime() {
       echo "Runtime permanente atualizado a partir do pacote em ${RUNTIME_ROOT}."
       exec "${RUNTIME_ROOT}/techdesk" upgrade "$@"
       ;;
-    status|diagnostics|backup-list|repair|backup|backup-check|restore-check)
+    status|diagnostics|backup-list|restart|repair|backup|backup-check|restore-check)
       if ! runtime_has_cli; then
         fail "Instalacao persistente nao encontrada em ${RUNTIME_ROOT}. Execute ${RUNTIME_ROOT}/techdesk install."
         exit 1

@@ -5,7 +5,7 @@ set -eu
 # never source .env, create logs, elevate privileges, or accept filesystem paths.
 
 CONTRACT_SCHEMA_VERSION="1.0"
-CONTRACT_CAPABILITIES='["status.v1","diagnostics.v1","backup-list.v1","backup.v1","backup-check.v1","restore-check.v1"]'
+CONTRACT_CAPABILITIES='["status.v1","diagnostics.v1","backup-list.v1","backup.v1","backup-check.v1","restore-check.v1","restart.stack.v1","repair.v1"]'
 CONTRACT_BACKUP_LIMIT=50
 CONTRACT_BACKUP_METADATA_DIRECTORY="${BACKUP_DIR}/.metadata"
 

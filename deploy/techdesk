@@ -13,6 +13,11 @@ load_backup_contracts() {
   . "${DEPLOY_ROOT}/backup-contracts.sh"
 }
 
+load_operational_contracts() {
+  load_observability
+  . "${DEPLOY_ROOT}/operational-contracts.sh"
+}
+
 usage() {
   cat <<EOF
 TechDesk Pro Setup
@@ -26,6 +31,9 @@ Uso:
   ./techdesk backup --json
   ./techdesk backup-check --id BACKUP_ID --json
   ./techdesk restore-check --id BACKUP_ID --json
+  ./techdesk restart --target stack --json
+  ./techdesk repair --json
+  ./techdesk restart
   ./techdesk repair
   ./techdesk backup
   ./techdesk restore-check caminho/do/backup.dump [sha256-esperado]
@@ -316,17 +324,41 @@ restore_check_cmd() {
   rm -f "$tmp"
 }
 
-repair_cmd() {
-  require_operation_access repair || return 1
+restart_stack_run() {
+  require_operation_access restart || return 11
+  setup_log_init
+  trap 'say "Restart interrompido. O estado real deve ser verificado antes de nova tentativa."; exit 130' INT TERM
+  require_env || return 12
+  run_logged "restart stack" "${DEPLOY_ROOT}/restart.sh" || {
+    restart_exit="$?"
+    return "$restart_exit"
+  }
+}
+
+restart_cmd() {
+  if [ "$#" -eq 3 ] && [ "$1" = "--target" ] && [ "$2" = "stack" ] && [ "$3" = "--json" ]; then
+    load_operational_contracts
+    contract_restart_stack_cmd
+    return
+  fi
+  if [ "$#" -ne 0 ]; then
+    fail "Use restart ou restart --target stack --json."
+    return 2
+  fi
+  restart_stack_run
+}
+
+repair_run() {
+  require_operation_access repair || return 11
   setup_log_init
   trap 'say "Repair interrompido. Nenhuma limpeza destrutiva foi executada."; exit 130' INT TERM
-  require_env
+  require_env || return 12
   preflight repair "$(techdesk_port)" || return 10
 
   state="$(detect_installation_state)"
   if [ "$state" = "NOT_INSTALLED" ]; then
     fail "Nada para reparar. Execute install."
-    return 1
+    return 13
   fi
 
   say "Repair nao destrutivo iniciado. Volumes e banco serao preservados."
@@ -357,6 +389,19 @@ repair_cmd() {
   ensure_env_permissions
   say "Repair concluido. TechDesk Pro healthy/ready."
   show_urls
+}
+
+repair_cmd() {
+  if [ "$#" -eq 1 ] && [ "$1" = "--json" ]; then
+    load_operational_contracts
+    contract_repair_cmd
+    return
+  fi
+  if [ "$#" -ne 0 ]; then
+    fail "Use repair ou repair --json."
+    return 2
+  fi
+  repair_run
 }
 
 upgrade_cmd() {
@@ -460,7 +505,7 @@ if [ "$#" -gt 0 ]; then
 fi
 
 case "$command" in
-  install|status|diagnostics|backup-list|repair|backup|backup-check|restore-check|upgrade)
+  install|status|diagnostics|backup-list|restart|repair|backup|backup-check|restore-check|upgrade)
     ensure_or_delegate_runtime "$command" "$@"
     ;;
 esac
@@ -470,6 +515,7 @@ case "$command" in
   status) status_cmd "$@" ;;
   diagnostics) diagnostics_cmd "$@" ;;
   backup-list) backup_list_cmd "$@" ;;
+  restart) restart_cmd "$@" ;;
   repair) repair_cmd "$@" ;;
   backup) backup_cmd "$@" ;;
   backup-check) backup_check_cmd "$@" ;;

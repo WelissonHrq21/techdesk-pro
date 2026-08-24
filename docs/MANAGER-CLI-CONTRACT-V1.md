@@ -13,6 +13,8 @@ The following exact invocations are supported:
 /opt/techdesk-pro/techdesk backup --json
 /opt/techdesk-pro/techdesk backup-check --id sha256:DIGEST --json
 /opt/techdesk-pro/techdesk restore-check --id sha256:DIGEST --json
+/opt/techdesk-pro/techdesk restart --target stack --json
+/opt/techdesk-pro/techdesk repair --json
 ```
 
 Every response advertises `cliSchema: "1.0"` and these capabilities:
@@ -23,6 +25,8 @@ Every response advertises `cliSchema: "1.0"` and these capabilities:
 - `backup.v1`
 - `backup-check.v1`
 - `restore-check.v1`
+- `restart.stack.v1`
+- `repair.v1`
 
 Capability discovery is explicit. Consumers must not infer a capability from the installed product version.
 
@@ -105,6 +109,22 @@ The filesystem and CLI remain the canonical authority for backup existence and b
 
 Disk preflight requires at least twice the measured database size plus 64 MiB, with a 256 MiB minimum. It runs before `pg_dump` and never attempts automatic deletion or cleanup of older backups.
 
+## `restart --target stack --json`
+
+This command wraps the official stack restart; it does not duplicate or expose Compose control. The only accepted target is the literal `stack`. It records a safe before/after snapshot and the phases `PRECHECK`, `RESTARTING`, `WAITING_FOR_SERVICES`, `VERIFYING_HEALTH`, and `COMPLETE`.
+
+Success requires all three expected Compose services to be running, frontend `/health` to pass, API `/api/ready` to pass, and PostgreSQL readiness evidence to be healthy. An executed restart with incomplete services or failed readiness is `FAIL`, never success. Stable failures distinguish Docker/Compose unavailability, permission/runtime problems, restart execution, and post-action health. Raw action output is captured only into a protected redacted setup log and is never included in JSON.
+
+Stack restart is offline-capable when the installed runtime and images already exist: it performs no image pull. API-only, frontend-only, and PostgreSQL-only restart capabilities are not declared or implemented in v1.
+
+## `repair --json`
+
+This command invokes the existing official, non-destructive repair procedure. The structured layer does not reimplement repair. The procedure preserves volumes and the production database, validates preflight and Compose configuration, pulls configured images, converges the runtime with `compose up -d`, waits for health/readiness, performs the existing idempotent seed, and repairs coherent installation metadata and permissions.
+
+The phases are `PRECHECK`, `REPAIRING`, `VERIFYING_RUNTIME`, `VERIFYING_HEALTH`, and `COMPLETE`. Success has the same strict service, frontend, API, and PostgreSQL post-health requirements as restart. Stable failures distinguish preflight, permissions/runtime, image pull, runtime convergence, post-health, and metadata coherence.
+
+The current official repair always attempts an image pull. Its `offline.state` is therefore `NETWORK_REQUIRED`, and every response includes `REPAIR_NETWORK_DEPENDENCY`. A registry/network outage may produce `REPAIR_IMAGE_PULL_FAILED`; the contract does not claim offline repair support and never deletes data to recover.
+
 ## Security boundary
 
 All structured commands:
@@ -115,7 +135,7 @@ All structured commands:
 - never return secrets, process environments, raw Docker inspection, raw command output, customer data, or arbitrary paths;
 - accept no browser-supplied path, filename, filter, command, environment, cwd, or executable.
 
-The three mutating/expensive backup commands necessarily use the protected environment internally through the official operational scripts, but their envelopes and logs are reconstructed/redacted and contain no secret-bearing raw output. The read-only status, diagnostics, and backup-list commands retain their original no-`.env`-content behavior.
+The mutating/expensive backup and operational commands necessarily use the protected environment internally through the official operational scripts, but their envelopes and logs are reconstructed/redacted and contain no secret-bearing raw output. The read-only status, diagnostics, and backup-list commands retain their original no-`.env`-content behavior.
 
 Diagnostics evidence is constructed by allowlist. Output redaction is not treated as a substitute for the contract.
 
