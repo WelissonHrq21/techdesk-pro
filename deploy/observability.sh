@@ -5,8 +5,9 @@ set -eu
 # never source .env, create logs, elevate privileges, or accept filesystem paths.
 
 CONTRACT_SCHEMA_VERSION="1.0"
-CONTRACT_CAPABILITIES='["status.v1","diagnostics.v1","backup-list.v1"]'
+CONTRACT_CAPABILITIES='["status.v1","diagnostics.v1","backup-list.v1","backup.v1","backup-check.v1","restore-check.v1"]'
 CONTRACT_BACKUP_LIMIT=50
+CONTRACT_BACKUP_METADATA_DIRECTORY="${BACKUP_DIR}/.metadata"
 
 contract_timestamp() {
   date -u +"%Y-%m-%dT%H:%M:%SZ"
@@ -589,6 +590,34 @@ contract_sha256() {
   fi
 }
 
+contract_backup_validation_json() {
+  validation_sha="$1"
+  validation_name="$2"
+  validation_size="$3"
+  validation_file="${CONTRACT_BACKUP_METADATA_DIRECTORY}/${validation_sha}.meta"
+  validation_default='{"state":"UNKNOWN","checkedAt":null,"code":"VALIDATION_NOT_RECORDED"}'
+  [ -f "$validation_file" ] && [ ! -L "$validation_file" ] && [ -r "$validation_file" ] || {
+    printf '%s' "$validation_default"
+    return
+  }
+  validation_line="$(sed -n '1p' "$validation_file" 2>/dev/null || true)"
+  validation_extra="$(sed -n '2p' "$validation_file" 2>/dev/null || true)"
+  [ -z "$validation_extra" ] || { printf '%s' "$validation_default"; return; }
+  old_ifs="$IFS"
+  IFS='|'
+  set -- $validation_line
+  IFS="$old_ifs"
+  [ "$#" -eq 7 ] || { printf '%s' "$validation_default"; return; }
+  [ "$1" = "1" ] && [ "$2" = "$validation_sha" ] && [ "$3" = "$validation_name" ] && [ "$4" = "$validation_size" ] || {
+    printf '%s' "$validation_default"
+    return
+  }
+  case "$5" in ????-??-??T??:??:??Z) ;; *) printf '%s' "$validation_default"; return ;; esac
+  case "$6" in PASS|WARNING|FAIL) ;; *) printf '%s' "$validation_default"; return ;; esac
+  case "$7" in ''|*[!A-Z0-9_.-]*) printf '%s' "$validation_default"; return ;; esac
+  printf '{"state":"%s","checkedAt":"%s","code":"%s"}' "$6" "$5" "$7"
+}
+
 contract_backup_list_cmd() {
   contract_begin
   entries=""
@@ -635,7 +664,8 @@ contract_backup_list_cmd() {
       ????-??-??T??:??:??Z) ;;
       *) skipped=$((skipped + 1)); continue ;;
     esac
-    entry="{\"backupId\":\"sha256:${sha}\",\"displayName\":\"${filename}\",\"createdAt\":\"${created}\",\"sizeBytes\":${size},\"sha256\":\"${sha}\",\"validation\":{\"state\":\"UNKNOWN\",\"checkedAt\":null,\"code\":\"VALIDATION_NOT_RECORDED\"}}"
+    validation="$(contract_backup_validation_json "$sha" "$filename" "$size")"
+    entry="{\"backupId\":\"sha256:${sha}\",\"displayName\":\"${filename}\",\"createdAt\":\"${created}\",\"sizeBytes\":${size},\"sha256\":\"${sha}\",\"validation\":${validation}}"
     if [ -n "$entries" ]; then entries="${entries},${entry}"; else entries="$entry"; fi
     returned=$((returned + 1))
   done <<EOF

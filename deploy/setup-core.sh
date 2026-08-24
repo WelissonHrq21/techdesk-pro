@@ -94,6 +94,7 @@ runtime_file_list() {
 techdesk
 setup-core.sh
 observability.sh
+backup-contracts.sh
 install.sh
 start.sh
 stop.sh
@@ -235,7 +236,7 @@ ensure_or_delegate_runtime() {
       echo "Runtime permanente atualizado a partir do pacote em ${RUNTIME_ROOT}."
       exec "${RUNTIME_ROOT}/techdesk" upgrade "$@"
       ;;
-    status|diagnostics|backup-list|repair|backup|restore-check)
+    status|diagnostics|backup-list|repair|backup|backup-check|restore-check)
       if ! runtime_has_cli; then
         fail "Instalacao persistente nao encontrada em ${RUNTIME_ROOT}. Execute ${RUNTIME_ROOT}/techdesk install."
         exit 1

@@ -32,6 +32,7 @@ for file in \
   techdesk \
   setup-core.sh \
   observability.sh \
+  backup-contracts.sh \
   install.sh \
   install.ps1 \
   start.sh \

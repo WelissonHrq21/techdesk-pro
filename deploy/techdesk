@@ -8,6 +8,11 @@ load_observability() {
   . "${DEPLOY_ROOT}/observability.sh"
 }
 
+load_backup_contracts() {
+  load_observability
+  . "${DEPLOY_ROOT}/backup-contracts.sh"
+}
+
 usage() {
   cat <<EOF
 TechDesk Pro Setup
@@ -18,6 +23,9 @@ Uso:
   ./techdesk status --json
   ./techdesk diagnostics --json
   ./techdesk backup-list --json
+  ./techdesk backup --json
+  ./techdesk backup-check --id BACKUP_ID --json
+  ./techdesk restore-check --id BACKUP_ID --json
   ./techdesk repair
   ./techdesk backup
   ./techdesk restore-check caminho/do/backup.dump [sha256-esperado]
@@ -252,6 +260,15 @@ backup_list_cmd() {
 }
 
 backup_cmd() {
+  if [ "$#" -eq 1 ] && [ "$1" = "--json" ]; then
+    load_backup_contracts
+    contract_backup_cmd
+    return
+  fi
+  if [ "$#" -ne 0 ]; then
+    fail "Use backup ou backup --json."
+    return 2
+  fi
   require_operation_access backup || return 1
   setup_log_init
   require_env
@@ -266,7 +283,25 @@ backup_cmd() {
   rm -f "$tmp"
 }
 
+backup_check_cmd() {
+  if [ "$#" -ne 3 ] || [ "$1" != "--id" ] || [ "$3" != "--json" ]; then
+    fail "Use backup-check --id BACKUP_ID --json."
+    return 2
+  fi
+  load_backup_contracts
+  contract_backup_check_cmd "$2"
+}
+
 restore_check_cmd() {
+  if [ "$#" -eq 3 ] && [ "$1" = "--id" ] && [ "$3" = "--json" ]; then
+    load_backup_contracts
+    contract_restore_check_cmd "$2"
+    return
+  fi
+  if [ "$#" -lt 1 ] || [ "$#" -gt 2 ]; then
+    fail "Use restore-check caminho/do/backup.dump [sha256] ou restore-check --id BACKUP_ID --json."
+    return 2
+  fi
   require_operation_access restore-check || return 1
   setup_log_init
   require_env
@@ -425,7 +460,7 @@ if [ "$#" -gt 0 ]; then
 fi
 
 case "$command" in
-  install|status|diagnostics|backup-list|repair|backup|restore-check|upgrade)
+  install|status|diagnostics|backup-list|repair|backup|backup-check|restore-check|upgrade)
     ensure_or_delegate_runtime "$command" "$@"
     ;;
 esac
@@ -437,6 +472,7 @@ case "$command" in
   backup-list) backup_list_cmd "$@" ;;
   repair) repair_cmd "$@" ;;
   backup) backup_cmd "$@" ;;
+  backup-check) backup_check_cmd "$@" ;;
   restore-check) restore_check_cmd "$@" ;;
   upgrade) upgrade_cmd "$@" ;;
   --self-test) self_test_cmd ;;

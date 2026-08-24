@@ -27,6 +27,7 @@ const linuxRuntimeFiles = [
   "techdesk",
   "setup-core.sh",
   "observability.sh",
+  "backup-contracts.sh",
   "install.sh",
   "start.sh",
   "stop.sh",

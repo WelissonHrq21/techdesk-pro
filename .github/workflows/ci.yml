@@ -7,6 +7,15 @@ on:
   pull_request:
 
 jobs:
+  backup-contracts-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Real PostgreSQL backup contracts
+        run: sh tests/system/stage4-backup-real.sh
+
   test:
     runs-on: ubuntu-latest
 
