@@ -225,7 +225,7 @@ function runManagerContract(command: "status" | "diagnostics" | "backup-list", s
       'cp "$3" "$runtime/observability.sh"',
       'cp "$4" "$runtime/docker-compose.yml"',
       'cp "$5" "$runtime/restore-check.sh"',
-      'printf "1.2.0\\n" > "$runtime/VERSION"',
+      'printf "1.2.1-rc.1\\n" > "$runtime/VERSION"',
       'printf \'#!/bin/sh\\nexit 1\\n\' > "$runtime/bin/curl"',
       'printf \'#!/bin/sh\\ncase "${1:-}" in --version) echo "Docker version 27.0.0"; exit 0;; info) echo "permission denied while trying to connect to docker.sock" >&2; exit 1;; compose) echo "Docker Compose version v2.30.0"; exit 0;; esac\\nexit 1\\n\' > "$runtime/bin/docker"',
       'printf \'#!/bin/sh\\nexit 1\\n\' > "$runtime/bin/ip"',
@@ -266,7 +266,7 @@ function parseManagerContract(result: SpawnSyncReturns<string>) {
 }
 
 const installedContractSetup = [
-  'printf \'%s\\n\' \'{"installationId":"public-id","version":"1.2.0","projectName":"techdesk-contract-test","frontendPort":"18080","installerVersion":"1.2.0"}\' > "$runtime/techdesk-installation.json"',
+  'printf \'%s\\n\' \'{"installationId":"public-id","version":"1.2.1-rc.1","projectName":"techdesk-contract-test","frontendPort":"18080","installerVersion":"1.2.1-rc.1"}\' > "$runtime/techdesk-installation.json"',
   'printf "DATABASE_URL=SUPER_SECRET_DATABASE_URL\\nJWT_SECRET=SUPER_SECRET_JWT\\n" > "$runtime/.env"',
   'chmod 600 "$runtime/.env"',
 ];
@@ -280,6 +280,21 @@ const healthyContractCommands = [
 ];
 
 describe("TechDesk setup bootstrapper", () => {
+  it("keeps the RC identity coherent across application and deployment metadata", () => {
+    const backendPackage = JSON.parse(readFileSync(join(root, "package.json"), "utf8")) as {
+      version: string;
+    };
+    const frontendPackage = JSON.parse(
+      readFileSync(join(root, "frontend", "package.json"), "utf8")
+    ) as { version: string };
+    const openApi = readFileSync(join(root, "src", "docs", "openapi.ts"), "utf8");
+
+    expect(backendPackage.version).toBe("1.2.1-rc.1");
+    expect(frontendPackage.version).toBe("1.2.1-rc.1");
+    expect(openApi).toContain('version: "1.2.1-rc.1"');
+    expect(readFileSync(join(deployDir, "VERSION"), "utf8").trim()).toBe("1.2.1");
+  });
+
   it("keeps POSIX deploy executables LF-only with valid shebangs", () => {
     const posixDeployFiles = readdirSync(deployDir)
       .filter((name) => name === "techdesk" || name.endsWith(".sh"))
@@ -316,9 +331,9 @@ describe("TechDesk setup bootstrapper", () => {
   it("keeps production compose on versioned images and private PostgreSQL", () => {
     const compose = readFileSync(composeFile, "utf8");
 
-    expect(compose).toContain("ghcr.io/welissonhrq21/techdesk-pro-api:1.2.0");
+    expect(compose).toContain("ghcr.io/welissonhrq21/techdesk-pro-api:1.2.1");
     expect(compose).toContain(
-      "ghcr.io/welissonhrq21/techdesk-pro-frontend:1.2.0"
+      "ghcr.io/welissonhrq21/techdesk-pro-frontend:1.2.1"
     );
     expect(compose).not.toMatch(/:latest\b/);
     const postgresBlock = compose.match(/postgres:[\s\S]*?\n  api:/)?.[0] ?? "";
@@ -794,8 +809,8 @@ describe("TechDesk setup bootstrapper", () => {
 
   it.runIf(hasShell())("packages Linux runtime public files with stable modes", () => {
     const outputDir = mkdtempSync(join(tmpdir(), "techdesk-package-modes-"));
-    const realArchive = join(root, "dist", "techdesk-pro-setup-1.2.0-rc.3.tar.gz");
-    const realStaging = join(root, "dist", "techdesk-pro-setup-1.2.0-rc.3");
+    const realArchive = join(root, "dist", "techdesk-pro-setup-1.2.1-rc.1.tar.gz");
+    const realStaging = join(root, "dist", "techdesk-pro-setup-1.2.1-rc.1");
     const realArchiveBefore = existsSync(realArchive)
       ? readFileSync(realArchive)
       : null;
@@ -803,10 +818,10 @@ describe("TechDesk setup bootstrapper", () => {
 
     const result = runShellCommand(
       [
-        'archive="$(PACKAGE_OUT_DIR="$2" PACKAGE_SUFFIX=rc.3 "$1")"',
+        'archive="$(PACKAGE_OUT_DIR="$2" PACKAGE_SUFFIX=rc.1 "$1")"',
         'tar -tvzf "$archive" | awk \'/deploy\\/techdesk$/ || /deploy\\/VERSION$/ || /deploy\\/README-INSTALL.md$/ || /deploy\\/nginx\\/default.conf$/ {print $1, $NF}\'',
         'printf "VERSION_CONTENT="',
-        'tar -xOzf "$archive" techdesk-pro-setup-1.2.0-rc.3/deploy/VERSION',
+        'tar -xOzf "$archive" techdesk-pro-setup-1.2.1-rc.1/deploy/VERSION',
         'printf "\\n"',
         'members="$(tar -tzf "$archive" | grep -E \'/deploy/(techdesk|[^/]+\\.sh)$\')"',
         'test -n "$members"',
@@ -822,15 +837,15 @@ describe("TechDesk setup bootstrapper", () => {
     try {
       expect(result.stderr).toBe("");
       expect(result.status).toBe(0);
-      expect(result.stdout).toContain("-rwxr-xr-x techdesk-pro-setup-1.2.0-rc.3/deploy/techdesk");
-      expect(result.stdout).toContain("-rw-r--r-- techdesk-pro-setup-1.2.0-rc.3/deploy/VERSION");
+      expect(result.stdout).toContain("-rwxr-xr-x techdesk-pro-setup-1.2.1-rc.1/deploy/techdesk");
+      expect(result.stdout).toContain("-rw-r--r-- techdesk-pro-setup-1.2.1-rc.1/deploy/VERSION");
       expect(result.stdout).toContain(
-        "-rw-r--r-- techdesk-pro-setup-1.2.0-rc.3/deploy/README-INSTALL.md"
+        "-rw-r--r-- techdesk-pro-setup-1.2.1-rc.1/deploy/README-INSTALL.md"
       );
       expect(result.stdout).toContain(
-        "-rw-r--r-- techdesk-pro-setup-1.2.0-rc.3/deploy/nginx/default.conf"
+        "-rw-r--r-- techdesk-pro-setup-1.2.1-rc.1/deploy/nginx/default.conf"
       );
-      expect(result.stdout).toContain("VERSION_CONTENT=1.2.0-rc.3");
+      expect(result.stdout).toContain("VERSION_CONTENT=1.2.1-rc.1");
       expect(result.stdout).toContain("PACKAGE_POSIX_LF=PASS");
       expect(existsSync(realArchive)).toBe(realArchiveBefore !== null);
       if (realArchiveBefore) {
@@ -846,9 +861,9 @@ describe("TechDesk setup bootstrapper", () => {
     const outputDir = mkdtempSync(join(tmpdir(), "techdesk-package-repro-"));
     const result = runShellCommand(
       [
-        'archive="$(PACKAGE_OUT_DIR="$2" PACKAGE_SUFFIX=rc.3 "$1")"',
+        'archive="$(PACKAGE_OUT_DIR="$2" PACKAGE_SUFFIX=rc.1 "$1")"',
         'first="$(sha256sum "$archive" | awk \'{print $1}\')"',
-        'archive="$(PACKAGE_OUT_DIR="$2" PACKAGE_SUFFIX=rc.3 "$1")"',
+        'archive="$(PACKAGE_OUT_DIR="$2" PACKAGE_SUFFIX=rc.1 "$1")"',
         'second="$(sha256sum "$archive" | awk \'{print $1}\')"',
         'printf "%s\\n%s\\n" "$first" "$second"',
         'test "$first" = "$second"',
@@ -867,21 +882,23 @@ describe("TechDesk setup bootstrapper", () => {
     }
   });
 
-  it.runIf(hasShell())("materializes RC3 across operational package defaults", () => {
+  it.runIf(hasShell())("materializes RC1 across operational package defaults", () => {
     const outputDir = mkdtempSync(join(tmpdir(), "techdesk-package-version-"));
     const result = runShellCommand(
       [
-        'archive="$(PACKAGE_OUT_DIR="$2" PACKAGE_SUFFIX=rc.3 "$1")"',
-        'root="techdesk-pro-setup-1.2.0-rc.3/deploy"',
-        'test "$(tar -xOzf "$archive" "$root/VERSION")" = "1.2.0-rc.3"',
+        'archive="$(PACKAGE_OUT_DIR="$2" PACKAGE_SUFFIX=rc.1 "$1")"',
+        'root="techdesk-pro-setup-1.2.1-rc.1/deploy"',
+        'test "$(tar -xOzf "$archive" "$root/VERSION")" = "1.2.1-rc.1"',
         'for member in .env.example docker-compose.yml install.ps1; do',
         '  content="$(tar -xOzf "$archive" "$root/$member")"',
-        '  printf "%s" "$content" | grep -F "ghcr.io/welissonhrq21/techdesk-pro-api:1.2.0-rc.3" >/dev/null',
-        '  printf "%s" "$content" | grep -F "ghcr.io/welissonhrq21/techdesk-pro-frontend:1.2.0-rc.3" >/dev/null',
-        "  if printf \"%s\" \"$content\" | grep -E 'techdesk-pro-(api|frontend):1\\.2\\.0([\"}[:space:]]|$)' >/dev/null; then exit 1; fi",
+        '  printf "%s" "$content" | grep -F "ghcr.io/welissonhrq21/techdesk-pro-api:1.2.1-rc.1" >/dev/null',
+        '  printf "%s" "$content" | grep -F "ghcr.io/welissonhrq21/techdesk-pro-frontend:1.2.1-rc.1" >/dev/null',
+        "  if printf \"%s\" \"$content\" | grep -E 'techdesk-pro-(api|frontend):1\\.2\\.1([\"}[:space:]]|$)' >/dev/null; then exit 1; fi",
         'done',
         'env_content="$(tar -xOzf "$archive" "$root/.env.example")"',
-        'printf "%s" "$env_content" | grep -F "TECHDESK_VERSION=1.2.0-rc.3" >/dev/null',
+        'printf "%s" "$env_content" | grep -F "TECHDESK_VERSION=1.2.1-rc.1" >/dev/null',
+        'setup_content="$(tar -xOzf "$archive" "$root/setup-core.sh")"',
+        'printf "%s" "$setup_content" | grep -F \'INSTALLER_VERSION="${INSTALLER_VERSION:-1.2.1-rc.1}"\' >/dev/null',
       ].join("\n"),
       [packageScript, outputDir]
     );
@@ -899,16 +916,16 @@ describe("TechDesk setup bootstrapper", () => {
     const result = runShellCommand(
       [
         'archive="$(PACKAGE_OUT_DIR="$2" PACKAGE_SUFFIX= "$1")"',
-        'root="techdesk-pro-setup-1.2.0/deploy"',
-        'test "$(tar -xOzf "$archive" "$root/VERSION")" = "1.2.0"',
+        'root="techdesk-pro-setup-1.2.1/deploy"',
+        'test "$(tar -xOzf "$archive" "$root/VERSION")" = "1.2.1"',
         'for member in .env.example docker-compose.yml install.ps1; do',
         '  content="$(tar -xOzf "$archive" "$root/$member")"',
-        '  printf "%s" "$content" | grep -F "ghcr.io/welissonhrq21/techdesk-pro-api:1.2.0" >/dev/null',
-        '  printf "%s" "$content" | grep -F "ghcr.io/welissonhrq21/techdesk-pro-frontend:1.2.0" >/dev/null',
-        '  if printf "%s" "$content" | grep -E "techdesk-pro-(api|frontend):1\\.2\\.0-rc\\." >/dev/null; then exit 1; fi',
+        '  printf "%s" "$content" | grep -F "ghcr.io/welissonhrq21/techdesk-pro-api:1.2.1" >/dev/null',
+        '  printf "%s" "$content" | grep -F "ghcr.io/welissonhrq21/techdesk-pro-frontend:1.2.1" >/dev/null',
+        '  if printf "%s" "$content" | grep -E "techdesk-pro-(api|frontend):1\\.2\\.1-rc\\." >/dev/null; then exit 1; fi',
         'done',
         'env_content="$(tar -xOzf "$archive" "$root/.env.example")"',
-        'printf "%s" "$env_content" | grep -F "TECHDESK_VERSION=1.2.0" >/dev/null',
+        'printf "%s" "$env_content" | grep -F "TECHDESK_VERSION=1.2.1" >/dev/null',
       ].join("\n"),
       [packageScript, outputDir]
     );
@@ -1051,7 +1068,7 @@ describe.runIf(hasShell())("TechDesk Manager read-only CLI contracts", () => {
     expect(contract.durationMs).toBeLessThan(10_000);
     expect(techdesk).toMatchObject({
       installed: true,
-      version: "1.2.0",
+      version: "1.2.1-rc.1",
       overall: "HEALTHY",
       frontend: { state: "HEALTHY" },
       api: { state: "READY" },

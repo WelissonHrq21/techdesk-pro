@@ -2,7 +2,7 @@ export const openApiDocument = {
   openapi: "3.0.3",
   info: {
     title: "TechDesk Pro API",
-    version: "1.2.0",
+    version: "1.2.1-rc.1",
     description: "API for technical assistance management",
   },
   servers: [

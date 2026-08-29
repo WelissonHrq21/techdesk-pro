@@ -65,11 +65,13 @@ version_pattern="$(printf '%s' "$VERSION" | sed 's/\./\\./g')"
 for file in \
   .env.example \
   docker-compose.yml \
-  install.ps1; do
+  install.ps1 \
+  setup-core.sh; do
   sed \
     -e "s|TECHDESK_VERSION=${version_pattern}|TECHDESK_VERSION=${PACKAGE_VERSION}|g" \
     -e "s|ghcr.io/welissonhrq21/techdesk-pro-api:${version_pattern}|ghcr.io/welissonhrq21/techdesk-pro-api:${PACKAGE_VERSION}|g" \
     -e "s|ghcr.io/welissonhrq21/techdesk-pro-frontend:${version_pattern}|ghcr.io/welissonhrq21/techdesk-pro-frontend:${PACKAGE_VERSION}|g" \
+    -e "s|INSTALLER_VERSION=\"\${INSTALLER_VERSION:-${version_pattern}}\"|INSTALLER_VERSION=\"\${INSTALLER_VERSION:-${PACKAGE_VERSION}}\"|g" \
     "${STAGING}/deploy/${file}" > "${STAGING}/deploy/${file}.tmp"
   mv "${STAGING}/deploy/${file}.tmp" "${STAGING}/deploy/${file}"
 done
